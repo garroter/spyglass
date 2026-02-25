@@ -28,7 +28,7 @@ export type MessageToWebview =
   | { type: 'results'; results: SearchResult[]; query: string; took: number }
   | { type: 'searching' }
   | { type: 'focus' }
-
+  | { type: 'setQuery'; query: string }
   | { type: 'error'; message: string }
   | { type: 'previewContent'; lines: string[]; currentLine: number; relativePath: string; ext: string }
   | { type: 'fileResults'; results: FileResult[]; query: string };

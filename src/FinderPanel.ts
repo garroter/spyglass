@@ -49,9 +49,18 @@ export class FinderPanel {
   private _searchSeq = 0;
 
   public static async createOrShow(context: vscode.ExtensionContext): Promise<void> {
+    const editor = vscode.window.activeTextEditor;
+    const selectedText = editor && !editor.selection.isEmpty
+      ? editor.document.getText(editor.selection).trim().split('\n')[0].trim()
+      : '';
+
     if (FinderPanel.currentPanel) {
       FinderPanel.currentPanel._panel.reveal();
-      FinderPanel.currentPanel._post({ type: 'focus' });
+      if (selectedText) {
+        FinderPanel.currentPanel._post({ type: 'setQuery', query: selectedText });
+      } else {
+        FinderPanel.currentPanel._post({ type: 'focus' });
+      }
       return;
     }
 
@@ -81,19 +90,28 @@ export class FinderPanel {
       { enableScripts: true, localResourceRoots: [] }
     );
 
-    FinderPanel.currentPanel = new FinderPanel(panel, defaultScope, kb, context);
+    FinderPanel.currentPanel = new FinderPanel(panel, defaultScope, kb, selectedText, context);
   }
 
   private constructor(
     panel: vscode.WebviewPanel,
     defaultScope: Scope,
     kb: KeyBindings,
+    initialQuery: string,
     _context: vscode.ExtensionContext
   ) {
     this._panel = panel;
     this._scope = defaultScope;
     this._cwd = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath ?? '';
-    this._panel.webview.html = this._buildHtml(defaultScope, kb);
+    this._panel.webview.html = this._buildHtml(defaultScope, kb, initialQuery);
+
+    // Warm file cache in background so Files tab is instant on first use
+    if (this._cwd) {
+      listFilesWithRipgrep(this._cwd).then(files => {
+        this._fileCache = files;
+        this._fileCacheTime = Date.now();
+      });
+    }
 
     this._panel.onDidDispose(() => this.dispose(), null, this._disposables);
 
@@ -256,7 +274,7 @@ export class FinderPanel {
     this._disposables.length = 0;
   }
 
-  private _buildHtml(defaultScope: Scope, kb: KeyBindings): string {
+  private _buildHtml(defaultScope: Scope, kb: KeyBindings, initialQuery: string = ''): string {
     const nonce = getNonce();
     return /* html */`<!DOCTYPE html>
 <html lang="en">
@@ -593,6 +611,7 @@ export class FinderPanel {
 
   // ── Keybindings (from settings) ────────────────────────────────────────────
   const KB = ${JSON.stringify(kb)};
+  const INITIAL_QUERY = ${JSON.stringify(initialQuery)};
 
   function matchKey(e, binding) {
     if (!binding) { return false; }
@@ -1059,6 +1078,14 @@ export class FinderPanel {
         queryEl.focus();
         queryEl.select();
         break;
+      case 'setQuery':
+        queryEl.value = data.query;
+        state.query = data.query;
+        state.selected = 0;
+        queryEl.focus();
+        queryEl.select();
+        triggerSearch();
+        break;
     }
   });
 
@@ -1092,6 +1119,12 @@ export class FinderPanel {
   if (state.scope === 'files') {
     regexBtn.disabled = true;
     queryEl.placeholder = 'Search files by name...';
+  }
+  if (INITIAL_QUERY) {
+    queryEl.value = INITIAL_QUERY;
+    state.query = INITIAL_QUERY;
+    queryEl.select();
+    triggerSearch();
   }
   queryEl.focus();
 </script>

@@ -2,70 +2,71 @@
 
 **Fast, keyboard-driven search popup for VS Code** — inspired by [Neovim Telescope](https://github.com/nvim-telescope/telescope.nvim) and JetBrains Search Everywhere.
 
-![Finder Icon](images/icon.svg)
+Open with `Shift+Alt+F`. Type. Navigate. Done.
 
 ---
 
 ## Features
 
-- **Double Shift** to open the search popup instantly
-- Search **text in files** across the whole project
-- Scope tabs: **Project** · **Open Tabs**
+- **Full-text search** across the whole project with ripgrep (blazing fast)
+- **File search** — fuzzy search by filename with match highlighting
+- **Open Files scope** — search only within currently open editor tabs
+- **Live preview** — see file content as you navigate results, with syntax highlighting
+- **Pre-fill from selection** — select text in editor, open Finder → query is pre-filled
 - **Regex mode** toggle for power users
-- **Neovim keybindings** support inside the popup (`j/k` navigation, `Esc` to close)
-- Close with **Q** or `Escape`
+- **Fully configurable keybindings** — change any shortcut via VS Code settings
+- **Theme adaptive** — works with any VS Code theme (dark, light, high contrast)
+- **Zero dependencies** — ripgrep is bundled, no installation required
 
 ---
 
-## Keyboard Shortcuts
+## Usage
 
-| Shortcut | Action |
-|---|---|
-| `Shift Shift` | Open Finder |
-| `↑` / `↓` or `k` / `j` | Navigate results |
-| `Enter` | Open selected file |
-| `Tab` | Switch scope (Project / Open Tabs) |
-| `Ctrl+R` | Toggle Regex mode |
-| `Q` / `Escape` | Close Finder |
+| Action | Default shortcut |
+|--------|-----------------|
+| Open Finder | `Shift+Alt+F` |
+| Navigate results | `↑` / `↓` |
+| Open selected file | `Enter` |
+| Switch scope (Project → Open Files → Files) | `Tab` |
+| Toggle regex mode | `Shift+Alt+R` |
+| Toggle preview panel | `Shift+Alt+P` |
+| Close | `Escape` |
+
+**Tip:** Select any text in the editor before opening Finder — the query is automatically pre-filled and search starts instantly.
 
 ---
 
-## Scopes
+## Search Scopes
 
 | Scope | Description |
-|---|---|
-| **Project** | Search across all files in the workspace |
-| **Open Tabs** | Search only within currently open editor tabs |
+|-------|-------------|
+| **Project** | Full-text search across all files in the workspace |
+| **Open Files** | Full-text search only within currently open editor tabs |
+| **Files** | Fuzzy search by filename across the whole project |
+
+Switch between scopes with `Tab` while Finder is open.
+
+---
+
+## Settings
+
+| Setting | Default | Description |
+|---------|---------|-------------|
+| `finder.defaultScope` | `project` | Scope on open: `project`, `openFiles`, or `files` |
+| `finder.maxResults` | `200` | Maximum number of results to display |
+| `finder.keybindings.navigateDown` | `ArrowDown` | Navigate down in results |
+| `finder.keybindings.navigateUp` | `ArrowUp` | Navigate up in results |
+| `finder.keybindings.open` | `Enter` | Open selected result |
+| `finder.keybindings.close` | `Escape` | Close Finder |
+| `finder.keybindings.toggleRegex` | `shift+alt+r` | Toggle regex mode |
+| `finder.keybindings.togglePreview` | `shift+alt+p` | Toggle preview panel |
 
 ---
 
 ## Requirements
 
 - VS Code `^1.85.0`
-- [ripgrep](https://github.com/BurntSushi/ripgrep) (bundled or system-installed) for fast full-text search
-
----
-
-## Extension Settings
-
-| Setting | Default | Description |
-|---|---|---|
-| `finder.maxResults` | `200` | Max number of results shown |
-| `finder.defaultScope` | `project` | Default scope on open (`project` or `openFiles`) |
-| `finder.ripgrepPath` | `""` | Custom path to `rg` binary |
-
----
-
-## Roadmap
-
-- [x] Project scaffold & icon
-- [ ] Search popup UI (WebviewPanel)
-- [ ] Full-text search with ripgrep
-- [ ] Open tabs scope
-- [ ] Regex toggle
-- [ ] Neovim keybinding support
-- [ ] File search mode (filenames)
-- [ ] Recent files scope
+- No additional dependencies — ripgrep is bundled automatically
 
 ---
 

@@ -71,7 +71,7 @@ export async function searchWithRipgrep(
                 : path.join(cwd, filePath.text);
               results.push({
                 file: absPath,
-                relativePath: path.relative(cwd, absPath),
+                relativePath: path.relative(cwd, absPath).replace(/\\/g, '/'),
                 line: line_number,
                 text: lineData.text.trimEnd(),
                 matchStart: submatches[0].start,
