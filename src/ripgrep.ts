@@ -65,9 +65,12 @@ export async function searchWithRipgrep(
           if (msg.type === 'match') {
             const { path: filePath, lines: lineData, line_number, submatches } = msg.data;
             if (submatches.length > 0) {
+              const absPath = path.isAbsolute(filePath.text)
+                ? filePath.text
+                : path.join(cwd, filePath.text);
               results.push({
-                file: filePath.text,
-                relativePath: path.relative(cwd, filePath.text),
+                file: absPath,
+                relativePath: path.relative(cwd, absPath),
                 line: line_number,
                 text: lineData.text.trimEnd(),
                 matchStart: submatches[0].start,

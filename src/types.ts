@@ -13,9 +13,12 @@ export type MessageToWebview =
   | { type: 'results'; results: SearchResult[]; query: string; took: number }
   | { type: 'searching' }
   | { type: 'focus' }
-  | { type: 'error'; message: string };
+
+  | { type: 'error'; message: string }
+  | { type: 'previewContent'; lines: string[]; currentLine: number; relativePath: string; ext: string };
 
 export type MessageFromWebview =
   | { type: 'search'; query: string; useRegex: boolean; scope: Scope }
   | { type: 'open'; file: string; line: number }
+  | { type: 'preview'; file: string; line: number }
   | { type: 'close' };
