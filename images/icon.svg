@@ -1,0 +1,32 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#1e1e2e"/>
+      <stop offset="100%" style="stop-color:#2a2a3e"/>
+    </linearGradient>
+    <linearGradient id="lens" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#89b4fa"/>
+      <stop offset="100%" style="stop-color:#cba6f7"/>
+    </linearGradient>
+    <linearGradient id="handle" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#f38ba8"/>
+      <stop offset="100%" style="stop-color:#fab387"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Background rounded square -->
+  <rect width="128" height="128" rx="24" ry="24" fill="url(#bg)"/>
+
+  <!-- Magnifying glass circle -->
+  <circle cx="52" cy="52" r="28" fill="none" stroke="url(#lens)" stroke-width="9"/>
+
+  <!-- Inner lens reflection -->
+  <circle cx="44" cy="42" r="7" fill="none" stroke="#cdd6f4" stroke-width="2.5" opacity="0.4"/>
+
+  <!-- Handle -->
+  <line x1="73" y1="73" x2="100" y2="100" stroke="url(#handle)" stroke-width="10" stroke-linecap="round"/>
+
+  <!-- Search lines inside lens (like text/code) -->
+  <line x1="40" y1="47" x2="62" y2="47" stroke="#cdd6f4" stroke-width="3" stroke-linecap="round" opacity="0.6"/>
+  <line x1="40" y1="55" x2="57" y2="55" stroke="#cdd6f4" stroke-width="3" stroke-linecap="round" opacity="0.4"/>
+</svg>

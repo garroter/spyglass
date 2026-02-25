@@ -1,0 +1,78 @@
+{
+  "name": "finder",
+  "displayName": "Finder",
+  "description": "Fast file and text search popup inspired by Neovim Telescope and JetBrains Finder",
+  "version": "0.1.0",
+  "publisher": "piotrmacai",
+  "icon": "images/icon.png",
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "keywords": [
+    "search",
+    "finder",
+    "telescope",
+    "grep",
+    "fuzzy"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/piotrmacai/finder"
+  },
+  "activationEvents": [],
+  "main": "./out/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "finder.open",
+        "title": "Finder: Open Search"
+      }
+    ],
+    "keybindings": [
+      {
+        "command": "finder.open",
+        "key": "shift+alt+f",
+        "mac": "shift+alt+f",
+        "when": "editorTextFocus || !inputFocus"
+      }
+    ],
+    "configuration": {
+      "title": "Finder",
+      "properties": {
+        "finder.ripgrepPath": {
+          "type": "string",
+          "default": "",
+          "description": "Path to ripgrep binary. Leave empty to use bundled version."
+        },
+        "finder.maxResults": {
+          "type": "number",
+          "default": 200,
+          "description": "Maximum number of search results to display."
+        },
+        "finder.defaultScope": {
+          "type": "string",
+          "enum": ["project", "openFiles"],
+          "default": "project",
+          "description": "Default search scope when Finder opens."
+        }
+      }
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "lint": "eslint src --ext ts"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "@types/vscode": "^1.85.0",
+    "@typescript-eslint/eslint-plugin": "^7.0.0",
+    "@typescript-eslint/parser": "^7.0.0",
+    "eslint": "^8.56.0",
+    "typescript": "^5.3.0"
+  }
+}
