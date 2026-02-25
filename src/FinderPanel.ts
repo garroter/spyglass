@@ -2,7 +2,7 @@ import * as vscode from 'vscode';
 import * as path from 'path';
 import { promises as fsp } from 'fs';
 import { searchWithRipgrep, isRipgrepAvailable } from './ripgrep';
-import { SearchResult, Scope } from './types';
+import { Scope, KeyBindings } from './types';
 
 function getNonce(): string {
   const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
@@ -34,6 +34,14 @@ export class FinderPanel {
 
     const config = vscode.workspace.getConfiguration('finder');
     const defaultScope = config.get<Scope>('defaultScope', 'project');
+    const kb: KeyBindings = {
+      navigateDown:   config.get<string>('keybindings.navigateDown',   'ArrowDown'),
+      navigateUp:     config.get<string>('keybindings.navigateUp',     'ArrowUp'),
+      open:           config.get<string>('keybindings.open',           'Enter'),
+      close:          config.get<string>('keybindings.close',          'Escape'),
+      toggleRegex:    config.get<string>('keybindings.toggleRegex',    'shift+alt+r'),
+      togglePreview:  config.get<string>('keybindings.togglePreview',  'shift+alt+p'),
+    };
 
     const panel = vscode.window.createWebviewPanel(
       'finder',
@@ -42,18 +50,19 @@ export class FinderPanel {
       { enableScripts: true, localResourceRoots: [] }
     );
 
-    FinderPanel.currentPanel = new FinderPanel(panel, defaultScope, context);
+    FinderPanel.currentPanel = new FinderPanel(panel, defaultScope, kb, context);
   }
 
   private constructor(
     panel: vscode.WebviewPanel,
     defaultScope: Scope,
+    kb: KeyBindings,
     _context: vscode.ExtensionContext
   ) {
     this._panel = panel;
     this._scope = defaultScope;
     this._cwd = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath ?? '';
-    this._panel.webview.html = this._buildHtml(defaultScope);
+    this._panel.webview.html = this._buildHtml(defaultScope, kb);
 
     this._panel.onDidDispose(() => this.dispose(), null, this._disposables);
 
@@ -168,7 +177,7 @@ export class FinderPanel {
     this._disposables.length = 0;
   }
 
-  private _buildHtml(defaultScope: Scope): string {
+  private _buildHtml(defaultScope: Scope, kb: KeyBindings): string {
     const nonce = getNonce();
     return /* html */`<!DOCTYPE html>
 <html lang="en">
@@ -485,14 +494,7 @@ export class FinderPanel {
 <!-- Footer -->
 <div class="footer">
   <span id="result-info"></span>
-  <span class="kbd-group">
-    <span><kbd>↑↓</kbd> <kbd>j</kbd><kbd>k</kbd> nav</span>
-    <span><kbd>Enter</kbd> open</span>
-    <span><kbd>Tab</kbd> scope</span>
-    <span><kbd>Ctrl+R</kbd> regex</span>
-    <span><kbd>P</kbd> preview</span>
-    <span><kbd>Q</kbd> <kbd>Esc</kbd> close</span>
-  </span>
+  <span class="kbd-group" id="kbd-group"></span>
 </div>
 
 </div><!-- .finder -->
@@ -504,6 +506,22 @@ export class FinderPanel {
   };
 
   const vscode = acquireVsCodeApi();
+
+  // ── Keybindings (from settings) ────────────────────────────────────────────
+  const KB = ${JSON.stringify(kb)};
+
+  function matchKey(e, binding) {
+    if (!binding) { return false; }
+    const parts = binding.toLowerCase().split('+');
+    const key   = parts[parts.length - 1];
+    const ctrl  = parts.includes('ctrl');
+    const shift = parts.includes('shift');
+    const alt   = parts.includes('alt');
+    return e.key.toLowerCase() === key
+      && e.ctrlKey  === ctrl
+      && e.shiftKey === shift
+      && e.altKey   === alt;
+  }
 
   // ── State ──────────────────────────────────────────────────────────────────
   const state = {
@@ -790,32 +808,33 @@ export class FinderPanel {
   });
 
   queryEl.addEventListener('keydown', (e) => {
-    if (e.key === 'ArrowDown' || (e.key === 'j' && !queryEl.value)) {
+    if (matchKey(e, KB.navigateDown)) {
       e.preventDefault(); navigate(1);
-    } else if (e.key === 'ArrowUp' || (e.key === 'k' && !queryEl.value)) {
+    } else if (matchKey(e, KB.navigateUp)) {
       e.preventDefault(); navigate(-1);
-    } else if (e.key === 'Enter') {
+    } else if (matchKey(e, KB.open)) {
       e.preventDefault(); openResult(state.selected);
-    } else if (e.key === 'Escape') {
+    } else if (matchKey(e, KB.close)) {
       vscode.postMessage({ type: 'close' });
     } else if (e.key === 'Tab') {
       e.preventDefault();
       setScope(state.scope === 'project' ? 'openFiles' : 'project');
-    } else if ((e.key === 'r' || e.key === 'R') && e.ctrlKey) {
+    } else if (matchKey(e, KB.toggleRegex)) {
       e.preventDefault(); toggleRegex();
+    } else if (matchKey(e, KB.togglePreview)) {
+      e.preventDefault(); togglePreview();
     }
   });
 
-  // Global keys (when input not focused or empty)
+  // Global keys (when input not focused)
   document.addEventListener('keydown', (e) => {
     if (document.activeElement === queryEl) { return; }
-    if (e.key === 'j' || e.key === 'ArrowDown') { e.preventDefault(); navigate(1); }
-    else if (e.key === 'k' || e.key === 'ArrowUp') { e.preventDefault(); navigate(-1); }
-    else if (e.key === 'Enter') { e.preventDefault(); openResult(state.selected); }
-    else if (e.key === 'p' || e.key === 'P') { togglePreview(); }
-    else if (e.key === 'q' || e.key === 'Q' || e.key === 'Escape') {
-      vscode.postMessage({ type: 'close' });
-    }
+    if (matchKey(e, KB.navigateDown))      { e.preventDefault(); navigate(1); }
+    else if (matchKey(e, KB.navigateUp))   { e.preventDefault(); navigate(-1); }
+    else if (matchKey(e, KB.open))         { e.preventDefault(); openResult(state.selected); }
+    else if (matchKey(e, KB.togglePreview)){ e.preventDefault(); togglePreview(); }
+    else if (matchKey(e, KB.close))        { vscode.postMessage({ type: 'close' }); }
+    else if (e.key === 'Tab')              { e.preventDefault(); setScope(state.scope === 'project' ? 'openFiles' : 'project'); }
   });
 
   tabs.forEach(tab => tab.addEventListener('click', () => setScope(tab.dataset.scope)));
@@ -856,6 +875,30 @@ export class FinderPanel {
         break;
     }
   });
+
+  // ── Footer kbd hints ───────────────────────────────────────────────────────
+  (function buildFooter() {
+    const KEY_NAMES = {
+      arrowdown: '↓', arrowup: '↑', arrowleft: '←', arrowright: '→',
+      escape: 'Esc', enter: '↵', tab: 'Tab', backspace: 'BS', delete: 'Del',
+    };
+    function fmtKey(k) {
+      return k.split('+').map(function(p) {
+        const d = KEY_NAMES[p.toLowerCase()] || (p.charAt(0).toUpperCase() + p.slice(1));
+        return '<kbd>' + d + '</kbd>';
+      }).join('');
+    }
+    document.getElementById('kbd-group').innerHTML =
+      '<span>' + fmtKey(KB.navigateDown) + ' nav</span>' +
+      '<span>' + fmtKey(KB.open)         + ' open</span>' +
+      '<span><kbd>Tab</kbd> scope</span>' +
+      '<span>' + fmtKey(KB.toggleRegex)  + ' regex</span>' +
+      '<span>' + fmtKey(KB.togglePreview)+ ' preview</span>' +
+      '<span>' + fmtKey(KB.close)        + ' close</span>';
+
+    regexBtn.title   = 'Toggle regex (' + KB.toggleRegex + ')';
+    previewBtn.title = 'Toggle preview (' + KB.togglePreview + ')';
+  })();
 
   // ── Init ───────────────────────────────────────────────────────────────────
   // regex OFF by default

@@ -1,3 +1,12 @@
+export interface KeyBindings {
+  navigateDown: string;
+  navigateUp: string;
+  open: string;
+  close: string;
+  toggleRegex: string;
+  togglePreview: string;
+}
+
 export interface SearchResult {
   file: string;
   relativePath: string;

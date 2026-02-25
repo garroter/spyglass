@@ -57,6 +57,36 @@
           "enum": ["project", "openFiles"],
           "default": "project",
           "description": "Default search scope when Finder opens."
+        },
+        "finder.keybindings.navigateDown": {
+          "type": "string",
+          "default": "ArrowDown",
+          "description": "Key to navigate down in results (e.g. 'ArrowDown', 'j')."
+        },
+        "finder.keybindings.navigateUp": {
+          "type": "string",
+          "default": "ArrowUp",
+          "description": "Key to navigate up in results (e.g. 'ArrowUp', 'k')."
+        },
+        "finder.keybindings.open": {
+          "type": "string",
+          "default": "Enter",
+          "description": "Key to open the selected result."
+        },
+        "finder.keybindings.close": {
+          "type": "string",
+          "default": "Escape",
+          "description": "Key to close Finder."
+        },
+        "finder.keybindings.toggleRegex": {
+          "type": "string",
+          "default": "shift+alt+r",
+          "description": "Key combination to toggle regex mode (e.g. 'shift+alt+r')."
+        },
+        "finder.keybindings.togglePreview": {
+          "type": "string",
+          "default": "shift+alt+p",
+          "description": "Key combination to toggle preview panel (e.g. 'shift+alt+p')."
         }
       }
     }
