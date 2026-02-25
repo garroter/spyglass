@@ -1,12 +1,39 @@
 import * as vscode from 'vscode';
 import * as path from 'path';
 import { promises as fsp } from 'fs';
-import { searchWithRipgrep, isRipgrepAvailable } from './ripgrep';
-import { Scope, KeyBindings } from './types';
+import { searchWithRipgrep, listFilesWithRipgrep, isRipgrepAvailable } from './ripgrep';
+import { Scope, KeyBindings, FileResult } from './types';
 
 function getNonce(): string {
   const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
   return Array.from({ length: 32 }, () => chars[Math.floor(Math.random() * chars.length)]).join('');
+}
+
+function fuzzyScore(str: string, query: string): { score: number; positions: number[] } | null {
+  const lStr = str.toLowerCase();
+  const lQuery = query.toLowerCase();
+  const positions: number[] = [];
+  let si = 0, qi = 0;
+
+  while (si < lStr.length && qi < lQuery.length) {
+    if (lStr[si] === lQuery[qi]) { positions.push(si); qi++; }
+    si++;
+  }
+  if (qi < lQuery.length) { return null; }
+
+  let score = 0;
+  let consecutive = 1;
+  for (let i = 1; i < positions.length; i++) {
+    if (positions[i] === positions[i - 1] + 1) { score += consecutive * 10; consecutive++; }
+    else { consecutive = 1; }
+  }
+  const basenameStart = str.lastIndexOf('/') + 1;
+  if (positions[0] >= basenameStart) { score += 50; }
+  if (positions[0] === basenameStart) { score += 30; }
+  score -= positions[positions.length - 1] - positions[0]; // penalty for spread
+  score -= (str.match(/\//g) ?? []).length * 2;            // penalty for depth
+
+  return { score, positions };
 }
 
 export class FinderPanel {
@@ -16,6 +43,10 @@ export class FinderPanel {
   private readonly _disposables: vscode.Disposable[] = [];
   private _scope: Scope;
   private _cwd: string = '';
+  private _fileCache: string[] | null = null;
+  private _fileCacheTime = 0;
+  private static readonly FILE_CACHE_TTL = 15_000;
+  private _searchSeq = 0;
 
   public static async createOrShow(context: vscode.ExtensionContext): Promise<void> {
     if (FinderPanel.currentPanel) {
@@ -33,7 +64,9 @@ export class FinderPanel {
     }
 
     const config = vscode.workspace.getConfiguration('finder');
-    const defaultScope = config.get<Scope>('defaultScope', 'project');
+    const rawScope = config.get<string>('defaultScope', 'project');
+    const defaultScope: Scope = (rawScope === 'project' || rawScope === 'openFiles' || rawScope === 'files')
+      ? rawScope : 'project';
     const kb: KeyBindings = {
       navigateDown:   config.get<string>('keybindings.navigateDown',   'ArrowDown'),
       navigateUp:     config.get<string>('keybindings.navigateUp',     'ArrowUp'),
@@ -72,6 +105,9 @@ export class FinderPanel {
           this._scope = msg.scope as Scope;
           await this._runSearch(msg.query as string, msg.useRegex as boolean);
           break;
+        case 'fileSearch':
+          await this._runFileSearch(msg.query as string);
+          break;
         case 'preview':
           await this._sendPreview(msg.file as string, msg.line as number);
           break;
@@ -90,6 +126,7 @@ export class FinderPanel {
   }
 
   private async _runSearch(query: string, useRegex: boolean): Promise<void> {
+    const seq = ++this._searchSeq;
     const config = vscode.workspace.getConfiguration('finder');
     const maxResults = config.get<number>('maxResults', 200);
 
@@ -116,10 +153,54 @@ export class FinderPanel {
     const start = Date.now();
     try {
       const results = await searchWithRipgrep(query, this._cwd, useRegex, files);
+      if (seq !== this._searchSeq) { return; }
       this._post({ type: 'results', results: results.slice(0, maxResults), query, took: Date.now() - start });
     } catch {
+      if (seq !== this._searchSeq) { return; }
       this._post({ type: 'error', message: 'Search failed.' });
     }
+  }
+
+  private async _runFileSearch(query: string): Promise<void> {
+    const seq = ++this._searchSeq;
+
+    if (!this._cwd) {
+      this._post({ type: 'error', message: 'No workspace folder open.' });
+      return;
+    }
+
+    this._post({ type: 'searching' });
+
+    const now = Date.now();
+    if (!this._fileCache || now - this._fileCacheTime > FinderPanel.FILE_CACHE_TTL) {
+      this._fileCache = await listFilesWithRipgrep(this._cwd);
+      this._fileCacheTime = Date.now();
+    }
+
+    if (seq !== this._searchSeq) { return; }
+
+    if (!query.trim()) {
+      this._post({ type: 'fileResults', results: [], query });
+      return;
+    }
+
+    const scored: Array<FileResult & { score: number }> = [];
+    for (const f of this._fileCache) {
+      const rel = path.relative(this._cwd, f);
+      const match = fuzzyScore(rel, query);
+      if (match) {
+        scored.push({ file: f, relativePath: rel, matchPositions: match.positions, score: match.score });
+      }
+    }
+    scored.sort((a, b) => b.score - a.score);
+
+    const config = vscode.workspace.getConfiguration('finder');
+    const maxResults = config.get<number>('maxResults', 200);
+    const results: FileResult[] = scored.slice(0, maxResults).map(({ file, relativePath, matchPositions }) => ({
+      file, relativePath, matchPositions,
+    }));
+
+    this._post({ type: 'fileResults', results, query });
   }
 
   private async _sendPreview(filePath: string, targetLine: number): Promise<void> {
@@ -157,7 +238,6 @@ export class FinderPanel {
   }
 
   private async _openFile(filePath: string, line: number): Promise<void> {
-    this.dispose();
     try {
       const uri = vscode.Uri.file(filePath);
       const doc = await vscode.workspace.openTextDocument(uri);
@@ -165,6 +245,7 @@ export class FinderPanel {
       const pos = new vscode.Position(Math.max(0, line - 1), 0);
       editor.selection = new vscode.Selection(pos, pos);
       editor.revealRange(new vscode.Range(pos, pos), vscode.TextEditorRevealType.InCenter);
+      this.dispose();
     } catch {
       vscode.window.showErrorMessage(`Finder: Could not open file ${filePath}`);
     }
@@ -273,6 +354,7 @@ export class FinderPanel {
   }
   .icon-btn:hover { border-color: var(--blue); color: var(--blue); }
   .icon-btn.active { background: var(--blue); border-color: var(--blue); color: var(--mantle); font-weight: 700; }
+  .icon-btn:disabled { opacity: 0.3; cursor: default; pointer-events: none; }
 
   /* ── Scope tabs ──────────────────────────────────────────── */
   .tabs {
@@ -470,6 +552,7 @@ export class FinderPanel {
 <div class="tabs">
   <button type="button" class="tab ${defaultScope === 'project' ? 'active' : ''}" data-scope="project">Project</button>
   <button type="button" class="tab ${defaultScope === 'openFiles' ? 'active' : ''}" data-scope="openFiles">Open Files</button>
+  <button type="button" class="tab ${defaultScope === 'files' ? 'active' : ''}" data-scope="files">Files</button>
 </div>
 
 <!-- Main layout -->
@@ -526,6 +609,7 @@ export class FinderPanel {
   // ── State ──────────────────────────────────────────────────────────────────
   const state = {
     results: [],
+    fileResults: [],
     selected: 0,
     scope: '${defaultScope}',
     useRegex: false,
@@ -560,6 +644,16 @@ export class FinderPanel {
     return escHtml(text.slice(0, start))
       + '<mark>' + escHtml(text.slice(start, end)) + '</mark>'
       + escHtml(text.slice(end));
+  }
+
+  function highlightPositions(text, positions) {
+    const posSet = new Set(positions);
+    let html = '';
+    for (let i = 0; i < text.length; i++) {
+      const c = escHtml(text[i]);
+      html += posSet.has(i) ? '<mark>' + c + '</mark>' : c;
+    }
+    return html;
   }
 
   // ── Syntax highlighter ─────────────────────────────────────────────────────
@@ -672,12 +766,26 @@ export class FinderPanel {
   let previewTimer = null;
 
   function requestPreview() {
+    if (state.scope === 'files') { requestFilePreview(); } else { requestTextPreview(); }
+  }
+
+  function requestTextPreview() {
     if (!state.showPreview) { return; }
     const r = state.results[state.selected];
     if (!r) { return; }
     clearTimeout(previewTimer);
     previewTimer = setTimeout(() => {
       vscode.postMessage({ type: 'preview', file: r.file, line: r.line });
+    }, 80);
+  }
+
+  function requestFilePreview() {
+    if (!state.showPreview) { return; }
+    const r = state.fileResults[state.selected];
+    if (!r) { return; }
+    clearTimeout(previewTimer);
+    previewTimer = setTimeout(() => {
+      vscode.postMessage({ type: 'preview', file: r.file, line: 1 });
     }, 80);
   }
 
@@ -716,6 +824,10 @@ export class FinderPanel {
 
   // ── Results render ─────────────────────────────────────────────────────────
   function render() {
+    if (state.scope === 'files') { renderFileResults(); } else { renderTextResults(); }
+  }
+
+  function renderTextResults() {
     wrap.querySelectorAll('.result').forEach(el => el.remove());
 
     if (state.searching) {
@@ -747,16 +859,60 @@ export class FinderPanel {
         '<div class="result-text">' + highlightMatch(r.text, r.matchStart, r.matchEnd) + '</div>';
 
       div.addEventListener('click', () => openResult(i));
-      div.addEventListener('mouseenter', () => {
-        state.selected = i;
-        updateSelection();
-        requestPreview();
-      });
+      div.addEventListener('mouseenter', () => { state.selected = i; updateSelection(); requestPreview(); });
       frag.appendChild(div);
     });
 
     wrap.appendChild(frag);
     resultInfo.textContent = state.results.length + ' result' + (state.results.length !== 1 ? 's' : '');
+    scrollToSelected();
+    requestPreview();
+  }
+
+  function renderFileResults() {
+    wrap.querySelectorAll('.result').forEach(el => el.remove());
+
+    if (state.searching) {
+      stateMsg.innerHTML = '<span class="spinner"></span>Searching…';
+      stateMsg.style.display = '';
+      resultInfo.textContent = '';
+      return;
+    }
+
+    if (state.fileResults.length === 0) {
+      stateMsg.textContent = state.query ? 'No files found.' : 'Start typing to search files...';
+      stateMsg.style.display = '';
+      resultInfo.textContent = '';
+      return;
+    }
+
+    stateMsg.style.display = 'none';
+
+    const frag = document.createDocumentFragment();
+    state.fileResults.forEach((r, i) => {
+      const lastSlash = r.relativePath.lastIndexOf('/');
+      const basenameStart = lastSlash + 1;
+      const basename = r.relativePath.slice(basenameStart);
+      const dir      = r.relativePath.slice(0, basenameStart);
+      const bnPos    = r.matchPositions.filter(p => p >= basenameStart).map(p => p - basenameStart);
+      const dirPos   = r.matchPositions.filter(p => p < basenameStart);
+
+      const div = document.createElement('div');
+      div.className = 'result' + (i === state.selected ? ' selected' : '');
+      div.dataset.index = String(i);
+      div.innerHTML =
+        '<div class="result-header">' +
+          '<span class="result-file">' + highlightPositions(basename, bnPos) + '</span>' +
+        '</div>' +
+        (dir ? '<div class="result-text" style="color:var(--overlay1)">' + highlightPositions(dir, dirPos) + '</div>' : '');
+
+      div.addEventListener('click', () => openResult(i));
+      div.addEventListener('mouseenter', () => { state.selected = i; updateSelection(); requestPreview(); });
+      frag.appendChild(div);
+    });
+
+    wrap.appendChild(frag);
+    resultInfo.textContent = state.fileResults.length + ' file' + (state.fileResults.length !== 1 ? 's' : '');
     scrollToSelected();
     requestPreview();
   }
@@ -774,12 +930,18 @@ export class FinderPanel {
 
   // ── Actions ────────────────────────────────────────────────────────────────
   function openResult(index) {
-    const r = state.results[index];
-    if (r) { vscode.postMessage({ type: 'open', file: r.file, line: r.line }); }
+    if (state.scope === 'files') {
+      const r = state.fileResults[index];
+      if (r) { vscode.postMessage({ type: 'open', file: r.file, line: 1 }); }
+    } else {
+      const r = state.results[index];
+      if (r) { vscode.postMessage({ type: 'open', file: r.file, line: r.line }); }
+    }
   }
 
   function navigate(delta) {
-    state.selected = Math.max(0, Math.min(state.selected + delta, state.results.length - 1));
+    const len = state.scope === 'files' ? state.fileResults.length : state.results.length;
+    state.selected = Math.max(0, Math.min(state.selected + delta, len - 1));
     updateSelection();
     requestPreview();
   }
@@ -789,15 +951,32 @@ export class FinderPanel {
   function triggerSearch() {
     clearTimeout(searchTimer);
     searchTimer = setTimeout(() => {
-      vscode.postMessage({ type: 'search', query: state.query, useRegex: state.useRegex, scope: state.scope });
+      if (state.scope === 'files') {
+        vscode.postMessage({ type: 'fileSearch', query: state.query });
+      } else {
+        vscode.postMessage({ type: 'search', query: state.query, useRegex: state.useRegex, scope: state.scope });
+      }
     }, 180);
   }
 
   // ── Scope ──────────────────────────────────────────────────────────────────
+  const SCOPES = ['project', 'openFiles', 'files'];
+
   function setScope(scope) {
     state.scope = scope;
+    state.selected = 0;
     tabs.forEach(t => t.classList.toggle('active', t.dataset.scope === scope));
-    if (state.query) { triggerSearch(); }
+    const isFiles = scope === 'files';
+    regexBtn.disabled = isFiles;
+    queryEl.placeholder = isFiles ? 'Search files by name...' : 'Search in files...';
+    if (state.query) {
+      triggerSearch();
+    } else {
+      state.results = [];
+      state.fileResults = [];
+      state.searching = false;
+      render();
+    }
   }
 
   // ── Events ─────────────────────────────────────────────────────────────────
@@ -818,7 +997,7 @@ export class FinderPanel {
       vscode.postMessage({ type: 'close' });
     } else if (e.key === 'Tab') {
       e.preventDefault();
-      setScope(state.scope === 'project' ? 'openFiles' : 'project');
+      setScope(SCOPES[(SCOPES.indexOf(state.scope) + 1) % SCOPES.length]);
     } else if (matchKey(e, KB.toggleRegex)) {
       e.preventDefault(); toggleRegex();
     } else if (matchKey(e, KB.togglePreview)) {
@@ -834,7 +1013,7 @@ export class FinderPanel {
     else if (matchKey(e, KB.open))         { e.preventDefault(); openResult(state.selected); }
     else if (matchKey(e, KB.togglePreview)){ e.preventDefault(); togglePreview(); }
     else if (matchKey(e, KB.close))        { vscode.postMessage({ type: 'close' }); }
-    else if (e.key === 'Tab')              { e.preventDefault(); setScope(state.scope === 'project' ? 'openFiles' : 'project'); }
+    else if (e.key === 'Tab')              { e.preventDefault(); setScope(SCOPES[(SCOPES.indexOf(state.scope) + 1) % SCOPES.length]); }
   });
 
   tabs.forEach(tab => tab.addEventListener('click', () => setScope(tab.dataset.scope)));
@@ -858,6 +1037,12 @@ export class FinderPanel {
       case 'results':
         state.searching = false;
         state.results = data.results;
+        state.selected = 0;
+        render();
+        break;
+      case 'fileResults':
+        state.searching = false;
+        state.fileResults = data.results;
         state.selected = 0;
         render();
         break;
@@ -885,7 +1070,7 @@ export class FinderPanel {
     function fmtKey(k) {
       return k.split('+').map(function(p) {
         const d = KEY_NAMES[p.toLowerCase()] || (p.charAt(0).toUpperCase() + p.slice(1));
-        return '<kbd>' + d + '</kbd>';
+        return '<kbd>' + escHtml(d) + '</kbd>';
       }).join('');
     }
     document.getElementById('kbd-group').innerHTML =
@@ -901,9 +1086,12 @@ export class FinderPanel {
   })();
 
   // ── Init ───────────────────────────────────────────────────────────────────
-  // regex OFF by default
   state.useRegex = false;
   regexBtn.classList.remove('active');
+  if (state.scope === 'files') {
+    regexBtn.disabled = true;
+    queryEl.placeholder = 'Search files by name...';
+  }
   queryEl.focus();
 </script>
 </body>

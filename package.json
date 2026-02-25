@@ -54,7 +54,7 @@
         },
         "finder.defaultScope": {
           "type": "string",
-          "enum": ["project", "openFiles"],
+          "enum": ["project", "openFiles", "files"],
           "default": "project",
           "description": "Default search scope when Finder opens."
         },

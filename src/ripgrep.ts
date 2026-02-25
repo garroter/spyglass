@@ -89,11 +89,43 @@ export async function searchWithRipgrep(
       resolve([]);
     });
 
-    rg.on('close', (code) => {
+    rg.on('close', () => {
       if (!errored) {
         // code 0 = matches found, code 1 = no matches, code 2 = error
         resolve(results.slice(0, 200));
       }
+    });
+  });
+}
+
+export function listFilesWithRipgrep(cwd: string): Promise<string[]> {
+  return new Promise((resolve) => {
+    const args = [
+      '--files',
+      '--glob', '!.git',
+      '--glob', '!node_modules',
+      '--glob', '!out',
+      '--glob', '!dist',
+      '--glob', '!*.lock',
+    ];
+
+    const rg = spawn('rg', args, { cwd });
+    const files: string[] = [];
+    let buffer = '';
+
+    rg.stdout.on('data', (data: Buffer) => {
+      buffer += data.toString();
+      const lines = buffer.split('\n');
+      buffer = lines.pop() ?? '';
+      for (const line of lines) {
+        if (line.trim()) { files.push(path.join(cwd, line.trim())); }
+      }
+    });
+
+    rg.on('error', () => resolve([]));
+    rg.on('close', () => {
+      if (buffer.trim()) { files.push(path.join(cwd, buffer.trim())); }
+      resolve(files);
     });
   });
 }

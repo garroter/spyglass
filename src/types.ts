@@ -16,7 +16,13 @@ export interface SearchResult {
   matchEnd: number;
 }
 
-export type Scope = 'project' | 'openFiles';
+export type Scope = 'project' | 'openFiles' | 'files';
+
+export interface FileResult {
+  file: string;
+  relativePath: string;
+  matchPositions: number[];
+}
 
 export type MessageToWebview =
   | { type: 'results'; results: SearchResult[]; query: string; took: number }
@@ -24,10 +30,12 @@ export type MessageToWebview =
   | { type: 'focus' }
 
   | { type: 'error'; message: string }
-  | { type: 'previewContent'; lines: string[]; currentLine: number; relativePath: string; ext: string };
+  | { type: 'previewContent'; lines: string[]; currentLine: number; relativePath: string; ext: string }
+  | { type: 'fileResults'; results: FileResult[]; query: string };
 
 export type MessageFromWebview =
   | { type: 'search'; query: string; useRegex: boolean; scope: Scope }
   | { type: 'open'; file: string; line: number }
   | { type: 'preview'; file: string; line: number }
+  | { type: 'fileSearch'; query: string }
   | { type: 'close' };
