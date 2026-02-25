@@ -269,30 +269,38 @@ export class FinderPanel {
 <title>Finder</title>
 <style nonce="${nonce}">
   :root {
-    --base:     #1e1e2e;
-    --mantle:   #181825;
-    --crust:    #11111b;
-    --surface0: #313244;
-    --surface1: #45475a;
-    --surface2: #585b70;
-    --overlay0: #6c7086;
-    --overlay1: #7f849c;
-    --text:     #cdd6f4;
-    --subtext0: #a6adc8;
-    --subtext1: #bac2de;
-    --blue:     #89b4fa;
-    --green:    #a6e3a1;
-    --yellow:   #f9e2af;
-    --peach:    #fab387;
-    --red:      #f38ba8;
-    --mauve:    #cba6f7;
+    /* ── Theme-adaptive: VSCode injects these for every theme ── */
+    --f-bg:        var(--vscode-editor-background);
+    --f-raised:    var(--vscode-editorWidget-background,    var(--vscode-editor-background));
+    --f-border:    var(--vscode-editorWidget-border,        var(--vscode-widget-border, #454545));
+    --f-border-s:  var(--vscode-editorGroup-border,         var(--vscode-editorWidget-border, #313244));
+    --f-text:      var(--vscode-editor-foreground);
+    --f-dim:       var(--vscode-descriptionForeground,      #888);
+    --f-ph:        var(--vscode-input-placeholderForeground,var(--vscode-descriptionForeground, #666));
+    --f-hover:     var(--vscode-list-hoverBackground);
+    --f-sel:       var(--vscode-list-activeSelectionBackground);
+    --f-sel-fg:    var(--vscode-list-activeSelectionForeground, var(--vscode-editor-foreground));
+    --f-accent:    var(--vscode-focusBorder);
+    --f-scrollbar: var(--vscode-scrollbarSlider-background);
+    --f-shadow:    var(--vscode-widget-shadow,              rgba(0,0,0,0.5));
+    --f-line-hl:   var(--vscode-editor-lineHighlightBackground);
+    --f-btn-fg:    var(--vscode-button-foreground,          #fff);
+
+    /* ── Fixed decorative: syntax + match highlights ─────────── */
+    --f-match: var(--vscode-editor-findMatchHighlightBackground, rgba(249,226,175,.35));
+    --f-kw:    #cba6f7;
+    --f-str:   #a6e3a1;
+    --f-cmt:   #7f849c;
+    --f-num:   #fab387;
+    --f-fn:    #89b4fa;
+    --f-op:    #f38ba8;
   }
 
   * { box-sizing: border-box; margin: 0; padding: 0; }
 
   body {
-    background: var(--crust);
-    color: var(--text);
+    background: var(--f-bg);
+    color: var(--f-text);
     font-family: 'SF Mono', 'Cascadia Code', 'Fira Code', Consolas, monospace;
     font-size: 13px;
     height: 100vh;
@@ -306,10 +314,10 @@ export class FinderPanel {
   .finder {
     width: min(960px, 95vw);
     height: min(600px, 82vh);
-    background: var(--mantle);
-    border: 1px solid var(--surface1);
+    background: var(--f-raised);
+    border: 1px solid var(--f-border);
     border-radius: 12px;
-    box-shadow: 0 24px 72px rgba(0, 0, 0, 0.7);
+    box-shadow: 0 24px 72px var(--f-shadow);
     display: flex;
     flex-direction: column;
     overflow: hidden;
@@ -321,30 +329,30 @@ export class FinderPanel {
     align-items: center;
     gap: 8px;
     padding: 10px 14px;
-    border-bottom: 1px solid var(--surface0);
+    border-bottom: 1px solid var(--f-border-s);
     flex-shrink: 0;
   }
 
-  .search-icon { color: var(--overlay1); font-size: 15px; flex-shrink: 0; }
+  .search-icon { color: var(--f-dim); font-size: 15px; flex-shrink: 0; }
 
   #query {
     flex: 1;
     background: transparent;
     border: none;
     outline: none;
-    color: var(--text);
+    color: var(--f-text);
     font-family: inherit;
     font-size: 14px;
-    caret-color: var(--blue);
+    caret-color: var(--f-accent);
     min-width: 0;
   }
-  #query::placeholder { color: var(--overlay0); }
+  #query::placeholder { color: var(--f-ph); }
 
   .icon-btn {
     background: transparent;
-    border: 1px solid var(--surface1);
+    border: 1px solid var(--f-border);
     border-radius: 6px;
-    color: var(--overlay1);
+    color: var(--f-dim);
     font-family: inherit;
     font-size: 12px;
     padding: 3px 8px;
@@ -352,8 +360,8 @@ export class FinderPanel {
     transition: all 0.12s;
     flex-shrink: 0;
   }
-  .icon-btn:hover { border-color: var(--blue); color: var(--blue); }
-  .icon-btn.active { background: var(--blue); border-color: var(--blue); color: var(--mantle); font-weight: 700; }
+  .icon-btn:hover  { border-color: var(--f-accent); color: var(--f-accent); }
+  .icon-btn.active { background: var(--f-accent); border-color: var(--f-accent); color: var(--f-btn-fg); font-weight: 700; }
   .icon-btn:disabled { opacity: 0.3; cursor: default; pointer-events: none; }
 
   /* ── Scope tabs ──────────────────────────────────────────── */
@@ -361,7 +369,7 @@ export class FinderPanel {
     display: flex;
     gap: 2px;
     padding: 6px 14px 0;
-    border-bottom: 1px solid var(--surface0);
+    border-bottom: 1px solid var(--f-border-s);
     flex-shrink: 0;
   }
 
@@ -369,23 +377,18 @@ export class FinderPanel {
     background: transparent;
     border: none;
     border-bottom: 2px solid transparent;
-    color: var(--overlay1);
+    color: var(--f-dim);
     font-family: inherit;
     font-size: 11px;
     padding: 3px 10px 7px;
     cursor: pointer;
     transition: all 0.12s;
   }
-  .tab:hover { color: var(--subtext1); }
-  .tab.active { color: var(--blue); border-bottom-color: var(--blue); }
+  .tab:hover  { color: var(--f-text); }
+  .tab.active { color: var(--f-accent); border-bottom-color: var(--f-accent); }
 
   /* ── Main layout: left + right ───────────────────────────── */
-  .layout {
-    display: flex;
-    flex: 1;
-    overflow: hidden;
-    min-height: 0;
-  }
+  .layout { display: flex; flex: 1; overflow: hidden; min-height: 0; }
 
   /* ── Left panel (results) ────────────────────────────────── */
   .left-panel {
@@ -394,7 +397,7 @@ export class FinderPanel {
     width: 38%;
     min-width: 240px;
     max-width: 420px;
-    border-right: 1px solid var(--surface0);
+    border-right: 1px solid var(--f-border-s);
     overflow: hidden;
     flex-shrink: 0;
   }
@@ -403,23 +406,18 @@ export class FinderPanel {
     flex: 1;
     overflow-y: auto;
     scrollbar-width: thin;
-    scrollbar-color: var(--surface1) transparent;
+    scrollbar-color: var(--f-scrollbar) transparent;
   }
   .results-wrap::-webkit-scrollbar { width: 5px; }
-  .results-wrap::-webkit-scrollbar-thumb { background: var(--surface1); border-radius: 3px; }
+  .results-wrap::-webkit-scrollbar-thumb { background: var(--f-scrollbar); border-radius: 3px; }
 
-  .state-msg {
-    padding: 28px 16px;
-    text-align: center;
-    color: var(--overlay0);
-    font-size: 12px;
-  }
+  .state-msg { padding: 28px 16px; text-align: center; color: var(--f-dim); font-size: 12px; }
 
   .spinner {
     display: inline-block;
     width: 12px; height: 12px;
-    border: 2px solid var(--surface1);
-    border-top-color: var(--blue);
+    border: 2px solid var(--f-border);
+    border-top-color: var(--f-accent);
     border-radius: 50%;
     animation: spin 0.6s linear infinite;
     vertical-align: middle;
@@ -433,14 +431,18 @@ export class FinderPanel {
     border-left: 2px solid transparent;
     transition: background 0.08s;
   }
-  .result:hover { background: var(--surface0); }
-  .result.selected { background: var(--surface0); border-left-color: var(--blue); }
+  .result:hover    { background: var(--f-hover); }
+  .result.selected { background: var(--f-sel);   border-left-color: var(--f-accent); color: var(--f-sel-fg); }
 
   .result-header { display: flex; align-items: baseline; gap: 5px; margin-bottom: 2px; }
-  .result-file { color: var(--blue); font-size: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
-  .result-line { color: var(--overlay0); font-size: 10px; flex-shrink: 0; }
-  .result-text { color: var(--subtext0); font-size: 11px; white-space: pre; overflow: hidden; text-overflow: ellipsis; }
-  .result-text mark { background: transparent; color: var(--yellow); font-weight: 700; }
+  .result-file   { color: var(--f-accent); font-size: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+  .result-line   { color: var(--f-dim); font-size: 10px; flex-shrink: 0; }
+  .result-text   { color: var(--f-dim); font-size: 11px; white-space: pre; overflow: hidden; text-overflow: ellipsis; }
+  .result-text mark { background: var(--f-match); color: inherit; font-weight: 700; border-radius: 2px; padding: 0 1px; }
+
+  .result.selected .result-file { color: var(--f-sel-fg); }
+  .result.selected .result-line,
+  .result.selected .result-text { color: var(--f-sel-fg); opacity: 0.8; }
 
   /* ── Right panel (preview) ───────────────────────────────── */
   .right-panel {
@@ -449,21 +451,21 @@ export class FinderPanel {
     flex-direction: column;
     overflow: hidden;
     min-width: 0;
-    background: var(--crust);
+    background: var(--f-bg);
   }
   .right-panel.hidden { display: none; }
-  .left-panel.full { width: 100%; max-width: none; border-right: none; }
+  .left-panel.full    { width: 100%; max-width: none; border-right: none; }
 
   .preview-header {
     padding: 7px 14px;
-    border-bottom: 1px solid var(--surface0);
-    color: var(--subtext0);
+    border-bottom: 1px solid var(--f-border-s);
+    color: var(--f-dim);
     font-size: 11px;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
     flex-shrink: 0;
-    background: var(--mantle);
+    background: var(--f-raised);
   }
 
   .preview-empty {
@@ -471,7 +473,7 @@ export class FinderPanel {
     display: flex;
     align-items: center;
     justify-content: center;
-    color: var(--overlay0);
+    color: var(--f-dim);
     font-size: 12px;
   }
 
@@ -480,20 +482,15 @@ export class FinderPanel {
     display: none;
     overflow: auto;
     scrollbar-width: thin;
-    scrollbar-color: var(--surface1) transparent;
+    scrollbar-color: var(--f-scrollbar) transparent;
   }
   .preview-content::-webkit-scrollbar { width: 5px; }
-  .preview-content::-webkit-scrollbar-thumb { background: var(--surface1); border-radius: 3px; }
+  .preview-content::-webkit-scrollbar-thumb { background: var(--f-scrollbar); border-radius: 3px; }
 
-  .pline {
-    display: flex;
-    padding: 0 14px;
-    line-height: 1.65;
-    white-space: pre;
-  }
-  .pline--cur { background: var(--surface1); }
+  .pline { display: flex; padding: 0 14px; line-height: 1.65; white-space: pre; }
+  .pline--cur { background: var(--f-line-hl); }
   .pnum {
-    color: var(--overlay0);
+    color: var(--f-dim);
     text-align: right;
     min-width: 4ch;
     margin-right: 16px;
@@ -502,16 +499,16 @@ export class FinderPanel {
     font-size: 11px;
     padding-top: 1px;
   }
-  .pline--cur .pnum { color: var(--yellow); }
-  .ptext { color: var(--text); font-size: 12px; }
+  .pline--cur .pnum { color: var(--vscode-editorLineNumber-activeForeground, var(--f-accent)); }
+  .ptext { color: var(--f-text); font-size: 12px; }
 
-  /* ── Syntax highlighting ─────────────────────────────────── */
-  .hl-kw  { color: var(--mauve); }
-  .hl-str { color: var(--green); }
-  .hl-cmt { color: var(--overlay1); font-style: italic; }
-  .hl-num { color: var(--peach); }
-  .hl-fn  { color: var(--blue); }
-  .hl-op  { color: var(--red); }
+  /* ── Syntax highlighting (fixed decorative colors) ───────── */
+  .hl-kw  { color: var(--f-kw); }
+  .hl-str { color: var(--f-str); }
+  .hl-cmt { color: var(--f-cmt); font-style: italic; }
+  .hl-num { color: var(--f-num); }
+  .hl-fn  { color: var(--f-fn); }
+  .hl-op  { color: var(--f-op); }
 
   /* ── Footer ──────────────────────────────────────────────── */
   .footer {
@@ -519,20 +516,20 @@ export class FinderPanel {
     align-items: center;
     justify-content: space-between;
     padding: 6px 14px;
-    border-top: 1px solid var(--surface0);
-    color: var(--overlay0);
+    border-top: 1px solid var(--f-border-s);
+    color: var(--f-dim);
     font-size: 10px;
     flex-shrink: 0;
   }
   .kbd-group { display: flex; gap: 10px; flex-wrap: wrap; }
   kbd {
-    background: var(--surface0);
-    border: 1px solid var(--surface1);
+    background: var(--f-hover);
+    border: 1px solid var(--f-border);
     border-radius: 3px;
     padding: 1px 4px;
     font-family: inherit;
     font-size: 9px;
-    color: var(--subtext0);
+    color: var(--f-dim);
   }
 </style>
 </head>
@@ -904,7 +901,7 @@ export class FinderPanel {
         '<div class="result-header">' +
           '<span class="result-file">' + highlightPositions(basename, bnPos) + '</span>' +
         '</div>' +
-        (dir ? '<div class="result-text" style="color:var(--overlay1)">' + highlightPositions(dir, dirPos) + '</div>' : '');
+        (dir ? '<div class="result-text">' + highlightPositions(dir, dirPos) + '</div>' : '');
 
       div.addEventListener('click', () => openResult(i));
       div.addEventListener('mouseenter', () => { state.selected = i; updateSelection(); requestPreview(); });
