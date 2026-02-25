@@ -47,6 +47,7 @@ export class FinderPanel {
   private _fileCacheTime = 0;
   private static readonly FILE_CACHE_TTL = 15_000;
   private _searchSeq = 0;
+  private _recentFiles: string[] = [];
 
   public static async createOrShow(context: vscode.ExtensionContext): Promise<void> {
     const editor = vscode.window.activeTextEditor;
@@ -70,9 +71,11 @@ export class FinderPanel {
       return;
     }
 
+    const recentFiles = context.workspaceState.get<string[]>('finder.recentFiles', []);
+
     const config = vscode.workspace.getConfiguration('finder');
     const rawScope = config.get<string>('defaultScope', 'project');
-    const defaultScope: Scope = (rawScope === 'project' || rawScope === 'openFiles' || rawScope === 'files')
+    const defaultScope: Scope = (rawScope === 'project' || rawScope === 'openFiles' || rawScope === 'files' || rawScope === 'recent')
       ? rawScope : 'project';
     const kb: KeyBindings = {
       navigateDown:   config.get<string>('keybindings.navigateDown',   'ArrowDown'),
@@ -90,7 +93,7 @@ export class FinderPanel {
       { enableScripts: true, localResourceRoots: [] }
     );
 
-    FinderPanel.currentPanel = new FinderPanel(panel, defaultScope, kb, selectedText, context);
+    FinderPanel.currentPanel = new FinderPanel(panel, defaultScope, kb, selectedText, recentFiles, context);
   }
 
   private constructor(
@@ -98,11 +101,13 @@ export class FinderPanel {
     defaultScope: Scope,
     kb: KeyBindings,
     initialQuery: string,
+    recentFiles: string[],
     _context: vscode.ExtensionContext
   ) {
     this._panel = panel;
     this._scope = defaultScope;
     this._cwd = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath ?? '';
+    this._recentFiles = recentFiles;
     this._panel.webview.html = this._buildHtml(defaultScope, kb, initialQuery);
 
     // Warm file cache in background so Files tab is instant on first use
@@ -123,6 +128,12 @@ export class FinderPanel {
           break;
         case 'fileSearch':
           await this._runFileSearch(msg.query as string);
+          break;
+        case 'recentSearch':
+          this._runRecentSearch(msg.query as string);
+          break;
+        case 'openInSplit':
+          await this._openFileInSplit(msg.file as string, msg.line as number);
           break;
         case 'preview':
           await this._sendPreview(msg.file as string, msg.line as number);
@@ -217,6 +228,52 @@ export class FinderPanel {
     }));
 
     this._post({ type: 'fileResults', results, query });
+  }
+
+  private _runRecentSearch(query: string): void {
+    const seq = ++this._searchSeq;
+    const config = vscode.workspace.getConfiguration('finder');
+    const maxResults = config.get<number>('maxResults', 200);
+
+    if (!query.trim()) {
+      const results: FileResult[] = this._recentFiles.slice(0, maxResults).map(f => ({
+        file: f,
+        relativePath: path.relative(this._cwd, f).replace(/\\/g, '/'),
+        matchPositions: [],
+      }));
+      if (seq !== this._searchSeq) { return; }
+      this._post({ type: 'fileResults', results, query });
+      return;
+    }
+
+    const scored: Array<FileResult & { score: number }> = [];
+    for (const f of this._recentFiles) {
+      const rel = path.relative(this._cwd, f).replace(/\\/g, '/');
+      const match = fuzzyScore(rel, query);
+      if (match) {
+        scored.push({ file: f, relativePath: rel, matchPositions: match.positions, score: match.score });
+      }
+    }
+    scored.sort((a, b) => b.score - a.score);
+    if (seq !== this._searchSeq) { return; }
+    const results: FileResult[] = scored.slice(0, maxResults).map(({ file, relativePath, matchPositions }) => ({
+      file, relativePath, matchPositions,
+    }));
+    this._post({ type: 'fileResults', results, query });
+  }
+
+  private async _openFileInSplit(filePath: string, line: number): Promise<void> {
+    try {
+      const uri = vscode.Uri.file(filePath);
+      const doc = await vscode.workspace.openTextDocument(uri);
+      const editor = await vscode.window.showTextDocument(doc, { viewColumn: vscode.ViewColumn.Beside });
+      const pos = new vscode.Position(Math.max(0, line - 1), 0);
+      editor.selection = new vscode.Selection(pos, pos);
+      editor.revealRange(new vscode.Range(pos, pos), vscode.TextEditorRevealType.InCenter);
+      this.dispose();
+    } catch {
+      vscode.window.showErrorMessage(`Finder: Could not open file ${filePath}`);
+    }
   }
 
   private async _sendPreview(filePath: string, targetLine: number): Promise<void> {
@@ -572,6 +629,7 @@ export class FinderPanel {
   <button type="button" class="tab ${defaultScope === 'project' ? 'active' : ''}" data-scope="project">Project</button>
   <button type="button" class="tab ${defaultScope === 'openFiles' ? 'active' : ''}" data-scope="openFiles">Open Files</button>
   <button type="button" class="tab ${defaultScope === 'files' ? 'active' : ''}" data-scope="files">Files</button>
+  <button type="button" class="tab ${defaultScope === 'recent' ? 'active' : ''}" data-scope="recent">Recent</button>
 </div>
 
 <!-- Main layout -->
@@ -786,7 +844,7 @@ export class FinderPanel {
   let previewTimer = null;
 
   function requestPreview() {
-    if (state.scope === 'files') { requestFilePreview(); } else { requestTextPreview(); }
+    if (isFileScope()) { requestFilePreview(); } else { requestTextPreview(); }
   }
 
   function requestTextPreview() {
@@ -844,7 +902,7 @@ export class FinderPanel {
 
   // ── Results render ─────────────────────────────────────────────────────────
   function render() {
-    if (state.scope === 'files') { renderFileResults(); } else { renderTextResults(); }
+    if (isFileScope()) { renderFileResults(); } else { renderTextResults(); }
   }
 
   function renderTextResults() {
@@ -900,7 +958,9 @@ export class FinderPanel {
     }
 
     if (state.fileResults.length === 0) {
-      stateMsg.textContent = state.query ? 'No files found.' : 'Start typing to search files...';
+      stateMsg.textContent = state.query
+        ? 'No files found.'
+        : state.scope === 'recent' ? 'No recent files yet.' : 'Start typing to search files...';
       stateMsg.style.display = '';
       resultInfo.textContent = '';
       return;
@@ -932,7 +992,9 @@ export class FinderPanel {
     });
 
     wrap.appendChild(frag);
-    resultInfo.textContent = state.fileResults.length + ' file' + (state.fileResults.length !== 1 ? 's' : '');
+    resultInfo.textContent = state.fileResults.length
+      + (state.scope === 'recent' ? ' recent file' : ' file')
+      + (state.fileResults.length !== 1 ? 's' : '');
     scrollToSelected();
     requestPreview();
   }
@@ -950,7 +1012,7 @@ export class FinderPanel {
 
   // ── Actions ────────────────────────────────────────────────────────────────
   function openResult(index) {
-    if (state.scope === 'files') {
+    if (isFileScope()) {
       const r = state.fileResults[index];
       if (r) { vscode.postMessage({ type: 'open', file: r.file, line: 1 }); }
     } else {
@@ -959,20 +1021,34 @@ export class FinderPanel {
     }
   }
 
+  function openResultInSplit(index) {
+    if (isFileScope()) {
+      const r = state.fileResults[index];
+      if (r) { vscode.postMessage({ type: 'openInSplit', file: r.file, line: 1 }); }
+    } else {
+      const r = state.results[index];
+      if (r) { vscode.postMessage({ type: 'openInSplit', file: r.file, line: r.line }); }
+    }
+  }
+
   function navigate(delta) {
-    const len = state.scope === 'files' ? state.fileResults.length : state.results.length;
+    const len = isFileScope() ? state.fileResults.length : state.results.length;
     state.selected = Math.max(0, Math.min(state.selected + delta, len - 1));
     updateSelection();
     requestPreview();
   }
 
   // ── Search ─────────────────────────────────────────────────────────────────
+  function isFileScope() { return state.scope === 'files' || state.scope === 'recent'; }
+
   let searchTimer = null;
   function triggerSearch() {
     clearTimeout(searchTimer);
     searchTimer = setTimeout(() => {
       if (state.scope === 'files') {
         vscode.postMessage({ type: 'fileSearch', query: state.query });
+      } else if (state.scope === 'recent') {
+        vscode.postMessage({ type: 'recentSearch', query: state.query });
       } else {
         vscode.postMessage({ type: 'search', query: state.query, useRegex: state.useRegex, scope: state.scope });
       }
@@ -980,16 +1056,17 @@ export class FinderPanel {
   }
 
   // ── Scope ──────────────────────────────────────────────────────────────────
-  const SCOPES = ['project', 'openFiles', 'files'];
+  const SCOPES = ['project', 'openFiles', 'files', 'recent'];
 
   function setScope(scope) {
     state.scope = scope;
     state.selected = 0;
     tabs.forEach(t => t.classList.toggle('active', t.dataset.scope === scope));
-    const isFiles = scope === 'files';
-    regexBtn.disabled = isFiles;
-    queryEl.placeholder = isFiles ? 'Search files by name...' : 'Search in files...';
-    if (state.query) {
+    regexBtn.disabled = isFileScope();
+    queryEl.placeholder = scope === 'files'   ? 'Search files by name...'
+                        : scope === 'recent'  ? 'Filter recent files...'
+                        : 'Search in files...';
+    if (state.query || scope === 'recent') {
       triggerSearch();
     } else {
       state.results = [];
@@ -1011,6 +1088,8 @@ export class FinderPanel {
       e.preventDefault(); navigate(1);
     } else if (matchKey(e, KB.navigateUp)) {
       e.preventDefault(); navigate(-1);
+    } else if (e.ctrlKey && e.key === 'Enter') {
+      e.preventDefault(); openResultInSplit(state.selected);
     } else if (matchKey(e, KB.open)) {
       e.preventDefault(); openResult(state.selected);
     } else if (matchKey(e, KB.close)) {
@@ -1028,12 +1107,13 @@ export class FinderPanel {
   // Global keys (when input not focused)
   document.addEventListener('keydown', (e) => {
     if (document.activeElement === queryEl) { return; }
-    if (matchKey(e, KB.navigateDown))      { e.preventDefault(); navigate(1); }
-    else if (matchKey(e, KB.navigateUp))   { e.preventDefault(); navigate(-1); }
-    else if (matchKey(e, KB.open))         { e.preventDefault(); openResult(state.selected); }
-    else if (matchKey(e, KB.togglePreview)){ e.preventDefault(); togglePreview(); }
-    else if (matchKey(e, KB.close))        { vscode.postMessage({ type: 'close' }); }
-    else if (e.key === 'Tab')              { e.preventDefault(); setScope(SCOPES[(SCOPES.indexOf(state.scope) + 1) % SCOPES.length]); }
+    if (matchKey(e, KB.navigateDown))        { e.preventDefault(); navigate(1); }
+    else if (matchKey(e, KB.navigateUp))     { e.preventDefault(); navigate(-1); }
+    else if (e.ctrlKey && e.key === 'Enter') { e.preventDefault(); openResultInSplit(state.selected); }
+    else if (matchKey(e, KB.open))           { e.preventDefault(); openResult(state.selected); }
+    else if (matchKey(e, KB.togglePreview))  { e.preventDefault(); togglePreview(); }
+    else if (matchKey(e, KB.close))          { vscode.postMessage({ type: 'close' }); }
+    else if (e.key === 'Tab')                { e.preventDefault(); setScope(SCOPES[(SCOPES.indexOf(state.scope) + 1) % SCOPES.length]); }
   });
 
   tabs.forEach(tab => tab.addEventListener('click', () => setScope(tab.dataset.scope)));
@@ -1104,6 +1184,7 @@ export class FinderPanel {
     document.getElementById('kbd-group').innerHTML =
       '<span>' + fmtKey(KB.navigateDown) + ' nav</span>' +
       '<span>' + fmtKey(KB.open)         + ' open</span>' +
+      '<span><kbd>Ctrl</kbd><kbd>↵</kbd> split</span>' +
       '<span><kbd>Tab</kbd> scope</span>' +
       '<span>' + fmtKey(KB.toggleRegex)  + ' regex</span>' +
       '<span>' + fmtKey(KB.togglePreview)+ ' preview</span>' +
@@ -1116,15 +1197,17 @@ export class FinderPanel {
   // ── Init ───────────────────────────────────────────────────────────────────
   state.useRegex = false;
   regexBtn.classList.remove('active');
-  if (state.scope === 'files') {
+  if (isFileScope()) {
     regexBtn.disabled = true;
-    queryEl.placeholder = 'Search files by name...';
+    queryEl.placeholder = state.scope === 'recent' ? 'Filter recent files...' : 'Search files by name...';
   }
   if (INITIAL_QUERY) {
     queryEl.value = INITIAL_QUERY;
     state.query = INITIAL_QUERY;
     queryEl.select();
     triggerSearch();
+  } else if (state.scope === 'recent') {
+    triggerSearch(); // show all recent files immediately
   }
   queryEl.focus();
 </script>

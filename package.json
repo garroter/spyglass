@@ -57,7 +57,8 @@
           "enum": [
             "project",
             "openFiles",
-            "files"
+            "files",
+            "recent"
           ],
           "default": "project",
           "description": "Default search scope when Finder opens."

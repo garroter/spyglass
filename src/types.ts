@@ -16,7 +16,7 @@ export interface SearchResult {
   matchEnd: number;
 }
 
-export type Scope = 'project' | 'openFiles' | 'files';
+export type Scope = 'project' | 'openFiles' | 'files' | 'recent';
 
 export interface FileResult {
   file: string;
@@ -36,6 +36,8 @@ export type MessageToWebview =
 export type MessageFromWebview =
   | { type: 'search'; query: string; useRegex: boolean; scope: Scope }
   | { type: 'open'; file: string; line: number }
+  | { type: 'openInSplit'; file: string; line: number }
   | { type: 'preview'; file: string; line: number }
   | { type: 'fileSearch'; query: string }
+  | { type: 'recentSearch'; query: string }
   | { type: 'close' };
