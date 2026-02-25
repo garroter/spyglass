@@ -54,7 +54,11 @@
         },
         "finder.defaultScope": {
           "type": "string",
-          "enum": ["project", "openFiles", "files"],
+          "enum": [
+            "project",
+            "openFiles",
+            "files"
+          ],
           "default": "project",
           "description": "Default search scope when Finder opens."
         },
@@ -104,5 +108,8 @@
     "@typescript-eslint/parser": "^7.0.0",
     "eslint": "^8.56.0",
     "typescript": "^5.3.0"
+  },
+  "dependencies": {
+    "@vscode/ripgrep": "^1.17.0"
   }
 }

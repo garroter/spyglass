@@ -57,9 +57,7 @@ export class FinderPanel {
 
     const rgOk = await isRipgrepAvailable();
     if (!rgOk) {
-      vscode.window.showErrorMessage(
-        'Finder: ripgrep (rg) not found. Install it: https://github.com/BurntSushi/ripgrep'
-      );
+      vscode.window.showErrorMessage('Finder: bundled ripgrep failed to start. Try reinstalling the extension.');
       return;
     }
 
@@ -186,7 +184,7 @@ export class FinderPanel {
 
     const scored: Array<FileResult & { score: number }> = [];
     for (const f of this._fileCache) {
-      const rel = path.relative(this._cwd, f);
+      const rel = path.relative(this._cwd, f).replace(/\\/g, '/');
       const match = fuzzyScore(rel, query);
       if (match) {
         scored.push({ file: f, relativePath: rel, matchPositions: match.positions, score: match.score });
@@ -223,7 +221,7 @@ export class FinderPanel {
         type: 'previewContent',
         lines: content.split('\n'),
         currentLine: targetLine,
-        relativePath: path.relative(this._cwd, filePath),
+        relativePath: path.relative(this._cwd, filePath).replace(/\\/g, '/'),
         ext,
       });
     } catch {
@@ -509,6 +507,12 @@ export class FinderPanel {
   .hl-num { color: var(--f-num); }
   .hl-fn  { color: var(--f-fn); }
   .hl-op  { color: var(--f-op); }
+
+  /* ── Light theme overrides ───────────────────────────────── */
+  body.vscode-light { --f-kw: #7c3aed; --f-str: #16a34a; --f-cmt: #6b7280; --f-num: #c2410c; --f-fn: #1d4ed8; --f-op: #dc2626; }
+
+  /* ── High-contrast theme overrides ──────────────────────── */
+  body.vscode-high-contrast { --f-kw: #e040fb; --f-str: #80ff80; --f-cmt: #a0a0a0; --f-num: #ffb74d; --f-fn: #81d4fa; --f-op: #ff6e6e; }
 
   /* ── Footer ──────────────────────────────────────────────── */
   .footer {

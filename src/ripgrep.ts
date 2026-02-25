@@ -1,5 +1,6 @@
 import { spawn } from 'child_process';
 import * as path from 'path';
+import { rgPath } from '@vscode/ripgrep';
 import { SearchResult } from './types';
 
 interface RgSubmatch {
@@ -48,7 +49,7 @@ export async function searchWithRipgrep(
       args.push('.');
     }
 
-    const rg = spawn('rg', args, { cwd });
+    const rg = spawn(rgPath, args, { cwd });
     const results: SearchResult[] = [];
     let buffer = '';
     let errored = false;
@@ -109,7 +110,7 @@ export function listFilesWithRipgrep(cwd: string): Promise<string[]> {
       '--glob', '!*.lock',
     ];
 
-    const rg = spawn('rg', args, { cwd });
+    const rg = spawn(rgPath, args, { cwd });
     const files: string[] = [];
     let buffer = '';
 
@@ -132,7 +133,7 @@ export function listFilesWithRipgrep(cwd: string): Promise<string[]> {
 
 export function isRipgrepAvailable(): Promise<boolean> {
   return new Promise((resolve) => {
-    const rg = spawn('rg', ['--version']);
+    const rg = spawn(rgPath, ['--version']);
     rg.on('error', () => resolve(false));
     rg.on('close', (code) => resolve(code === 0));
   });
