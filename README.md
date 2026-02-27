@@ -1,17 +1,35 @@
-# Spyglass
+<h1 align="center">
+  <img src="images/icon.svg" width="64" alt="Spyglass icon" /><br/>
+  Spyglass
+</h1>
 
-**Fast, keyboard-driven search popup for VS Code** — inspired by [Neovim Telescope](https://github.com/nvim-telescope/telescope.nvim) and JetBrains Search Everywhere.
+<p align="center">
+  <strong>Fast, keyboard-driven search popup for VS Code</strong><br/>
+  Inspired by <a href="https://github.com/nvim-telescope/telescope.nvim">Neovim Telescope</a> and JetBrains Search Everywhere
+</p>
 
-[![VS Marketplace](https://img.shields.io/visual-studio-marketplace/v/piotrmacai.spyglass?style=flat-square&label=VS%20Marketplace&color=7c3aed)](https://marketplace.visualstudio.com/items?itemName=piotrmacai.spyglass)
-[![Downloads](https://img.shields.io/visual-studio-marketplace/d/piotrmacai.spyglass?style=flat-square&color=blue)](https://marketplace.visualstudio.com/items?itemName=piotrmacai.spyglass)
-[![Rating](https://img.shields.io/visual-studio-marketplace/r/piotrmacai.spyglass?style=flat-square)](https://marketplace.visualstudio.com/items?itemName=piotrmacai.spyglass)
-[![License: MIT](https://img.shields.io/badge/license-MIT-green?style=flat-square)](LICENSE)
+<p align="center">
+  <a href="https://marketplace.visualstudio.com/items?itemName=piotrmacai.spyglass">
+    <img src="https://img.shields.io/visual-studio-marketplace/v/piotrmacai.spyglass?style=flat-square&label=VS%20Marketplace&color=7c3aed" alt="VS Marketplace"/>
+  </a>
+  <a href="https://marketplace.visualstudio.com/items?itemName=piotrmacai.spyglass">
+    <img src="https://img.shields.io/visual-studio-marketplace/d/piotrmacai.spyglass?style=flat-square&color=4f86f7" alt="Downloads"/>
+  </a>
+  <a href="https://marketplace.visualstudio.com/items?itemName=piotrmacai.spyglass">
+    <img src="https://img.shields.io/visual-studio-marketplace/r/piotrmacai.spyglass?style=flat-square&color=f5a623" alt="Rating"/>
+  </a>
+  <a href="LICENSE">
+    <img src="https://img.shields.io/badge/license-MIT-22c55e?style=flat-square" alt="License: MIT"/>
+  </a>
+</p>
 
-Open with `Ctrl+Alt+F`. Type. Navigate. Done.
+<p align="center">
+  Open with <kbd>Ctrl+Alt+F</kbd> — Type — Navigate — Done.
+</p>
 
 ---
 
-## Screenshots
+## 📸 Screenshots
 
 ![Full-text search with live preview](images/demo-search.gif)
 
@@ -19,39 +37,39 @@ Open with `Ctrl+Alt+F`. Type. Navigate. Done.
 
 ---
 
-## Features
+## ✨ Features
 
-### Search
-- **Full-text search** across the whole project with ripgrep (blazing fast)
+### 🔍 Search
+- **Full-text search** across the whole project powered by ripgrep (blazing fast)
 - **Fuzzy file search** — search by filename with character-level match highlighting
-- **Symbol search** — search workspace symbols via LSP (classes, functions, variables…)
+- **Symbol search** — workspace symbols via LSP (classes, functions, variables…)
 - **Regex mode** toggle for power users
 - **Case sensitive** and **whole word** toggles
 - **Glob filter** — limit search to specific file patterns (`*.ts`, `!*.test.ts`)
 
-### Navigation
-- **Search scopes** — Project, Open Files, Files, Recent, Dir, Symbols
+### 🗂️ Navigation
+- **6 search scopes** — Project, Open Files, Files, Recent, Dir, Symbols
 - **Recent files** — instantly access your most recently opened files
 - **Dir scope** — search only within the directory of the active file
 - **Search history** — navigate previous queries with `Ctrl+↑` / `Ctrl+↓`
-- **Multi-select** — select multiple results and open them all at once
+- **Multi-select** — pick multiple results and open them all at once
 
-### Preview
-- **Live preview** — see file content as you navigate results, with syntax highlighting
-- **Git change indicators** — modified lines highlighted in the preview panel
+### 👁️ Preview
+- **Live preview** — file content as you navigate, with syntax highlighting
+- **Git change indicators** — modified lines highlighted in the gutter
 - **Theme adaptive** — works with any VS Code theme (dark, light, high contrast)
 
-### Actions
-- **Find & Replace** — replace across all matched files instantly
+### ⚡ Actions
+- **Find & Replace** — replace across all matched files instantly (with undo)
 - **Copy path** — copy the absolute path of the selected result
-- **Reveal in Explorer** — click the preview header to reveal the file in the sidebar
+- **Reveal in Explorer** — click the preview header to locate the file
 - **Open in split** — open any result beside the current editor
-- **Pre-fill from selection** — select text in editor, open Spyglass → query is pre-filled
-- **Zero dependencies** — ripgrep is bundled, no installation required
+- **Pre-fill from selection** — select text, open Spyglass → query is pre-filled
+- **Zero dependencies** — ripgrep is bundled, nothing to install
 
 ---
 
-## Usage
+## 🚀 Usage
 
 ### Opening Spyglass
 
@@ -59,9 +77,9 @@ Open with `Ctrl+Alt+F`. Type. Navigate. Done.
 |--------|----------|
 | Open Spyglass | `Ctrl+Alt+F` |
 
-> **VSCode Vim users** — bind `<Space>f` as your leader shortcut (see [Vim setup](#vim-setup) below).
+> **VSCode Vim users** — bind `<Space>f` as your leader shortcut. See [Vim setup](#-vim-setup) below.
 
-### Inside the panel
+### ⌨️ Keyboard shortcuts
 
 | Action | Shortcut |
 |--------|----------|
@@ -77,16 +95,15 @@ Open with `Ctrl+Alt+F`. Type. Navigate. Done.
 | Toggle replace mode | `Alt+R` |
 | History — previous query | `Ctrl+↑` |
 | History — next query | `Ctrl+↓` |
-| Copy path of selected result | `Alt+Y` |
-| Multi-select toggle (current) | `Ctrl+Space` |
-| Multi-select toggle (on click) | `Ctrl+Click` |
+| Copy path | `Alt+Y` |
+| Multi-select toggle | `Ctrl+Space` / `Ctrl+Click` |
 | Select all results | `Ctrl+A` |
 | Open all selected | `Shift+Enter` |
 | Reveal in Explorer | click the preview header |
 
 ---
 
-## Search Scopes
+## 🗺️ Search Scopes
 
 | Scope | Description |
 |-------|-------------|
@@ -101,32 +118,31 @@ Switch between scopes with `Tab` while Spyglass is open.
 
 ---
 
-## Find & Replace
+## 🔄 Find & Replace
 
 1. Open Spyglass and type your search query
-2. Click the `⇄` button (or press `Alt+R`) to enable replace mode
+2. Press `Alt+R` (or click `⇄`) to enable replace mode
 3. Type the replacement text in the second field
-4. Optionally set case-sensitive / whole-word / glob filter
-5. Click **Replace all** — all matches are replaced instantly via VS Code's edit API (supports undo)
+4. Optionally tune case-sensitive / whole-word / glob filter
+5. Click **Replace all** — all matches replaced instantly via VS Code's edit API (supports undo)
 
 ---
 
-## Preview Panel
+## 👁️ Preview Panel
 
-The right-side preview panel shows the file around the matched line with syntax highlighting.
-
-Lines modified since the last git commit are marked with a blue indicator in the gutter.
+The right-side preview shows the file around the matched line with syntax highlighting.
+Lines modified since the last git commit are marked with a **blue indicator** in the gutter.
 
 - Toggle with `Shift+Alt+P` or the `⊡` button
 - Click the preview header to **Reveal in Explorer**
 
 ---
 
-## Settings
+## ⚙️ Settings
 
 | Setting | Default | Description |
 |---------|---------|-------------|
-| `spyglass.defaultScope` | `project` | Scope on open: `project`, `openFiles`, `files`, `recent`, `here`, `symbols` |
+| `spyglass.defaultScope` | `project` | Scope on open: `project` `openFiles` `files` `recent` `here` `symbols` |
 | `spyglass.maxResults` | `200` | Maximum number of results to display |
 | `spyglass.keybindings.navigateDown` | `ArrowDown` | Navigate down in results |
 | `spyglass.keybindings.navigateUp` | `ArrowUp` | Navigate up in results |
@@ -137,7 +153,7 @@ Lines modified since the last git commit are marked with a blue indicator in the
 
 ---
 
-## Customizing Keybindings
+## 🎹 Customizing Keybindings
 
 ### Change the open shortcut
 
@@ -170,9 +186,9 @@ Add to your `settings.json`:
 
 ---
 
-## Vim Setup
+## 🟢 Vim Setup
 
-If you use the [VSCode Vim extension](https://marketplace.visualstudio.com/items?itemName=vscodevim.vim), you can bind `<Space>f` as your Spyglass shortcut — just like Telescope in Neovim.
+If you use the [VSCode Vim extension](https://marketplace.visualstudio.com/items?itemName=vscodevim.vim), bind `<Space>f` just like Telescope in Neovim.
 
 Add to your `settings.json`:
 
@@ -187,7 +203,7 @@ Add to your `settings.json`:
 }
 ```
 
-Then disable the default `Ctrl+Alt+F` binding if you prefer to use only the Vim shortcut:
+To disable the default `Ctrl+Alt+F` binding:
 
 ```json
 [
@@ -200,21 +216,21 @@ Then disable the default `Ctrl+Alt+F` binding if you prefer to use only the Vim 
 
 ---
 
-## Requirements
+## 📋 Requirements
 
 - VS Code `^1.85.0`
 - No additional dependencies — ripgrep is bundled automatically
-- Git (optional) — required for change indicators in the preview panel
-- A language server extension (optional) — required for the **Symbols** scope
+- Git *(optional)* — required for change indicators in the preview panel
+- A language server extension *(optional)* — required for the **Symbols** scope
 
 ---
 
-## Contributing
+## 🤝 Contributing
 
 PRs and issues welcome at [github.com/garroter/spyglass](https://github.com/garroter/spyglass).
 
 ---
 
-## License
+## 📄 License
 
 MIT
