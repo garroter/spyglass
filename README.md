@@ -2,6 +2,11 @@
 
 **Fast, keyboard-driven search popup for VS Code** — inspired by [Neovim Telescope](https://github.com/nvim-telescope/telescope.nvim) and JetBrains Search Everywhere.
 
+[![VS Marketplace](https://img.shields.io/visual-studio-marketplace/v/piotrmacai.spyglass?style=flat-square&label=VS%20Marketplace&color=7c3aed)](https://marketplace.visualstudio.com/items?itemName=piotrmacai.spyglass)
+[![Downloads](https://img.shields.io/visual-studio-marketplace/d/piotrmacai.spyglass?style=flat-square&color=blue)](https://marketplace.visualstudio.com/items?itemName=piotrmacai.spyglass)
+[![Rating](https://img.shields.io/visual-studio-marketplace/r/piotrmacai.spyglass?style=flat-square)](https://marketplace.visualstudio.com/items?itemName=piotrmacai.spyglass)
+[![License: MIT](https://img.shields.io/badge/license-MIT-green?style=flat-square)](LICENSE)
+
 Open with `Ctrl+Alt+F`. Type. Navigate. Done.
 
 ---
@@ -16,25 +21,32 @@ Open with `Ctrl+Alt+F`. Type. Navigate. Done.
 
 ## Features
 
+### Search
 - **Full-text search** across the whole project with ripgrep (blazing fast)
-- **Find & Replace** — replace across all matched files instantly
 - **Fuzzy file search** — search by filename with character-level match highlighting
-- **Recent files** — instantly access your most recently opened files
-- **Open Files scope** — search only within currently open editor tabs
-- **Dir scope** — search only within the directory of the active file
 - **Symbol search** — search workspace symbols via LSP (classes, functions, variables…)
-- **Live preview** — see file content as you navigate results, with syntax highlighting
-- **Git change indicators** — modified lines highlighted in the preview panel
-- **Search history** — navigate previous queries with `Ctrl+↑` / `Ctrl+↓`
+- **Regex mode** toggle for power users
 - **Case sensitive** and **whole word** toggles
 - **Glob filter** — limit search to specific file patterns (`*.ts`, `!*.test.ts`)
+
+### Navigation
+- **Search scopes** — Project, Open Files, Files, Recent, Dir, Symbols
+- **Recent files** — instantly access your most recently opened files
+- **Dir scope** — search only within the directory of the active file
+- **Search history** — navigate previous queries with `Ctrl+↑` / `Ctrl+↓`
 - **Multi-select** — select multiple results and open them all at once
+
+### Preview
+- **Live preview** — see file content as you navigate results, with syntax highlighting
+- **Git change indicators** — modified lines highlighted in the preview panel
+- **Theme adaptive** — works with any VS Code theme (dark, light, high contrast)
+
+### Actions
+- **Find & Replace** — replace across all matched files instantly
 - **Copy path** — copy the absolute path of the selected result
 - **Reveal in Explorer** — click the preview header to reveal the file in the sidebar
 - **Open in split** — open any result beside the current editor
 - **Pre-fill from selection** — select text in editor, open Spyglass → query is pre-filled
-- **Regex mode** toggle for power users
-- **Theme adaptive** — works with any VS Code theme (dark, light, high contrast)
 - **Zero dependencies** — ripgrep is bundled, no installation required
 
 ---

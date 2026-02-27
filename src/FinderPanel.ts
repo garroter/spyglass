@@ -10,32 +10,6 @@ function getNonce(): string {
   return Array.from({ length: 32 }, () => chars[Math.floor(Math.random() * chars.length)]).join('');
 }
 
-function fuzzyScore(str: string, query: string): { score: number; positions: number[] } | null {
-  const lStr = str.toLowerCase();
-  const lQuery = query.toLowerCase();
-  const positions: number[] = [];
-  let si = 0, qi = 0;
-
-  while (si < lStr.length && qi < lQuery.length) {
-    if (lStr[si] === lQuery[qi]) { positions.push(si); qi++; }
-    si++;
-  }
-  if (qi < lQuery.length) { return null; }
-
-  let score = 0;
-  let consecutive = 1;
-  for (let i = 1; i < positions.length; i++) {
-    if (positions[i] === positions[i - 1] + 1) { score += consecutive * 10; consecutive++; }
-    else { consecutive = 1; }
-  }
-  const basenameStart = str.lastIndexOf('/') + 1;
-  if (positions[0] >= basenameStart) { score += 50; }
-  if (positions[0] === basenameStart) { score += 30; }
-  score -= positions[positions.length - 1] - positions[0]; // penalty for spread
-  score -= (str.match(/\//g) ?? []).length * 2;            // penalty for depth
-
-  return { score, positions };
-}
 
 export class FinderPanel {
   public static currentPanel: FinderPanel | undefined;
@@ -44,9 +18,9 @@ export class FinderPanel {
   private readonly _disposables: vscode.Disposable[] = [];
   private _scope: Scope;
   private _cwd: string = '';
-  private _fileCache: string[] | null = null;
+  private _fileCache: Array<{file: string, rel: string}> | null = null;
   private _fileCacheTime = 0;
-  private static readonly FILE_CACHE_TTL = 15_000;
+  private static readonly FILE_CACHE_TTL = 60_000;
   private _searchSeq = 0;
   private _recentFiles: string[] = [];
   private _searchHistory: string[] = [];
@@ -121,13 +95,15 @@ export class FinderPanel {
     this._searchHistory = searchHistory;
     this._activeDir = activeDir;
     this._context = context;
-    this._panel.webview.html = this._buildHtml(defaultScope, kb, initialQuery, this._searchHistory);
+    this._panel.webview.html = this._buildHtml(defaultScope, kb, initialQuery, this._searchHistory, this._recentFiles);
 
     // Warm file cache in background so Files tab is instant on first use
     if (this._cwd) {
-      listFilesWithRipgrep(this._cwd).then(files => {
-        this._fileCache = files;
+      const cwd = this._cwd;
+      listFilesWithRipgrep(cwd).then(files => {
+        this._fileCache = files.map(f => ({ file: f, rel: path.relative(cwd, f).replace(/\\/g, '/') }));
         this._fileCacheTime = Date.now();
+        this._post({ type: 'fileList', files: this._fileCache });
       });
     }
 
@@ -152,10 +128,7 @@ export class FinderPanel {
           break;
         }
         case 'fileSearch':
-          await this._runFileSearch(msg.query as string);
-          break;
-        case 'recentSearch':
-          this._runRecentSearch(msg.query as string);
+          await this._runFileSearch();
           break;
         case 'symbolSearch':
           await this._runSymbolSearch(msg.query as string);
@@ -356,78 +329,21 @@ export class FinderPanel {
     this._post({ type: 'replaceApplied' });
   }
 
-  private async _runFileSearch(query: string): Promise<void> {
-    const seq = ++this._searchSeq;
-
+  private async _runFileSearch(): Promise<void> {
     if (!this._cwd) {
       this._post({ type: 'error', message: 'No workspace folder open.' });
       return;
     }
 
-    this._post({ type: 'searching' });
-
     const now = Date.now();
     if (!this._fileCache || now - this._fileCacheTime > FinderPanel.FILE_CACHE_TTL) {
-      this._fileCache = await listFilesWithRipgrep(this._cwd);
+      const cwd = this._cwd;
+      const files = await listFilesWithRipgrep(cwd);
+      this._fileCache = files.map(f => ({ file: f, rel: path.relative(cwd, f).replace(/\\/g, '/') }));
       this._fileCacheTime = Date.now();
     }
 
-    if (seq !== this._searchSeq) { return; }
-
-    if (!query.trim()) {
-      this._post({ type: 'fileResults', results: [], query });
-      return;
-    }
-
-    const scored: Array<FileResult & { score: number }> = [];
-    for (const f of this._fileCache) {
-      const rel = path.relative(this._cwd, f).replace(/\\/g, '/');
-      const match = fuzzyScore(rel, query);
-      if (match) {
-        scored.push({ file: f, relativePath: rel, matchPositions: match.positions, score: match.score });
-      }
-    }
-    scored.sort((a, b) => b.score - a.score);
-
-    const config = vscode.workspace.getConfiguration('spyglass');
-    const maxResults = config.get<number>('maxResults', 200);
-    const results: FileResult[] = scored.slice(0, maxResults).map(({ file, relativePath, matchPositions }) => ({
-      file, relativePath, matchPositions,
-    }));
-
-    this._post({ type: 'fileResults', results, query });
-  }
-
-  private _runRecentSearch(query: string): void {
-    const seq = ++this._searchSeq;
-    const config = vscode.workspace.getConfiguration('spyglass');
-    const maxResults = config.get<number>('maxResults', 200);
-
-    if (!query.trim()) {
-      const results: FileResult[] = this._recentFiles.slice(0, maxResults).map(f => ({
-        file: f,
-        relativePath: path.relative(this._cwd, f).replace(/\\/g, '/'),
-        matchPositions: [],
-      }));
-      if (seq !== this._searchSeq) { return; }
-      this._post({ type: 'fileResults', results, query });
-      return;
-    }
-
-    const scored: Array<FileResult & { score: number }> = [];
-    for (const f of this._recentFiles) {
-      const rel = path.relative(this._cwd, f).replace(/\\/g, '/');
-      const match = fuzzyScore(rel, query);
-      if (match) {
-        scored.push({ file: f, relativePath: rel, matchPositions: match.positions, score: match.score });
-      }
-    }
-    scored.sort((a, b) => b.score - a.score);
-    if (seq !== this._searchSeq) { return; }
-    const results: FileResult[] = scored.slice(0, maxResults).map(({ file, relativePath, matchPositions }) => ({
-      file, relativePath, matchPositions,
-    }));
-    this._post({ type: 'fileResults', results, query });
+    this._post({ type: 'fileList', files: this._fileCache });
   }
 
   private async _openFileInSplit(filePath: string, line: number): Promise<void> {
@@ -531,7 +447,7 @@ export class FinderPanel {
     this._disposables.length = 0;
   }
 
-  private _buildHtml(defaultScope: Scope, kb: KeyBindings, initialQuery: string = '', searchHistory: string[] = []): string {
+  private _buildHtml(defaultScope: Scope, kb: KeyBindings, initialQuery: string = '', searchHistory: string[] = [], recentFiles: string[] = []): string {
     const nonce = getNonce();
     return /* html */`<!DOCTYPE html>
 <html lang="en">
@@ -546,7 +462,7 @@ export class FinderPanel {
     --f-bg:        var(--vscode-editor-background);
     --f-raised:    var(--vscode-editorWidget-background,    var(--vscode-editor-background));
     --f-border:    var(--vscode-editorWidget-border,        var(--vscode-widget-border, #454545));
-    --f-border-s:  var(--vscode-editorGroup-border,         var(--vscode-editorWidget-border, #313244));
+    --f-border-s:  var(--vscode-editorGroup-border,         var(--vscode-editorWidget-border, #3c3c3c));
     --f-text:      var(--vscode-editor-foreground);
     --f-dim:       var(--vscode-descriptionForeground,      #888);
     --f-ph:        var(--vscode-input-placeholderForeground,var(--vscode-descriptionForeground, #666));
@@ -559,14 +475,14 @@ export class FinderPanel {
     --f-line-hl:   var(--vscode-editor-lineHighlightBackground);
     --f-btn-fg:    var(--vscode-button-foreground,          #fff);
 
-    /* ── Fixed decorative: syntax + match highlights ─────────── */
-    --f-match: var(--vscode-editor-findMatchHighlightBackground, rgba(249,226,175,.35));
-    --f-kw:    #cba6f7;
-    --f-str:   #a6e3a1;
-    --f-cmt:   #7f849c;
-    --f-num:   #fab387;
-    --f-fn:    #89b4fa;
-    --f-op:    #f38ba8;
+    /* ── Syntax: use VSCode symbolIcon tokens (theme-adaptive) ── */
+    --f-match: var(--vscode-editor-findMatchHighlightBackground, rgba(255,200,100,.35));
+    --f-kw:    var(--vscode-symbolIcon-keywordForeground,  #cba6f7);
+    --f-str:   var(--vscode-symbolIcon-stringForeground,   #a6e3a1);
+    --f-cmt:   var(--vscode-descriptionForeground,         #7f849c);
+    --f-num:   var(--vscode-symbolIcon-numberForeground,   #fab387);
+    --f-fn:    var(--vscode-symbolIcon-functionForeground, #89b4fa);
+    --f-op:    var(--vscode-symbolIcon-operatorForeground, #f38ba8);
   }
 
   * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -796,11 +712,7 @@ export class FinderPanel {
   .hljs-deletion { color: var(--f-op); }
   .hljs-addition { color: var(--f-str); }
 
-  /* ── Light theme overrides ───────────────────────────────── */
-  body.vscode-light { --f-kw: #7c3aed; --f-str: #16a34a; --f-cmt: #6b7280; --f-num: #c2410c; --f-fn: #1d4ed8; --f-op: #dc2626; }
-
-  /* ── High-contrast theme overrides ──────────────────────── */
-  body.vscode-high-contrast { --f-kw: #e040fb; --f-str: #80ff80; --f-cmt: #a0a0a0; --f-num: #ffb74d; --f-fn: #81d4fa; --f-op: #ff6e6e; }
+  /* syntax colours are fully theme-adaptive via --vscode-symbolIcon-* tokens */
 
   /* ── Replace row ─────────────────────────────────────────── */
   .replace-row {
@@ -1027,6 +939,7 @@ export class FinderPanel {
   const KB = ${JSON.stringify(kb)};
   const INITIAL_QUERY = ${JSON.stringify(initialQuery)};
   const INITIAL_HISTORY = ${JSON.stringify(searchHistory)};
+  const RECENT_FILES = ${JSON.stringify(recentFiles.map(f => ({ file: f, rel: path.relative(this._cwd, f).replace(/\\/g, '/') })))};
 
   function matchKey(e, binding) {
     if (!binding) { return false; }
@@ -1046,6 +959,8 @@ export class FinderPanel {
     results: [],
     fileResults: [],
     symbolResults: [],
+    fileList: null,
+    recentFiles: RECENT_FILES,
     selected: 0,
     scope: '${defaultScope}',
     useRegex: false,
@@ -1589,6 +1504,52 @@ export class FinderPanel {
     requestPreview();
   }
 
+  // ── Client-side fuzzy file search ──────────────────────────────────────────
+  function fuzzyScore(str, query) {
+    const lStr = str.toLowerCase();
+    const lQuery = query.toLowerCase();
+    const positions = [];
+    let si = 0, qi = 0;
+    while (si < lStr.length && qi < lQuery.length) {
+      if (lStr[si] === lQuery[qi]) { positions.push(si); qi++; }
+      si++;
+    }
+    if (qi < lQuery.length) { return null; }
+    let score = 0, consecutive = 1;
+    for (let i = 1; i < positions.length; i++) {
+      if (positions[i] === positions[i-1] + 1) { score += consecutive * 10; consecutive++; }
+      else { consecutive = 1; }
+    }
+    const basenameStart = str.lastIndexOf('/') + 1;
+    if (positions[0] >= basenameStart) { score += 50; }
+    if (positions[0] === basenameStart) { score += 30; }
+    score -= positions[positions.length - 1] - positions[0];
+    let slashes = 0;
+    for (let i = 0; i < str.length; i++) { if (str[i] === '/') { slashes++; } }
+    score -= slashes * 2;
+    return { score, positions };
+  }
+
+  function filterFilesLocally(fileList, query) {
+    const maxResults = 200;
+    let results;
+    if (!query.trim()) {
+      results = fileList.slice(0, maxResults).map(({ file, rel }) => ({ file, relativePath: rel, matchPositions: [] }));
+    } else {
+      const scored = [];
+      for (const { file, rel } of fileList) {
+        const match = fuzzyScore(rel, query);
+        if (match) { scored.push({ file, relativePath: rel, matchPositions: match.positions, score: match.score }); }
+      }
+      scored.sort((a, b) => b.score - a.score);
+      results = scored.slice(0, maxResults).map(({ file, relativePath, matchPositions }) => ({ file, relativePath, matchPositions }));
+    }
+    state.searching = false;
+    state.fileResults = results;
+    state.selected = 0;
+    render();
+  }
+
   // ── Search ─────────────────────────────────────────────────────────────────
   function isFileScope() { return state.scope === 'files' || state.scope === 'recent'; }
   function isSymbolScope() { return state.scope === 'symbols'; }
@@ -1597,12 +1558,22 @@ export class FinderPanel {
   let searchTimer = null;
   function triggerSearch() {
     clearTimeout(searchTimer);
+    if (state.scope === 'files') {
+      if (state.fileList) {
+        filterFilesLocally(state.fileList, state.query);
+      } else {
+        state.searching = true;
+        render();
+        searchTimer = setTimeout(() => vscode.postMessage({ type: 'fileSearch' }), 180);
+      }
+      return;
+    }
+    if (state.scope === 'recent') {
+      filterFilesLocally(state.recentFiles, state.query);
+      return;
+    }
     searchTimer = setTimeout(() => {
-      if (state.scope === 'files') {
-        vscode.postMessage({ type: 'fileSearch', query: state.query });
-      } else if (state.scope === 'recent') {
-        vscode.postMessage({ type: 'recentSearch', query: state.query });
-      } else if (state.scope === 'symbols') {
+      if (state.scope === 'symbols') {
         state.searching = true;
         render();
         vscode.postMessage({ type: 'symbolSearch', query: state.query });
@@ -1801,6 +1772,12 @@ export class FinderPanel {
         state.results = data.results;
         state.selected = 0;
         render();
+        break;
+      case 'fileList':
+        state.fileList = data.files;
+        if (state.scope === 'files') {
+          filterFilesLocally(state.fileList, state.query);
+        }
         break;
       case 'fileResults':
         state.searching = false;

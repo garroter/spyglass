@@ -9,3 +9,4 @@ tsconfig.json
 !out/**
 node_modules/**
 !node_modules/@vscode/ripgrep/**
+!node_modules/highlight.js/**
