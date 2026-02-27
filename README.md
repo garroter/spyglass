@@ -199,7 +199,7 @@ Then disable the default `Ctrl+Alt+F` binding if you prefer to use only the Vim 
 
 ## Contributing
 
-PRs and issues welcome at [github.com/piotrmacai/spyglass](https://github.com/piotrmacai/spyglass).
+PRs and issues welcome at [github.com/garroter/spyglass](https://github.com/garroter/spyglass).
 
 ---
 

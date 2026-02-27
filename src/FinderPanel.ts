@@ -578,6 +578,7 @@ export class FinderPanel {
     display: flex;
     flex-direction: column;
     overflow: hidden;
+    position: relative;
   }
 
   /* ── Top bar ─────────────────────────────────────────────── */
@@ -775,8 +776,8 @@ export class FinderPanel {
   /* ── High-contrast theme overrides ──────────────────────── */
   body.vscode-high-contrast { --f-kw: #e040fb; --f-str: #80ff80; --f-cmt: #a0a0a0; --f-num: #ffb74d; --f-fn: #81d4fa; --f-op: #ff6e6e; }
 
-  /* ── Filter / replace rows ───────────────────────────────── */
-  .filter-row, .replace-row {
+  /* ── Replace row ─────────────────────────────────────────── */
+  .replace-row {
     display: flex;
     align-items: center;
     gap: 8px;
@@ -790,7 +791,7 @@ export class FinderPanel {
     flex-shrink: 0;
     user-select: none;
   }
-  #glob-input, #replace-input {
+  #replace-input {
     flex: 1;
     background: transparent;
     border: none;
@@ -801,7 +802,7 @@ export class FinderPanel {
     caret-color: var(--f-accent);
     min-width: 0;
   }
-  #glob-input::placeholder, #replace-input::placeholder { color: var(--f-ph); }
+  #replace-input::placeholder { color: var(--f-ph); }
 
   /* ── Multiselect indicator (left accent stripe) ──────────── */
   .result.multi-sel {
@@ -844,27 +845,63 @@ export class FinderPanel {
   }
   .preview-header-btn:hover { color: var(--f-accent); }
 
-  /* ── Footer ──────────────────────────────────────────────── */
-  .footer {
+  /* ── Status bar (slim) ───────────────────────────────────── */
+  .statusbar {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 6px 14px;
+    padding: 3px 10px;
     border-top: 1px solid var(--f-border-s);
     color: var(--f-dim);
     font-size: 10px;
     flex-shrink: 0;
   }
-  .kbd-group { display: flex; gap: 10px; flex-wrap: wrap; }
+
+  /* ── Shortcuts overlay ───────────────────────────────────── */
+  .shortcuts-overlay {
+    display: none;
+    position: fixed;
+    bottom: calc(7vh + 38px);
+    right: calc((100vw - min(960px, 95vw)) / 2 + 10px);
+    background: var(--f-raised);
+    border: 1px solid var(--f-border);
+    border-radius: 10px;
+    box-shadow: 0 8px 32px var(--f-shadow);
+    padding: 14px 18px;
+    z-index: 100;
+    min-width: 320px;
+  }
+  .shortcuts-overlay.visible { display: block; }
+  .shortcuts-overlay h4 {
+    color: var(--f-dim);
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    margin-bottom: 8px;
+    margin-top: 12px;
+  }
+  .shortcuts-overlay h4:first-child { margin-top: 0; }
+  .shortcut-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 16px;
+    padding: 2px 0;
+    font-size: 11px;
+    color: var(--f-text);
+  }
+  .shortcut-row span { color: var(--f-dim); }
   kbd {
     background: var(--f-hover);
     border: 1px solid var(--f-border);
     border-radius: 3px;
-    padding: 1px 4px;
+    padding: 1px 5px;
     font-family: inherit;
-    font-size: 9px;
-    color: var(--f-dim);
+    font-size: 10px;
+    color: var(--f-text);
+    white-space: nowrap;
   }
+  .shortcut-keys { display: flex; gap: 3px; flex-shrink: 0; }
 </style>
 </head>
 <body>
@@ -880,12 +917,7 @@ export class FinderPanel {
   <button type="button" class="icon-btn" id="word-btn" title="Whole word (Alt+W)">\\b</button>
   <button type="button" class="icon-btn" id="replace-btn" title="Replace mode (Alt+R)">⇄</button>
   <button type="button" class="icon-btn active" id="preview-btn" title="Toggle preview (P)">⊡</button>
-</div>
-
-<!-- Filter row -->
-<div class="filter-row" id="filter-row" style="display:none">
-  <span class="filter-label">filter:</span>
-  <input id="glob-input" type="text" placeholder="*.ts, !*.test.ts" spellcheck="false" autocomplete="off">
+  <button type="button" class="icon-btn" id="help-btn" title="Keyboard shortcuts">?</button>
 </div>
 
 <!-- Replace row -->
@@ -924,13 +956,38 @@ export class FinderPanel {
 
 </div>
 
-<!-- Footer -->
-<div class="footer">
+<!-- Status bar -->
+<div class="statusbar">
   <span id="result-info"></span>
-  <span class="kbd-group" id="kbd-group"></span>
 </div>
 
 </div><!-- .finder -->
+
+<!-- Shortcuts overlay (outside .finder to avoid overflow:hidden clipping) -->
+<div class="shortcuts-overlay" id="shortcuts-overlay">
+  <h4>Navigation</h4>
+  <div class="shortcut-row"><span>Navigate results</span><div class="shortcut-keys"><kbd>↑</kbd><kbd>↓</kbd></div></div>
+  <div class="shortcut-row"><span>Open file</span><div class="shortcut-keys"><kbd>Enter</kbd></div></div>
+  <div class="shortcut-row"><span>Open in split</span><div class="shortcut-keys"><kbd>Ctrl</kbd><kbd>Enter</kbd></div></div>
+  <div class="shortcut-row"><span>Switch scope</span><div class="shortcut-keys"><kbd>Tab</kbd></div></div>
+  <div class="shortcut-row"><span>Close</span><div class="shortcut-keys"><kbd>Esc</kbd></div></div>
+  <h4>Search</h4>
+  <div class="shortcut-row"><span>Glob filter inline</span><div class="shortcut-keys"><kbd>query *.ts</kbd></div></div>
+  <div class="shortcut-row"><span>Toggle regex</span><div class="shortcut-keys"><kbd>Shift</kbd><kbd>Alt</kbd><kbd>R</kbd></div></div>
+  <div class="shortcut-row"><span>Case sensitive</span><div class="shortcut-keys"><kbd>Alt</kbd><kbd>C</kbd></div></div>
+  <div class="shortcut-row"><span>Whole word</span><div class="shortcut-keys"><kbd>Alt</kbd><kbd>W</kbd></div></div>
+  <div class="shortcut-row"><span>Replace mode</span><div class="shortcut-keys"><kbd>Alt</kbd><kbd>R</kbd></div></div>
+  <div class="shortcut-row"><span>History prev / next</span><div class="shortcut-keys"><kbd>Ctrl</kbd><kbd>↑</kbd><kbd>↓</kbd></div></div>
+  <h4>Selection</h4>
+  <div class="shortcut-row"><span>Multi-select toggle</span><div class="shortcut-keys"><kbd>Ctrl</kbd><kbd>Click</kbd></div></div>
+  <div class="shortcut-row"><span>Multi-select (keyboard)</span><div class="shortcut-keys"><kbd>Ctrl</kbd><kbd>Space</kbd></div></div>
+  <div class="shortcut-row"><span>Select all</span><div class="shortcut-keys"><kbd>Ctrl</kbd><kbd>A</kbd></div></div>
+  <div class="shortcut-row"><span>Open all selected</span><div class="shortcut-keys"><kbd>Shift</kbd><kbd>Enter</kbd></div></div>
+  <div class="shortcut-row"><span>Copy path</span><div class="shortcut-keys"><kbd>Alt</kbd><kbd>Y</kbd></div></div>
+  <div class="shortcut-row"><span>Reveal in Explorer</span><div class="shortcut-keys"><kbd>click preview header</kbd></div></div>
+  <h4>View</h4>
+  <div class="shortcut-row"><span>Toggle preview</span><div class="shortcut-keys"><kbd>Shift</kbd><kbd>Alt</kbd><kbd>P</kbd></div></div>
+</div>
 
 <script nonce="${nonce}">
   window.onerror = (msg, src, line, col, err) => {
@@ -986,8 +1043,6 @@ export class FinderPanel {
   const wordBtn      = document.getElementById('word-btn');
   const replaceBtn   = document.getElementById('replace-btn');
   const previewBtn   = document.getElementById('preview-btn');
-  const globInput    = document.getElementById('glob-input');
-  const filterRow    = document.getElementById('filter-row');
   const replaceRow   = document.getElementById('replace-row');
   const replaceInput = document.getElementById('replace-input');
   const replaceAllBtn= document.getElementById('replace-all-btn');
@@ -1265,14 +1320,14 @@ export class FinderPanel {
     if (state.searching) {
       stateMsg.innerHTML = '<span class="spinner"></span>Searching…';
       stateMsg.style.display = '';
-      resultInfo.textContent = '';
+      resultInfo.textContent = '…';
       return;
     }
 
     if (state.results.length === 0) {
       stateMsg.textContent = state.query ? 'No results.' : 'Start typing to search...';
       stateMsg.style.display = '';
-      resultInfo.textContent = '';
+      resultInfo.textContent = '0 results';
       return;
     }
 
@@ -1310,7 +1365,7 @@ export class FinderPanel {
     if (state.searching) {
       stateMsg.innerHTML = '<span class="spinner"></span>Searching…';
       stateMsg.style.display = '';
-      resultInfo.textContent = '';
+      resultInfo.textContent = '…';
       return;
     }
 
@@ -1319,7 +1374,7 @@ export class FinderPanel {
         ? 'No files found.'
         : state.scope === 'recent' ? 'No recent files yet.' : 'Start typing to search files...';
       stateMsg.style.display = '';
-      resultInfo.textContent = '';
+      resultInfo.textContent = '0 files';
       return;
     }
 
@@ -1362,14 +1417,14 @@ export class FinderPanel {
     if (state.searching) {
       stateMsg.innerHTML = '<span class="spinner"></span>Searching…';
       stateMsg.style.display = '';
-      resultInfo.textContent = '';
+      resultInfo.textContent = '…';
       return;
     }
 
     if (state.symbolResults.length === 0) {
       stateMsg.textContent = state.query ? 'No symbols found.' : 'Start typing to search symbols...';
       stateMsg.style.display = '';
-      resultInfo.textContent = '';
+      resultInfo.textContent = '0 symbols';
       return;
     }
 
@@ -1540,16 +1595,23 @@ export class FinderPanel {
   // ── Scope ──────────────────────────────────────────────────────────────────
   const SCOPES = ['project', 'openFiles', 'files', 'recent', 'here', 'symbols'];
 
-  function updateFilterRowVisibility() {
-    const showFilter = isTextScope() && !isSymbolScope();
-    filterRow.style.display = showFilter ? '' : 'none';
-    replaceRow.style.display = (showFilter && state.replaceMode) ? '' : 'none';
+  function updateReplaceRowVisibility() {
+    replaceRow.style.display = (isTextScope() && state.replaceMode) ? '' : 'none';
+  }
+
+  function clearPreview() {
+    previewHdr.textContent = 'No file selected';
+    previewEmpty.style.display = '';
+    previewCont.style.display = 'none';
+    previewCont.innerHTML = '';
+    state.currentPreviewFile = null;
   }
 
   function setScope(scope) {
     state.scope = scope;
     state.selected = 0;
     state.multiSelected = new Set();
+    clearPreview();
     tabs.forEach(t => t.classList.toggle('active', t.dataset.scope === scope));
     const isFile = isFileScope();
     const isSym = isSymbolScope();
@@ -1557,12 +1619,12 @@ export class FinderPanel {
     caseBtn.disabled = isFile || isSym;
     wordBtn.disabled = isFile || isSym;
     replaceBtn.disabled = isFile || isSym;
-    updateFilterRowVisibility();
+    updateReplaceRowVisibility();
     queryEl.placeholder = scope === 'files'    ? 'Search files by name...'
                         : scope === 'recent'   ? 'Filter recent files...'
                         : scope === 'symbols'  ? 'Search symbols...'
-                        : scope === 'here'     ? 'Search in current directory...'
-                        : 'Search in files...';
+                        : scope === 'here'     ? 'query *.ts  — search in current dir...'
+                        : 'query *.ts  — search in project...';
     if (state.query || scope === 'recent') {
       triggerSearch();
     } else {
@@ -1575,8 +1637,24 @@ export class FinderPanel {
   }
 
   // ── Events ─────────────────────────────────────────────────────────────────
+  function parseQueryInput(raw) {
+    const words = raw.split(/\s+/);
+    const globs = [], terms = [];
+    for (const w of words) {
+      if (w && (w.startsWith('*') || w.startsWith('!'))) { globs.push(w); }
+      else { terms.push(w); }
+    }
+    const query = terms.join(' ').trim();
+    const globFilter = globs.join(',');
+    return { query, globFilter };
+  }
+
   queryEl.addEventListener('input', () => {
-    state.query = queryEl.value;
+    const { query, globFilter } = parseQueryInput(queryEl.value);
+    state.query = query;
+    if (globFilter !== state.globFilter) {
+      state.globFilter = globFilter;
+    }
     state.selected = 0;
     triggerSearch();
   });
@@ -1655,7 +1733,7 @@ export class FinderPanel {
   function toggleReplaceMode() {
     state.replaceMode = !state.replaceMode;
     replaceBtn.classList.toggle('active', state.replaceMode);
-    updateFilterRowVisibility();
+    updateReplaceRowVisibility();
     if (state.replaceMode) { replaceInput.focus(); }
   }
 
@@ -1665,11 +1743,6 @@ export class FinderPanel {
   replaceBtn.addEventListener('click', toggleReplaceMode);
   previewBtn.addEventListener('click', togglePreview);
   replaceAllBtn.addEventListener('click', applyReplaceAll);
-
-  globInput.addEventListener('input', () => {
-    state.globFilter = globInput.value;
-    if (state.query) { triggerSearch(); }
-  });
 
   previewHdr.addEventListener('click', () => {
     if (state.currentPreviewFile) {
@@ -1741,40 +1814,28 @@ export class FinderPanel {
     }
   });
 
-  // ── Footer kbd hints ───────────────────────────────────────────────────────
-  (function buildFooter() {
-    const KEY_NAMES = {
-      arrowdown: '↓', arrowup: '↑', arrowleft: '←', arrowright: '→',
-      escape: 'Esc', enter: '↵', tab: 'Tab', backspace: 'BS', delete: 'Del',
-    };
-    function fmtKey(k) {
-      return k.split('+').map(function(p) {
-        const d = KEY_NAMES[p.toLowerCase()] || (p.charAt(0).toUpperCase() + p.slice(1));
-        return '<kbd>' + escHtml(d) + '</kbd>';
-      }).join('');
-    }
-    document.getElementById('kbd-group').innerHTML =
-      '<span>' + fmtKey(KB.navigateDown) + ' nav</span>' +
-      '<span>' + fmtKey(KB.open)         + ' open</span>' +
-      '<span><kbd>Ctrl</kbd><kbd>↵</kbd> split</span>' +
-      '<span><kbd>Tab</kbd> scope</span>' +
-      '<span>' + fmtKey(KB.toggleRegex)  + ' regex</span>' +
-      '<span><kbd>Alt</kbd><kbd>C</kbd> case</span>' +
-      '<span><kbd>Alt</kbd><kbd>W</kbd> word</span>' +
-      '<span><kbd>Ctrl</kbd><kbd>↑</kbd> history</span>' +
-      '<span><kbd>Alt</kbd><kbd>Y</kbd> copy path</span>' +
-      '<span><kbd>Ctrl</kbd><kbd>Space</kbd> select</span>' +
-      '<span>' + fmtKey(KB.togglePreview)+ ' preview</span>' +
-      '<span>' + fmtKey(KB.close)        + ' close</span>';
+  // ── Shortcuts overlay ──────────────────────────────────────────────────────
+  const helpBtn      = document.getElementById('help-btn');
+  const shortcutsOverlay = document.getElementById('shortcuts-overlay');
 
-    regexBtn.title   = 'Toggle regex (' + KB.toggleRegex + ')';
-    previewBtn.title = 'Toggle preview (' + KB.togglePreview + ')';
-  })();
+  helpBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    shortcutsOverlay.classList.toggle('visible');
+    helpBtn.classList.toggle('active', shortcutsOverlay.classList.contains('visible'));
+  });
+
+  document.addEventListener('click', () => {
+    shortcutsOverlay.classList.remove('visible');
+    helpBtn.classList.remove('active');
+  });
+
+  shortcutsOverlay.addEventListener('click', e => e.stopPropagation());
 
   // ── Init ───────────────────────────────────────────────────────────────────
+  resultInfo.textContent = '0 results';
   state.useRegex = false;
   regexBtn.classList.remove('active');
-  updateFilterRowVisibility();
+  updateReplaceRowVisibility();
   if (isFileScope() || isSymbolScope()) {
     regexBtn.disabled = true;
     caseBtn.disabled = true;
