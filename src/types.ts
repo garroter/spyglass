@@ -39,7 +39,7 @@ export type MessageToWebview =
   | { type: 'focus' }
   | { type: 'setQuery'; query: string }
   | { type: 'error'; message: string }
-  | { type: 'previewContent'; lines: string[]; currentLine: number; relativePath: string; ext: string; changedLines?: number[] }
+  | { type: 'previewContent'; lines: string[]; currentLine: number; relativePath: string; ext: string; changedLines?: number[]; preHighlighted?: boolean }
   | { type: 'fileResults'; results: FileResult[]; query: string }
   | { type: 'symbolResults'; results: SymbolResult[]; query: string };
 

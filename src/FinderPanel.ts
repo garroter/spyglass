@@ -2,6 +2,7 @@ import * as vscode from 'vscode';
 import * as path from 'path';
 import { spawn } from 'child_process';
 import { searchWithRipgrep, listFilesWithRipgrep, isRipgrepAvailable } from './ripgrep';
+import hljs from 'highlight.js';
 import { Scope, KeyBindings, FileResult, SymbolResult } from './types';
 
 function getNonce(): string {
@@ -481,13 +482,28 @@ export class FinderPanel {
 
       const content = doc.getText();
       const changedLines = await this._getChangedLines(filePath);
+
+      let highlighted: string[];
+      try {
+        const lang = hljs.getLanguage(ext) ? ext : undefined;
+        const result = lang
+          ? hljs.highlight(content, { language: lang, ignoreIllegals: true })
+          : hljs.highlightAuto(content, undefined);
+        highlighted = result.value.split('\n');
+      } catch {
+        highlighted = content.split('\n').map(l =>
+          l.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+        );
+      }
+
       this._post({
         type: 'previewContent',
-        lines: content.split('\n'),
+        lines: highlighted,
         currentLine: targetLine,
         relativePath,
         ext,
         changedLines,
+        preHighlighted: true,
       });
     } catch {
       this._post({ type: 'previewContent', lines: ['(cannot read file)'], currentLine: 1, relativePath, ext, changedLines: [] });
@@ -762,13 +778,23 @@ export class FinderPanel {
   .pline--cur .pnum { color: var(--vscode-editorLineNumber-activeForeground, var(--f-accent)); }
   .ptext { color: var(--f-text); font-size: 12px; }
 
-  /* ── Syntax highlighting (fixed decorative colors) ───────── */
-  .hl-kw  { color: var(--f-kw); }
-  .hl-str { color: var(--f-str); }
-  .hl-cmt { color: var(--f-cmt); font-style: italic; }
-  .hl-num { color: var(--f-num); }
-  .hl-fn  { color: var(--f-fn); }
-  .hl-op  { color: var(--f-op); }
+  /* ── Syntax highlighting — highlight.js class mapping ───── */
+  .hljs-keyword, .hljs-operator, .hljs-punctuation { color: var(--f-kw); }
+  .hljs-string, .hljs-template-string, .hljs-template-tag { color: var(--f-str); }
+  .hljs-comment, .hljs-quote { color: var(--f-cmt); font-style: italic; }
+  .hljs-number, .hljs-literal, .hljs-symbol { color: var(--f-num); }
+  .hljs-title, .hljs-title\.function_, .hljs-title\.class_ { color: var(--f-fn); }
+  .hljs-built_in, .hljs-class { color: var(--f-fn); }
+  .hljs-attr, .hljs-attribute, .hljs-property { color: var(--f-accent); }
+  .hljs-tag { color: var(--f-op); }
+  .hljs-name { color: var(--f-kw); }
+  .hljs-selector-class, .hljs-selector-id, .hljs-selector-pseudo { color: var(--f-fn); }
+  .hljs-selector-tag { color: var(--f-kw); }
+  .hljs-type, .hljs-variable\.language_ { color: var(--f-num); }
+  .hljs-meta { color: var(--f-dim); }
+  .hljs-regexp { color: var(--f-str); }
+  .hljs-deletion { color: var(--f-op); }
+  .hljs-addition { color: var(--f-str); }
 
   /* ── Light theme overrides ───────────────────────────────── */
   body.vscode-light { --f-kw: #7c3aed; --f-str: #16a34a; --f-cmt: #6b7280; --f-num: #c2410c; --f-fn: #1d4ed8; --f-op: #dc2626; }
@@ -1257,7 +1283,7 @@ export class FinderPanel {
     }, 80);
   }
 
-  function renderPreview(lines, currentLine, relativePath, ext, changedLines, highlightQuery, useRegex) {
+  function renderPreview(lines, currentLine, relativePath, ext, changedLines, highlightQuery, useRegex, preHighlighted) {
     previewHdr.textContent = relativePath;
     state.currentPreviewFile = relativePath;
     previewEmpty.style.display = 'none';
@@ -1283,8 +1309,10 @@ export class FinderPanel {
       div.className = 'pline'
         + (isCur     ? ' pline--cur'     : '')
         + (isChanged ? ' pline--changed' : '');
-      let lineHtml = highlightLine(line, ext);
-      if (queryRe) { lineHtml = applyQueryHighlight(lineHtml, line, queryRe); }
+      // line is already HTML from hljs (preHighlighted) or raw text
+      const rawText = preHighlighted ? line.replace(/<[^>]*>/g, '') : line;
+      let lineHtml = preHighlighted ? line : highlightLine(line, ext);
+      if (queryRe) { lineHtml = applyQueryHighlight(lineHtml, rawText, queryRe); }
       div.innerHTML =
         '<span class="pnum">' + num + '</span>' +
         '<span class="ptext">' + lineHtml + '</span>';
@@ -1788,7 +1816,7 @@ export class FinderPanel {
         break;
       case 'previewContent':
         renderPreview(data.lines, data.currentLine, data.relativePath, data.ext, data.changedLines,
-          (isFileScope() || isSymbolScope()) ? '' : state.query, state.useRegex);
+          (isFileScope() || isSymbolScope()) ? '' : state.query, state.useRegex, data.preHighlighted);
         break;
       case 'error':
         state.searching = false;
