@@ -22,20 +22,36 @@ export async function searchWithRipgrep(
   query: string,
   cwd: string,
   useRegex: boolean,
-  files?: string[]
+  files?: string[],
+  opts?: { caseSensitive?: boolean; wholeWord?: boolean; globFilter?: string }
 ): Promise<SearchResult[]> {
   return new Promise((resolve) => {
     const args: string[] = [
       '--json',
       '--max-count', '10',
       '--max-filesize', '1M',
-      '--smart-case',
       '--glob', '!.git',
       '--glob', '!node_modules',
       '--glob', '!out',
       '--glob', '!dist',
       '--glob', '!*.lock',
     ];
+
+    if (opts?.caseSensitive) {
+      args.push('--case-sensitive');
+    } else {
+      args.push('--smart-case');
+    }
+
+    if (opts?.wholeWord) {
+      args.push('--word-regexp');
+    }
+
+    if (opts?.globFilter?.trim()) {
+      for (const g of opts.globFilter.split(',').map(s => s.trim()).filter(Boolean)) {
+        args.push('--glob', g);
+      }
+    }
 
     if (!useRegex) {
       args.push('--fixed-strings');

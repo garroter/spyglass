@@ -1,9 +1,8 @@
 import * as vscode from 'vscode';
 import * as path from 'path';
-import { promises as fsp } from 'fs';
 import { spawn } from 'child_process';
 import { searchWithRipgrep, listFilesWithRipgrep, isRipgrepAvailable } from './ripgrep';
-import { Scope, KeyBindings, FileResult } from './types';
+import { Scope, KeyBindings, FileResult, SymbolResult } from './types';
 
 function getNonce(): string {
   const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
@@ -49,6 +48,9 @@ export class FinderPanel {
   private static readonly FILE_CACHE_TTL = 15_000;
   private _searchSeq = 0;
   private _recentFiles: string[] = [];
+  private _searchHistory: string[] = [];
+  private _activeDir: string = '';
+  private _context: vscode.ExtensionContext | null = null;
 
   public static async createOrShow(context: vscode.ExtensionContext): Promise<void> {
     const editor = vscode.window.activeTextEditor;
@@ -73,6 +75,10 @@ export class FinderPanel {
     }
 
     const recentFiles = context.workspaceState.get<string[]>('spyglass.recentFiles', []);
+    const searchHistory = context.workspaceState.get<string[]>('spyglass.searchHistory', []);
+    const activeDir = editor?.document.uri.fsPath
+      ? path.dirname(editor.document.uri.fsPath)
+      : '';
 
     const config = vscode.workspace.getConfiguration('spyglass');
     const rawScope = config.get<string>('defaultScope', 'project');
@@ -94,7 +100,7 @@ export class FinderPanel {
       { enableScripts: true, localResourceRoots: [] }
     );
 
-    FinderPanel.currentPanel = new FinderPanel(panel, defaultScope, kb, selectedText, recentFiles, context);
+    FinderPanel.currentPanel = new FinderPanel(panel, defaultScope, kb, selectedText, recentFiles, searchHistory, activeDir, context);
   }
 
   private constructor(
@@ -103,13 +109,18 @@ export class FinderPanel {
     kb: KeyBindings,
     initialQuery: string,
     recentFiles: string[],
-    _context: vscode.ExtensionContext
+    searchHistory: string[],
+    activeDir: string,
+    context: vscode.ExtensionContext
   ) {
     this._panel = panel;
     this._scope = defaultScope;
     this._cwd = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath ?? '';
     this._recentFiles = recentFiles;
-    this._panel.webview.html = this._buildHtml(defaultScope, kb, initialQuery);
+    this._searchHistory = searchHistory;
+    this._activeDir = activeDir;
+    this._context = context;
+    this._panel.webview.html = this._buildHtml(defaultScope, kb, initialQuery, this._searchHistory);
 
     // Warm file cache in background so Files tab is instant on first use
     if (this._cwd) {
@@ -123,15 +134,39 @@ export class FinderPanel {
 
     this._panel.webview.onDidReceiveMessage(async (msg) => {
       switch (msg.type) {
-        case 'search':
+        case 'search': {
           this._scope = msg.scope as Scope;
-          await this._runSearch(msg.query as string, msg.useRegex as boolean);
+          const query = msg.query as string;
+          const opts = { caseSensitive: !!msg.caseSensitive, wholeWord: !!msg.wholeWord, globFilter: (msg.globFilter as string) || '' };
+          if (query.trim() && this._context) {
+            const hist = [query, ...this._searchHistory.filter(h => h !== query)].slice(0, 50);
+            this._searchHistory = hist;
+            this._context.workspaceState.update('spyglass.searchHistory', hist);
+          }
+          if (msg.scope === 'here') {
+            await this._runHereSearch(query, msg.useRegex as boolean, opts);
+          } else {
+            await this._runSearch(query, msg.useRegex as boolean, opts);
+          }
           break;
+        }
         case 'fileSearch':
           await this._runFileSearch(msg.query as string);
           break;
         case 'recentSearch':
           this._runRecentSearch(msg.query as string);
+          break;
+        case 'symbolSearch':
+          await this._runSymbolSearch(msg.query as string);
+          break;
+        case 'copyPath':
+          await vscode.env.clipboard.writeText(msg.path as string);
+          break;
+        case 'revealFile':
+          await vscode.commands.executeCommand('revealInExplorer', vscode.Uri.file(msg.file as string));
+          break;
+        case 'replaceAll':
+          await this._replaceAll(msg);
           break;
         case 'openInSplit':
           await this._openFileInSplit(msg.file as string, msg.line as number);
@@ -153,7 +188,7 @@ export class FinderPanel {
     this._panel.webview.postMessage(msg);
   }
 
-  private async _runSearch(query: string, useRegex: boolean): Promise<void> {
+  private async _runSearch(query: string, useRegex: boolean, opts?: { caseSensitive?: boolean; wholeWord?: boolean; globFilter?: string }): Promise<void> {
     const seq = ++this._searchSeq;
     const config = vscode.workspace.getConfiguration('spyglass');
     const maxResults = config.get<number>('maxResults', 200);
@@ -180,13 +215,144 @@ export class FinderPanel {
 
     const start = Date.now();
     try {
-      const results = await searchWithRipgrep(query, this._cwd, useRegex, files);
+      const results = await searchWithRipgrep(query, this._cwd, useRegex, files, opts);
       if (seq !== this._searchSeq) { return; }
       this._post({ type: 'results', results: results.slice(0, maxResults), query, took: Date.now() - start });
     } catch {
       if (seq !== this._searchSeq) { return; }
       this._post({ type: 'error', message: 'Search failed.' });
     }
+  }
+
+  private async _runHereSearch(query: string, useRegex: boolean, opts?: { caseSensitive?: boolean; wholeWord?: boolean; globFilter?: string }): Promise<void> {
+    const seq = ++this._searchSeq;
+    const cwd = this._activeDir || this._cwd;
+    const config = vscode.workspace.getConfiguration('spyglass');
+    const maxResults = config.get<number>('maxResults', 200);
+
+    if (!query.trim()) {
+      this._post({ type: 'results', results: [], query, took: 0 });
+      return;
+    }
+
+    if (!cwd) {
+      this._post({ type: 'error', message: 'No active directory.' });
+      return;
+    }
+
+    this._post({ type: 'searching' });
+
+    const start = Date.now();
+    try {
+      const results = await searchWithRipgrep(query, cwd, useRegex, undefined, opts);
+      if (seq !== this._searchSeq) { return; }
+      this._post({ type: 'results', results: results.slice(0, maxResults), query, took: Date.now() - start });
+    } catch {
+      if (seq !== this._searchSeq) { return; }
+      this._post({ type: 'error', message: 'Search failed.' });
+    }
+  }
+
+  private async _runSymbolSearch(query: string): Promise<void> {
+    const seq = ++this._searchSeq;
+    try {
+      const symbols = await vscode.commands.executeCommand<vscode.SymbolInformation[]>(
+        'vscode.executeWorkspaceSymbolProvider', query
+      );
+      if (seq !== this._searchSeq) { return; }
+
+      const kindLabels: Record<number, string> = {
+        [vscode.SymbolKind.File]: 'file',
+        [vscode.SymbolKind.Module]: 'module',
+        [vscode.SymbolKind.Namespace]: 'namespace',
+        [vscode.SymbolKind.Package]: 'package',
+        [vscode.SymbolKind.Class]: 'class',
+        [vscode.SymbolKind.Method]: 'method',
+        [vscode.SymbolKind.Property]: 'property',
+        [vscode.SymbolKind.Field]: 'field',
+        [vscode.SymbolKind.Constructor]: 'constructor',
+        [vscode.SymbolKind.Enum]: 'enum',
+        [vscode.SymbolKind.Interface]: 'interface',
+        [vscode.SymbolKind.Function]: 'function',
+        [vscode.SymbolKind.Variable]: 'variable',
+        [vscode.SymbolKind.Constant]: 'constant',
+        [vscode.SymbolKind.String]: 'string',
+        [vscode.SymbolKind.Number]: 'number',
+        [vscode.SymbolKind.Boolean]: 'boolean',
+        [vscode.SymbolKind.Array]: 'array',
+        [vscode.SymbolKind.Object]: 'object',
+        [vscode.SymbolKind.Key]: 'key',
+        [vscode.SymbolKind.Null]: 'null',
+        [vscode.SymbolKind.EnumMember]: 'enum member',
+        [vscode.SymbolKind.Struct]: 'struct',
+        [vscode.SymbolKind.Event]: 'event',
+        [vscode.SymbolKind.Operator]: 'operator',
+        [vscode.SymbolKind.TypeParameter]: 'type param',
+      };
+
+      const results: SymbolResult[] = (symbols || []).slice(0, 200).map(s => ({
+        name: s.name,
+        kindLabel: kindLabels[s.kind] ?? 'symbol',
+        file: s.location.uri.fsPath,
+        relativePath: path.relative(this._cwd, s.location.uri.fsPath).replace(/\\/g, '/'),
+        line: s.location.range.start.line + 1,
+        container: s.containerName || undefined,
+      }));
+
+      this._post({ type: 'symbolResults', results, query });
+    } catch {
+      if (seq !== this._searchSeq) { return; }
+      this._post({ type: 'error', message: 'Symbol search failed.' });
+    }
+  }
+
+  private async _replaceAll(msg: { query: string; replacement: string; useRegex: boolean; caseSensitive: boolean; wholeWord: boolean; globFilter: string; scope: string }): Promise<void> {
+    const cwd = msg.scope === 'here' ? (this._activeDir || this._cwd) : this._cwd;
+    let files: string[] | undefined;
+    if (msg.scope === 'openFiles') {
+      files = vscode.window.tabGroups.all
+        .flatMap(g => g.tabs)
+        .map(t => (t.input as { uri?: vscode.Uri })?.uri?.fsPath)
+        .filter((f): f is string => typeof f === 'string');
+    }
+
+    let results;
+    try {
+      results = await searchWithRipgrep(msg.query, cwd, msg.useRegex, files, {
+        caseSensitive: msg.caseSensitive,
+        wholeWord: msg.wholeWord,
+        globFilter: msg.globFilter,
+      });
+    } catch {
+      vscode.window.showErrorMessage('Spyglass: Replace failed — search error.');
+      return;
+    }
+
+    if (results.length === 0) {
+      vscode.window.showInformationMessage('Spyglass: No matches found to replace.');
+      return;
+    }
+
+    const fileSet = new Set(results.map(r => r.file));
+    const edit = new vscode.WorkspaceEdit();
+    const pattern = msg.useRegex
+      ? new RegExp(msg.query, msg.caseSensitive ? 'g' : 'gi')
+      : new RegExp(msg.query.replace(/[.*+?^{}()|[\]\\$]/g, '\\$&'), msg.caseSensitive ? 'g' : 'gi');
+
+    const { promises: fsp2 } = await import('fs');
+    for (const filePath of fileSet) {
+      try {
+        const content = await fsp2.readFile(filePath, 'utf-8');
+        const newContent = content.replace(pattern, msg.replacement);
+        if (newContent !== content) {
+          const uri = vscode.Uri.file(filePath);
+          edit.replace(uri, new vscode.Range(0, 0, content.split('\n').length, 0), newContent);
+        }
+      } catch { /* skip unreadable files */ }
+    }
+
+    await vscode.workspace.applyEdit(edit);
+    this._post({ type: 'replaceApplied' });
   }
 
   private async _runFileSearch(query: string): Promise<void> {
@@ -301,42 +467,30 @@ export class FinderPanel {
   }
 
   private async _sendPreview(filePath: string, targetLine: number): Promise<void> {
+    const ext = path.extname(filePath).slice(1).toLowerCase();
+    const relativePath = path.relative(this._cwd, filePath).replace(/\\/g, '/');
     try {
-      const stat = await fsp.stat(filePath);
-      const ext = path.extname(filePath).slice(1).toLowerCase();
-      if (stat.size > 512 * 1024) {
-        this._post({
-          type: 'previewContent',
-          lines: ['(file too large to preview)'],
-          currentLine: 1,
-          relativePath: path.relative(this._cwd, filePath),
-          ext,
-          changedLines: [],
-        });
+      // Use VSCode's document API so we see in-memory edits (e.g. after WorkspaceEdit)
+      const uri = vscode.Uri.file(filePath);
+      const doc = await vscode.workspace.openTextDocument(uri);
+
+      if (doc.getText().length > 512 * 1024) {
+        this._post({ type: 'previewContent', lines: ['(file too large to preview)'], currentLine: 1, relativePath, ext, changedLines: [] });
         return;
       }
 
-      const [content, changedLines] = await Promise.all([
-        fsp.readFile(filePath, 'utf-8'),
-        this._getChangedLines(filePath),
-      ]);
+      const content = doc.getText();
+      const changedLines = await this._getChangedLines(filePath);
       this._post({
         type: 'previewContent',
         lines: content.split('\n'),
         currentLine: targetLine,
-        relativePath: path.relative(this._cwd, filePath).replace(/\\/g, '/'),
+        relativePath,
         ext,
         changedLines,
       });
     } catch {
-      this._post({
-        type: 'previewContent',
-        lines: ['(cannot read file)'],
-        currentLine: 1,
-        relativePath: filePath,
-        ext: path.extname(filePath).slice(1).toLowerCase(),
-        changedLines: [],
-      });
+      this._post({ type: 'previewContent', lines: ['(cannot read file)'], currentLine: 1, relativePath, ext, changedLines: [] });
     }
   }
 
@@ -361,7 +515,7 @@ export class FinderPanel {
     this._disposables.length = 0;
   }
 
-  private _buildHtml(defaultScope: Scope, kb: KeyBindings, initialQuery: string = ''): string {
+  private _buildHtml(defaultScope: Scope, kb: KeyBindings, initialQuery: string = '', searchHistory: string[] = []): string {
     const nonce = getNonce();
     return /* html */`<!DOCTYPE html>
 <html lang="en">
@@ -621,6 +775,75 @@ export class FinderPanel {
   /* ── High-contrast theme overrides ──────────────────────── */
   body.vscode-high-contrast { --f-kw: #e040fb; --f-str: #80ff80; --f-cmt: #a0a0a0; --f-num: #ffb74d; --f-fn: #81d4fa; --f-op: #ff6e6e; }
 
+  /* ── Filter / replace rows ───────────────────────────────── */
+  .filter-row, .replace-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 5px 14px;
+    border-bottom: 1px solid var(--f-border-s);
+    flex-shrink: 0;
+  }
+  .filter-label {
+    color: var(--f-dim);
+    font-size: 11px;
+    flex-shrink: 0;
+    user-select: none;
+  }
+  #glob-input, #replace-input {
+    flex: 1;
+    background: transparent;
+    border: none;
+    outline: none;
+    color: var(--f-text);
+    font-family: inherit;
+    font-size: 13px;
+    caret-color: var(--f-accent);
+    min-width: 0;
+  }
+  #glob-input::placeholder, #replace-input::placeholder { color: var(--f-ph); }
+
+  /* ── Multiselect indicator (left accent stripe) ──────────── */
+  .result.multi-sel {
+    background: color-mix(in srgb, var(--f-accent) 12%, transparent);
+    border-left-color: color-mix(in srgb, var(--f-accent) 60%, transparent);
+  }
+  .result.multi-sel .result-file { opacity: 0.9; }
+
+  /* ── Symbol results ───────────────────────────────────────── */
+  .sym-kind {
+    font-size: 9px;
+    padding: 1px 4px;
+    border-radius: 3px;
+    background: var(--f-hover);
+    color: var(--f-dim);
+    flex-shrink: 0;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+  }
+  .sym-name { color: var(--f-text); font-size: 12px; }
+  .sym-container { color: var(--f-dim); font-size: 10px; }
+
+  /* ── Preview header as button ─────────────────────────────── */
+  .preview-header-btn {
+    padding: 7px 14px;
+    border: none;
+    border-bottom: 1px solid var(--f-border-s);
+    color: var(--f-dim);
+    font-size: 11px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    flex-shrink: 0;
+    background: var(--f-raised);
+    font-family: inherit;
+    text-align: left;
+    width: 100%;
+    cursor: pointer;
+    transition: color 0.12s;
+  }
+  .preview-header-btn:hover { color: var(--f-accent); }
+
   /* ── Footer ──────────────────────────────────────────────── */
   .footer {
     display: flex;
@@ -653,7 +876,23 @@ export class FinderPanel {
   <span class="search-icon">⌕</span>
   <input id="query" type="text" placeholder="Search in files..." autocomplete="off" spellcheck="false">
   <button type="button" class="icon-btn" id="regex-btn" title="Toggle regex (Ctrl+R)">.*</button>
+  <button type="button" class="icon-btn" id="case-btn" title="Case sensitive (Alt+C)">Aa</button>
+  <button type="button" class="icon-btn" id="word-btn" title="Whole word (Alt+W)">\\b</button>
+  <button type="button" class="icon-btn" id="replace-btn" title="Replace mode (Alt+R)">⇄</button>
   <button type="button" class="icon-btn active" id="preview-btn" title="Toggle preview (P)">⊡</button>
+</div>
+
+<!-- Filter row -->
+<div class="filter-row" id="filter-row" style="display:none">
+  <span class="filter-label">filter:</span>
+  <input id="glob-input" type="text" placeholder="*.ts, !*.test.ts" spellcheck="false" autocomplete="off">
+</div>
+
+<!-- Replace row -->
+<div class="replace-row" id="replace-row" style="display:none">
+  <span class="filter-label">replace:</span>
+  <input id="replace-input" type="text" placeholder="replacement text" spellcheck="false" autocomplete="off">
+  <button type="button" class="icon-btn" id="replace-all-btn">Replace all</button>
 </div>
 
 <!-- Scope tabs -->
@@ -662,6 +901,8 @@ export class FinderPanel {
   <button type="button" class="tab ${defaultScope === 'openFiles' ? 'active' : ''}" data-scope="openFiles">Open Files</button>
   <button type="button" class="tab ${defaultScope === 'files' ? 'active' : ''}" data-scope="files">Files</button>
   <button type="button" class="tab ${defaultScope === 'recent' ? 'active' : ''}" data-scope="recent">Recent</button>
+  <button type="button" class="tab ${defaultScope === 'here' ? 'active' : ''}" data-scope="here">Dir</button>
+  <button type="button" class="tab ${defaultScope === 'symbols' ? 'active' : ''}" data-scope="symbols">Symbols</button>
 </div>
 
 <!-- Main layout -->
@@ -676,7 +917,7 @@ export class FinderPanel {
 
   <!-- Right: file preview -->
   <div class="right-panel" id="right-panel">
-    <div class="preview-header" id="preview-header">No file selected</div>
+    <button type="button" class="preview-header-btn" id="preview-header" title="Reveal in Explorer">No file selected</button>
     <div class="preview-empty" id="preview-empty">Navigate results to preview</div>
     <div class="preview-content" id="preview-content"></div>
   </div>
@@ -702,6 +943,7 @@ export class FinderPanel {
   // ── Keybindings (from settings) ────────────────────────────────────────────
   const KB = ${JSON.stringify(kb)};
   const INITIAL_QUERY = ${JSON.stringify(initialQuery)};
+  const INITIAL_HISTORY = ${JSON.stringify(searchHistory)};
 
   function matchKey(e, binding) {
     if (!binding) { return false; }
@@ -720,18 +962,35 @@ export class FinderPanel {
   const state = {
     results: [],
     fileResults: [],
+    symbolResults: [],
     selected: 0,
     scope: '${defaultScope}',
     useRegex: false,
+    caseSensitive: false,
+    wholeWord: false,
+    globFilter: '',
+    replaceMode: false,
     query: '',
     searching: false,
     showPreview: true,
+    multiSelected: new Set(),
+    searchHistory: INITIAL_HISTORY.slice(),
+    historyIndex: -1,
+    currentPreviewFile: null,
   };
 
   // ── DOM refs ───────────────────────────────────────────────────────────────
   const queryEl      = document.getElementById('query');
   const regexBtn     = document.getElementById('regex-btn');
+  const caseBtn      = document.getElementById('case-btn');
+  const wordBtn      = document.getElementById('word-btn');
+  const replaceBtn   = document.getElementById('replace-btn');
   const previewBtn   = document.getElementById('preview-btn');
+  const globInput    = document.getElementById('glob-input');
+  const filterRow    = document.getElementById('filter-row');
+  const replaceRow   = document.getElementById('replace-row');
+  const replaceInput = document.getElementById('replace-input');
+  const replaceAllBtn= document.getElementById('replace-all-btn');
   const wrap         = document.getElementById('results-wrap');
   const stateMsg     = document.getElementById('state-msg');
   const resultInfo   = document.getElementById('result-info');
@@ -908,7 +1167,19 @@ export class FinderPanel {
   let previewTimer = null;
 
   function requestPreview() {
-    if (isFileScope()) { requestFilePreview(); } else { requestTextPreview(); }
+    if (isFileScope()) { requestFilePreview(); }
+    else if (isSymbolScope()) { requestSymbolPreview(); }
+    else { requestTextPreview(); }
+  }
+
+  function requestSymbolPreview() {
+    if (!state.showPreview) { return; }
+    const r = state.symbolResults[state.selected];
+    if (!r) { return; }
+    clearTimeout(previewTimer);
+    previewTimer = setTimeout(() => {
+      vscode.postMessage({ type: 'preview', file: r.file, line: r.line });
+    }, 80);
   }
 
   function requestTextPreview() {
@@ -933,6 +1204,7 @@ export class FinderPanel {
 
   function renderPreview(lines, currentLine, relativePath, ext, changedLines, highlightQuery, useRegex) {
     previewHdr.textContent = relativePath;
+    state.currentPreviewFile = relativePath;
     previewEmpty.style.display = 'none';
     previewCont.style.display = 'block';
 
@@ -982,7 +1254,9 @@ export class FinderPanel {
 
   // ── Results render ─────────────────────────────────────────────────────────
   function render() {
-    if (isFileScope()) { renderFileResults(); } else { renderTextResults(); }
+    if (isFileScope()) { renderFileResults(); }
+    else if (isSymbolScope()) { renderSymbolResults(); }
+    else { renderTextResults(); }
   }
 
   function renderTextResults() {
@@ -1006,8 +1280,9 @@ export class FinderPanel {
 
     const frag = document.createDocumentFragment();
     state.results.forEach((r, i) => {
+      const isMultiSel = state.multiSelected.has(i);
       const div = document.createElement('div');
-      div.className = 'result' + (i === state.selected ? ' selected' : '');
+      div.className = 'result' + (i === state.selected ? ' selected' : '') + (isMultiSel ? ' multi-sel' : '');
       div.dataset.index = String(i);
       div.innerHTML =
         '<div class="result-header">' +
@@ -1016,7 +1291,9 @@ export class FinderPanel {
         '</div>' +
         '<div class="result-text">' + highlightMatch(r.text, r.matchStart, r.matchEnd) + '</div>';
 
-      div.addEventListener('click', () => openResult(i));
+      div.addEventListener('click', (e) => {
+        if (e.ctrlKey) { toggleSelectResult(i); } else { openResult(i); }
+      });
       div.addEventListener('mouseenter', () => { state.selected = i; updateSelection(); requestPreview(); });
       frag.appendChild(div);
     });
@@ -1079,6 +1356,49 @@ export class FinderPanel {
     requestPreview();
   }
 
+  function renderSymbolResults() {
+    wrap.querySelectorAll('.result').forEach(el => el.remove());
+
+    if (state.searching) {
+      stateMsg.innerHTML = '<span class="spinner"></span>Searching…';
+      stateMsg.style.display = '';
+      resultInfo.textContent = '';
+      return;
+    }
+
+    if (state.symbolResults.length === 0) {
+      stateMsg.textContent = state.query ? 'No symbols found.' : 'Start typing to search symbols...';
+      stateMsg.style.display = '';
+      resultInfo.textContent = '';
+      return;
+    }
+
+    stateMsg.style.display = 'none';
+
+    const frag = document.createDocumentFragment();
+    state.symbolResults.forEach((r, i) => {
+      const div = document.createElement('div');
+      div.className = 'result' + (i === state.selected ? ' selected' : '');
+      div.dataset.index = String(i);
+      div.innerHTML =
+        '<div class="result-header">' +
+          '<span class="sym-kind">' + escHtml(r.kindLabel) + '</span>' +
+          '<span class="sym-name">' + escHtml(r.name) + '</span>' +
+        '</div>' +
+        (r.container ? '<div class="sym-container">' + escHtml(r.container) + '</div>' : '') +
+        '<div class="result-text">' + escHtml(r.relativePath) + ':' + r.line + '</div>';
+
+      div.addEventListener('click', () => openResult(i));
+      div.addEventListener('mouseenter', () => { state.selected = i; updateSelection(); requestPreview(); });
+      frag.appendChild(div);
+    });
+
+    wrap.appendChild(frag);
+    resultInfo.textContent = state.symbolResults.length + ' symbol' + (state.symbolResults.length !== 1 ? 's' : '');
+    scrollToSelected();
+    requestPreview();
+  }
+
   function updateSelection() {
     wrap.querySelectorAll('.result').forEach((el, i) => {
       el.classList.toggle('selected', i === state.selected);
@@ -1090,11 +1410,74 @@ export class FinderPanel {
     wrap.querySelector('.result.selected')?.scrollIntoView({ block: 'nearest' });
   }
 
+  // ── Multi-select ───────────────────────────────────────────────────────────
+  function toggleSelectResult(i) {
+    if (state.multiSelected.has(i)) { state.multiSelected.delete(i); }
+    else { state.multiSelected.add(i); }
+    render();
+  }
+
+  function selectAll() {
+    const len = isTextScope() ? state.results.length : 0;
+    for (let i = 0; i < len; i++) { state.multiSelected.add(i); }
+    render();
+  }
+
+  function openAllSelected() {
+    if (state.multiSelected.size === 0) { openResult(state.selected); return; }
+    for (const i of state.multiSelected) {
+      const r = state.results[i];
+      if (r) { vscode.postMessage({ type: 'open', file: r.file, line: r.line }); }
+    }
+  }
+
+  function copyCurrentPath() {
+    let file = null;
+    if (isFileScope()) {
+      const r = state.fileResults[state.selected];
+      if (r) { file = r.file; }
+    } else if (isSymbolScope()) {
+      const r = state.symbolResults[state.selected];
+      if (r) { file = r.file; }
+    } else {
+      const r = state.results[state.selected];
+      if (r) { file = r.file; }
+    }
+    if (file) { vscode.postMessage({ type: 'copyPath', path: file }); }
+  }
+
+  // ── History ────────────────────────────────────────────────────────────────
+  function navigateHistory(dir) {
+    if (state.searchHistory.length === 0) { return; }
+    state.historyIndex = Math.max(-1, Math.min(state.searchHistory.length - 1, state.historyIndex + dir));
+    if (state.historyIndex >= 0) {
+      queryEl.value = state.searchHistory[state.historyIndex];
+      state.query = queryEl.value;
+    }
+  }
+
+  // ── Replace ────────────────────────────────────────────────────────────────
+  function applyReplaceAll() {
+    vscode.postMessage({
+      type: 'replaceAll',
+      query: state.query,
+      replacement: replaceInput.value,
+      useRegex: state.useRegex,
+      caseSensitive: state.caseSensitive,
+      wholeWord: state.wholeWord,
+      globFilter: state.globFilter,
+      scope: state.scope,
+    });
+  }
+
   // ── Actions ────────────────────────────────────────────────────────────────
   function openResult(index) {
     if (isFileScope()) {
       const r = state.fileResults[index];
       if (r) { vscode.postMessage({ type: 'open', file: r.file, line: 1 }); }
+    } else if (isSymbolScope()) {
+      const r = state.symbolResults[index];
+      if (r) { vscode.postMessage({ type: 'open', file: r.file, line: r.line }); }
     } else {
       const r = state.results[index];
       if (r) { vscode.postMessage({ type: 'open', file: r.file, line: r.line }); }
@@ -1105,6 +1488,9 @@ export class FinderPanel {
     if (isFileScope()) {
       const r = state.fileResults[index];
       if (r) { vscode.postMessage({ type: 'openInSplit', file: r.file, line: 1 }); }
+    } else if (isSymbolScope()) {
+      const r = state.symbolResults[index];
+      if (r) { vscode.postMessage({ type: 'openInSplit', file: r.file, line: r.line }); }
     } else {
       const r = state.results[index];
       if (r) { vscode.postMessage({ type: 'openInSplit', file: r.file, line: r.line }); }
@@ -1112,7 +1498,9 @@ export class FinderPanel {
   }
 
   function navigate(delta) {
-    const len = isFileScope() ? state.fileResults.length : state.results.length;
+    const len = isFileScope() ? state.fileResults.length
+              : isSymbolScope() ? state.symbolResults.length
+              : state.results.length;
     state.selected = Math.max(0, Math.min(state.selected + delta, len - 1));
     updateSelection();
     requestPreview();
@@ -1120,6 +1508,8 @@ export class FinderPanel {
 
   // ── Search ─────────────────────────────────────────────────────────────────
   function isFileScope() { return state.scope === 'files' || state.scope === 'recent'; }
+  function isSymbolScope() { return state.scope === 'symbols'; }
+  function isTextScope() { return !isFileScope() && !isSymbolScope(); }
 
   let searchTimer = null;
   function triggerSearch() {
@@ -1129,28 +1519,56 @@ export class FinderPanel {
         vscode.postMessage({ type: 'fileSearch', query: state.query });
       } else if (state.scope === 'recent') {
         vscode.postMessage({ type: 'recentSearch', query: state.query });
+      } else if (state.scope === 'symbols') {
+        state.searching = true;
+        render();
+        vscode.postMessage({ type: 'symbolSearch', query: state.query });
       } else {
-        vscode.postMessage({ type: 'search', query: state.query, useRegex: state.useRegex, scope: state.scope });
+        vscode.postMessage({
+          type: 'search',
+          query: state.query,
+          useRegex: state.useRegex,
+          scope: state.scope,
+          caseSensitive: state.caseSensitive,
+          wholeWord: state.wholeWord,
+          globFilter: state.globFilter,
+        });
       }
     }, 180);
   }
 
   // ── Scope ──────────────────────────────────────────────────────────────────
-  const SCOPES = ['project', 'openFiles', 'files', 'recent'];
+  const SCOPES = ['project', 'openFiles', 'files', 'recent', 'here', 'symbols'];
+
+  function updateFilterRowVisibility() {
+    const showFilter = isTextScope() && !isSymbolScope();
+    filterRow.style.display = showFilter ? '' : 'none';
+    replaceRow.style.display = (showFilter && state.replaceMode) ? '' : 'none';
+  }
 
   function setScope(scope) {
     state.scope = scope;
     state.selected = 0;
+    state.multiSelected = new Set();
     tabs.forEach(t => t.classList.toggle('active', t.dataset.scope === scope));
-    regexBtn.disabled = isFileScope();
-    queryEl.placeholder = scope === 'files'   ? 'Search files by name...'
-                        : scope === 'recent'  ? 'Filter recent files...'
+    const isFile = isFileScope();
+    const isSym = isSymbolScope();
+    regexBtn.disabled = isFile || isSym;
+    caseBtn.disabled = isFile || isSym;
+    wordBtn.disabled = isFile || isSym;
+    replaceBtn.disabled = isFile || isSym;
+    updateFilterRowVisibility();
+    queryEl.placeholder = scope === 'files'    ? 'Search files by name...'
+                        : scope === 'recent'   ? 'Filter recent files...'
+                        : scope === 'symbols'  ? 'Search symbols...'
+                        : scope === 'here'     ? 'Search in current directory...'
                         : 'Search in files...';
     if (state.query || scope === 'recent') {
       triggerSearch();
     } else {
       state.results = [];
       state.fileResults = [];
+      state.symbolResults = [];
       state.searching = false;
       render();
     }
@@ -1164,10 +1582,18 @@ export class FinderPanel {
   });
 
   queryEl.addEventListener('keydown', (e) => {
-    if (matchKey(e, KB.navigateDown)) {
+    if (e.ctrlKey && e.key === 'ArrowUp') {
+      e.preventDefault(); navigateHistory(-1);
+    } else if (e.ctrlKey && e.key === 'ArrowDown') {
+      e.preventDefault(); navigateHistory(1);
+    } else if (e.altKey && e.key === 'y') {
+      e.preventDefault(); copyCurrentPath();
+    } else if (matchKey(e, KB.navigateDown)) {
       e.preventDefault(); navigate(1);
     } else if (matchKey(e, KB.navigateUp)) {
       e.preventDefault(); navigate(-1);
+    } else if (e.shiftKey && e.key === 'Enter') {
+      e.preventDefault(); openAllSelected();
     } else if (e.ctrlKey && e.key === 'Enter') {
       e.preventDefault(); openResultInSplit(state.selected);
     } else if (matchKey(e, KB.open)) {
@@ -1181,19 +1607,29 @@ export class FinderPanel {
       e.preventDefault(); toggleRegex();
     } else if (matchKey(e, KB.togglePreview)) {
       e.preventDefault(); togglePreview();
+    } else if (e.altKey && e.key === 'c') {
+      e.preventDefault(); toggleCase();
+    } else if (e.altKey && e.key === 'w') {
+      e.preventDefault(); toggleWord();
+    } else if (e.altKey && e.key === 'r') {
+      e.preventDefault(); toggleReplaceMode();
     }
   });
 
   // Global keys (when input not focused)
   document.addEventListener('keydown', (e) => {
     if (document.activeElement === queryEl) { return; }
-    if (matchKey(e, KB.navigateDown))        { e.preventDefault(); navigate(1); }
-    else if (matchKey(e, KB.navigateUp))     { e.preventDefault(); navigate(-1); }
-    else if (e.ctrlKey && e.key === 'Enter') { e.preventDefault(); openResultInSplit(state.selected); }
-    else if (matchKey(e, KB.open))           { e.preventDefault(); openResult(state.selected); }
-    else if (matchKey(e, KB.togglePreview))  { e.preventDefault(); togglePreview(); }
-    else if (matchKey(e, KB.close))          { vscode.postMessage({ type: 'close' }); }
-    else if (e.key === 'Tab')                { e.preventDefault(); setScope(SCOPES[(SCOPES.indexOf(state.scope) + 1) % SCOPES.length]); }
+    if (matchKey(e, KB.navigateDown))           { e.preventDefault(); navigate(1); }
+    else if (matchKey(e, KB.navigateUp))        { e.preventDefault(); navigate(-1); }
+    else if (e.altKey && e.key === 'y') { e.preventDefault(); copyCurrentPath(); }
+    else if (e.ctrlKey && e.key === ' ')        { e.preventDefault(); toggleSelectResult(state.selected); }
+    else if (e.shiftKey && e.key === 'Enter')   { e.preventDefault(); openAllSelected(); }
+    else if (e.ctrlKey && e.key === 'a')        { e.preventDefault(); selectAll(); }
+    else if (e.ctrlKey && e.key === 'Enter')    { e.preventDefault(); openResultInSplit(state.selected); }
+    else if (matchKey(e, KB.open))              { e.preventDefault(); openResult(state.selected); }
+    else if (matchKey(e, KB.togglePreview))     { e.preventDefault(); togglePreview(); }
+    else if (matchKey(e, KB.close))             { vscode.postMessage({ type: 'close' }); }
+    else if (e.key === 'Tab')                   { e.preventDefault(); setScope(SCOPES[(SCOPES.indexOf(state.scope) + 1) % SCOPES.length]); }
   });
 
   tabs.forEach(tab => tab.addEventListener('click', () => setScope(tab.dataset.scope)));
@@ -1204,8 +1640,53 @@ export class FinderPanel {
     if (state.query) { triggerSearch(); }
   }
 
+  function toggleCase() {
+    state.caseSensitive = !state.caseSensitive;
+    caseBtn.classList.toggle('active', state.caseSensitive);
+    if (state.query) { triggerSearch(); }
+  }
+
+  function toggleWord() {
+    state.wholeWord = !state.wholeWord;
+    wordBtn.classList.toggle('active', state.wholeWord);
+    if (state.query) { triggerSearch(); }
+  }
+
+  function toggleReplaceMode() {
+    state.replaceMode = !state.replaceMode;
+    replaceBtn.classList.toggle('active', state.replaceMode);
+    updateFilterRowVisibility();
+    if (state.replaceMode) { replaceInput.focus(); }
+  }
+
   regexBtn.addEventListener('click', toggleRegex);
+  caseBtn.addEventListener('click', toggleCase);
+  wordBtn.addEventListener('click', toggleWord);
+  replaceBtn.addEventListener('click', toggleReplaceMode);
   previewBtn.addEventListener('click', togglePreview);
+  replaceAllBtn.addEventListener('click', applyReplaceAll);
+
+  globInput.addEventListener('input', () => {
+    state.globFilter = globInput.value;
+    if (state.query) { triggerSearch(); }
+  });
+
+  previewHdr.addEventListener('click', () => {
+    if (state.currentPreviewFile) {
+      let absFile = null;
+      if (isFileScope()) {
+        const r = state.fileResults[state.selected];
+        if (r) { absFile = r.file; }
+      } else if (isSymbolScope()) {
+        const r = state.symbolResults[state.selected];
+        if (r) { absFile = r.file; }
+      } else {
+        const r = state.results[state.selected];
+        if (r) { absFile = r.file; }
+      }
+      if (absFile) { vscode.postMessage({ type: 'revealFile', file: absFile }); }
+    }
+  });
 
   // ── Messages from extension ────────────────────────────────────────────────
   window.addEventListener('message', ({ data }) => {
@@ -1226,9 +1707,15 @@ export class FinderPanel {
         state.selected = 0;
         render();
         break;
+      case 'symbolResults':
+        state.searching = false;
+        state.symbolResults = data.results;
+        state.selected = 0;
+        render();
+        break;
       case 'previewContent':
         renderPreview(data.lines, data.currentLine, data.relativePath, data.ext, data.changedLines,
-          isFileScope() ? '' : state.query, state.useRegex);
+          (isFileScope() || isSymbolScope()) ? '' : state.query, state.useRegex);
         break;
       case 'error':
         state.searching = false;
@@ -1245,6 +1732,10 @@ export class FinderPanel {
         state.selected = 0;
         queryEl.focus();
         queryEl.select();
+        triggerSearch();
+        break;
+      case 'replaceApplied':
+        state.selected = 0;
         triggerSearch();
         break;
     }
@@ -1268,6 +1759,11 @@ export class FinderPanel {
       '<span><kbd>Ctrl</kbd><kbd>↵</kbd> split</span>' +
       '<span><kbd>Tab</kbd> scope</span>' +
       '<span>' + fmtKey(KB.toggleRegex)  + ' regex</span>' +
+      '<span><kbd>Alt</kbd><kbd>C</kbd> case</span>' +
+      '<span><kbd>Alt</kbd><kbd>W</kbd> word</span>' +
+      '<span><kbd>Ctrl</kbd><kbd>↑</kbd> history</span>' +
+      '<span><kbd>Alt</kbd><kbd>Y</kbd> copy path</span>' +
+      '<span><kbd>Ctrl</kbd><kbd>Space</kbd> select</span>' +
       '<span>' + fmtKey(KB.togglePreview)+ ' preview</span>' +
       '<span>' + fmtKey(KB.close)        + ' close</span>';
 
@@ -1278,9 +1774,15 @@ export class FinderPanel {
   // ── Init ───────────────────────────────────────────────────────────────────
   state.useRegex = false;
   regexBtn.classList.remove('active');
-  if (isFileScope()) {
+  updateFilterRowVisibility();
+  if (isFileScope() || isSymbolScope()) {
     regexBtn.disabled = true;
-    queryEl.placeholder = state.scope === 'recent' ? 'Filter recent files...' : 'Search files by name...';
+    caseBtn.disabled = true;
+    wordBtn.disabled = true;
+    replaceBtn.disabled = true;
+    queryEl.placeholder = state.scope === 'recent'  ? 'Filter recent files...'
+                        : state.scope === 'symbols' ? 'Search symbols...'
+                        : 'Search files by name...';
   }
   if (INITIAL_QUERY) {
     queryEl.value = INITIAL_QUERY;

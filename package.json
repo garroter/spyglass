@@ -39,9 +39,9 @@
     "keybindings": [
       {
         "command": "spyglass.open",
-        "key": "shift+alt+f",
-        "mac": "shift+alt+f",
-        "when": "editorTextFocus || !inputFocus"
+        "key": "ctrl+alt+f",
+        "mac": "cmd+alt+f",
+        "when": "!inputFocus || editorTextFocus"
       }
     ],
     "configuration": {

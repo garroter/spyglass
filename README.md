@@ -2,7 +2,7 @@
 
 **Fast, keyboard-driven search popup for VS Code** — inspired by [Neovim Telescope](https://github.com/nvim-telescope/telescope.nvim) and JetBrains Search Everywhere.
 
-Open with `Shift+Alt+F`. Type. Navigate. Done.
+Open with `Ctrl+Alt+F`. Type. Navigate. Done.
 
 ---
 
@@ -17,15 +17,23 @@ Open with `Shift+Alt+F`. Type. Navigate. Done.
 ## Features
 
 - **Full-text search** across the whole project with ripgrep (blazing fast)
+- **Find & Replace** — replace across all matched files instantly
 - **Fuzzy file search** — search by filename with character-level match highlighting
-- **Recent files** — instantly access your most recently opened files, no typing required
+- **Recent files** — instantly access your most recently opened files
 - **Open Files scope** — search only within currently open editor tabs
+- **Dir scope** — search only within the directory of the active file
+- **Symbol search** — search workspace symbols via LSP (classes, functions, variables…)
 - **Live preview** — see file content as you navigate results, with syntax highlighting
-- **Git change indicators** — modified lines highlighted in the preview panel (requires git)
-- **Open in split** — open any result beside the current editor with `Ctrl+Enter`
-- **Pre-fill from selection** — select text in editor, open Spyglass → query is pre-filled instantly
+- **Git change indicators** — modified lines highlighted in the preview panel
+- **Search history** — navigate previous queries with `Ctrl+↑` / `Ctrl+↓`
+- **Case sensitive** and **whole word** toggles
+- **Glob filter** — limit search to specific file patterns (`*.ts`, `!*.test.ts`)
+- **Multi-select** — select multiple results and open them all at once
+- **Copy path** — copy the absolute path of the selected result
+- **Reveal in Explorer** — click the preview header to reveal the file in the sidebar
+- **Open in split** — open any result beside the current editor
+- **Pre-fill from selection** — select text in editor, open Spyglass → query is pre-filled
 - **Regex mode** toggle for power users
-- **Fully configurable keybindings** — change any shortcut via VS Code settings
 - **Theme adaptive** — works with any VS Code theme (dark, light, high contrast)
 - **Zero dependencies** — ripgrep is bundled, no installation required
 
@@ -33,21 +41,36 @@ Open with `Shift+Alt+F`. Type. Navigate. Done.
 
 ## Usage
 
-| Action | Default Shortcut |
-|--------|-----------------|
-| Open Spyglass | `Shift+Alt+F` |
+### Opening Spyglass
+
+| Action | Shortcut |
+|--------|----------|
+| Open Spyglass | `Ctrl+Alt+F` |
+
+> **VSCode Vim users** — bind `<Space>f` as your leader shortcut (see [Vim setup](#vim-setup) below).
+
+### Inside the panel
+
+| Action | Shortcut |
+|--------|----------|
 | Navigate results | `↑` / `↓` |
 | Open selected file | `Enter` |
 | Open in split editor | `Ctrl+Enter` |
 | Switch scope | `Tab` |
-| Toggle regex mode | `Shift+Alt+R` |
-| Toggle preview panel | `Shift+Alt+P` |
 | Close | `Escape` |
-
-**Tips:**
-- Select text in the editor before opening Spyglass — the query is pre-filled and search starts instantly
-- Switch to **Recent** scope with `Tab` to jump to recently opened files without typing anything
-- Use `Ctrl+Enter` to open a result in a split view without closing Spyglass's context
+| Toggle regex | `Shift+Alt+R` |
+| Toggle case sensitive | `Alt+C` |
+| Toggle whole word | `Alt+W` |
+| Toggle preview panel | `Shift+Alt+P` |
+| Toggle replace mode | `Alt+R` |
+| History — previous query | `Ctrl+↑` |
+| History — next query | `Ctrl+↓` |
+| Copy path of selected result | `Alt+Y` |
+| Multi-select toggle (current) | `Ctrl+Space` |
+| Multi-select toggle (on click) | `Ctrl+Click` |
+| Select all results | `Ctrl+A` |
+| Open all selected | `Shift+Enter` |
+| Reveal in Explorer | click the preview header |
 
 ---
 
@@ -58,19 +81,32 @@ Open with `Shift+Alt+F`. Type. Navigate. Done.
 | **Project** | Full-text search across all files in the workspace |
 | **Open Files** | Full-text search only within currently open editor tabs |
 | **Files** | Fuzzy search by filename across the whole project |
-| **Recent** | Recently opened files, ordered by most recent. Filter by typing. |
+| **Recent** | Recently opened files, ordered by most recent |
+| **Dir** | Full-text search within the directory of the active file |
+| **Symbols** | Workspace symbol search via LSP (requires a language extension) |
 
 Switch between scopes with `Tab` while Spyglass is open.
 
 ---
 
+## Find & Replace
+
+1. Open Spyglass and type your search query
+2. Click the `⇄` button (or press `Alt+R`) to enable replace mode
+3. Type the replacement text in the second field
+4. Optionally set case-sensitive / whole-word / glob filter
+5. Click **Replace all** — all matches are replaced instantly via VS Code's edit API (supports undo)
+
+---
+
 ## Preview Panel
 
-The right-side preview panel shows the file around the matched line with syntax highlighting for the most common languages (JavaScript, TypeScript, Python, Rust, Go, and more).
+The right-side preview panel shows the file around the matched line with syntax highlighting.
 
-Lines modified since the last git commit are marked with a blue indicator in the gutter — the same color used by VS Code's built-in git decorations.
+Lines modified since the last git commit are marked with a blue indicator in the gutter.
 
-Toggle the preview panel with `Shift+Alt+P` or the `⊡` button in the top bar.
+- Toggle with `Shift+Alt+P` or the `⊡` button
+- Click the preview header to **Reveal in Explorer**
 
 ---
 
@@ -78,7 +114,7 @@ Toggle the preview panel with `Shift+Alt+P` or the `⊡` button in the top bar.
 
 | Setting | Default | Description |
 |---------|---------|-------------|
-| `spyglass.defaultScope` | `project` | Scope on open: `project`, `openFiles`, `files`, or `recent` |
+| `spyglass.defaultScope` | `project` | Scope on open: `project`, `openFiles`, `files`, `recent`, `here`, `symbols` |
 | `spyglass.maxResults` | `200` | Maximum number of results to display |
 | `spyglass.keybindings.navigateDown` | `ArrowDown` | Navigate down in results |
 | `spyglass.keybindings.navigateUp` | `ArrowUp` | Navigate up in results |
@@ -91,9 +127,25 @@ Toggle the preview panel with `Shift+Alt+P` or the `⊡` button in the top bar.
 
 ## Customizing Keybindings
 
+### Change the open shortcut
+
+Open **Keyboard Shortcuts** (`Ctrl+K Ctrl+S`), search for `Spyglass: Open Search` and assign your preferred key.
+
+Or edit `keybindings.json` directly (`Ctrl+Shift+P` → *Open Keyboard Shortcuts (JSON)*):
+
+```json
+[
+  {
+    "key": "ctrl+alt+f",
+    "command": "spyglass.open",
+    "when": "!inputFocus || editorTextFocus"
+  }
+]
+```
+
 ### Change shortcuts inside the panel
 
-You can remap any key used within the Spyglass panel (navigate, open, close, regex toggle) via **VS Code Settings** (`Ctrl+,`). Search for `spyglass.keybindings` or add to your `settings.json`:
+Add to your `settings.json`:
 
 ```json
 {
@@ -104,18 +156,32 @@ You can remap any key used within the Spyglass panel (navigate, open, close, reg
 }
 ```
 
-### Change the Open shortcut (`Shift+Alt+F`)
+---
 
-To rebind how you open Spyglass, open the **Keyboard Shortcuts** editor (`Ctrl+K Ctrl+S`), search for `Spyglass: Open Search`, and assign your preferred key.
+## Vim Setup
 
-Or add it directly to your `keybindings.json` (`Ctrl+Shift+P` → *Open Keyboard Shortcuts (JSON)*):
+If you use the [VSCode Vim extension](https://marketplace.visualstudio.com/items?itemName=vscodevim.vim), you can bind `<Space>f` as your Spyglass shortcut — just like Telescope in Neovim.
+
+Add to your `settings.json`:
+
+```json
+{
+  "vim.normalModeKeyBindingsNonRecursive": [
+    {
+      "before": ["<Space>", "f"],
+      "commands": ["spyglass.open"]
+    }
+  ]
+}
+```
+
+Then disable the default `Ctrl+Alt+F` binding if you prefer to use only the Vim shortcut:
 
 ```json
 [
   {
-    "key": "ctrl+shift+f",
-    "command": "spyglass.open",
-    "when": "editorTextFocus || !inputFocus"
+    "key": "ctrl+alt+f",
+    "command": "-spyglass.open"
   }
 ]
 ```
@@ -127,6 +193,7 @@ Or add it directly to your `keybindings.json` (`Ctrl+Shift+P` → *Open Keyboard
 - VS Code `^1.85.0`
 - No additional dependencies — ripgrep is bundled automatically
 - Git (optional) — required for change indicators in the preview panel
+- A language server extension (optional) — required for the **Symbols** scope
 
 ---
 
