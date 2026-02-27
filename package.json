@@ -3,7 +3,7 @@
   "displayName": "Spyglass",
   "description": "Fast file and text search popup inspired by Neovim Telescope and JetBrains Finder",
   "version": "0.1.0",
-  "publisher": "piotrmacai",
+  "publisher": "garroter",
   "license": "MIT",
   "icon": "images/icon.png",
   "galleryBanner": {
