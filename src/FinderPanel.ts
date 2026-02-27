@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
 import * as path from 'path';
 import { promises as fsp } from 'fs';
+import { spawn } from 'child_process';
 import { searchWithRipgrep, listFilesWithRipgrep, isRipgrepAvailable } from './ripgrep';
 import { Scope, KeyBindings, FileResult } from './types';
 
@@ -67,13 +68,13 @@ export class FinderPanel {
 
     const rgOk = await isRipgrepAvailable();
     if (!rgOk) {
-      vscode.window.showErrorMessage('Finder: bundled ripgrep failed to start. Try reinstalling the extension.');
+      vscode.window.showErrorMessage('Spyglass: bundled ripgrep failed to start. Try reinstalling the extension.');
       return;
     }
 
-    const recentFiles = context.workspaceState.get<string[]>('finder.recentFiles', []);
+    const recentFiles = context.workspaceState.get<string[]>('spyglass.recentFiles', []);
 
-    const config = vscode.workspace.getConfiguration('finder');
+    const config = vscode.workspace.getConfiguration('spyglass');
     const rawScope = config.get<string>('defaultScope', 'project');
     const defaultScope: Scope = (rawScope === 'project' || rawScope === 'openFiles' || rawScope === 'files' || rawScope === 'recent')
       ? rawScope : 'project';
@@ -87,8 +88,8 @@ export class FinderPanel {
     };
 
     const panel = vscode.window.createWebviewPanel(
-      'finder',
-      'Finder',
+      'spyglass',
+      'Spyglass',
       { viewColumn: vscode.ViewColumn.Active, preserveFocus: false },
       { enableScripts: true, localResourceRoots: [] }
     );
@@ -154,7 +155,7 @@ export class FinderPanel {
 
   private async _runSearch(query: string, useRegex: boolean): Promise<void> {
     const seq = ++this._searchSeq;
-    const config = vscode.workspace.getConfiguration('finder');
+    const config = vscode.workspace.getConfiguration('spyglass');
     const maxResults = config.get<number>('maxResults', 200);
 
     if (!query.trim()) {
@@ -221,7 +222,7 @@ export class FinderPanel {
     }
     scored.sort((a, b) => b.score - a.score);
 
-    const config = vscode.workspace.getConfiguration('finder');
+    const config = vscode.workspace.getConfiguration('spyglass');
     const maxResults = config.get<number>('maxResults', 200);
     const results: FileResult[] = scored.slice(0, maxResults).map(({ file, relativePath, matchPositions }) => ({
       file, relativePath, matchPositions,
@@ -232,7 +233,7 @@ export class FinderPanel {
 
   private _runRecentSearch(query: string): void {
     const seq = ++this._searchSeq;
-    const config = vscode.workspace.getConfiguration('finder');
+    const config = vscode.workspace.getConfiguration('spyglass');
     const maxResults = config.get<number>('maxResults', 200);
 
     if (!query.trim()) {
@@ -276,6 +277,29 @@ export class FinderPanel {
     }
   }
 
+  private _getChangedLines(filePath: string): Promise<number[]> {
+    return new Promise((resolve) => {
+      if (!this._cwd) { resolve([]); return; }
+      const git = spawn('git', ['diff', 'HEAD', '--unified=0', '--', filePath], { cwd: this._cwd });
+      let out = '';
+      git.stdout.on('data', (d: Buffer) => { out += d.toString(); });
+      git.on('error', () => resolve([]));
+      git.on('close', () => {
+        const changed = new Set<number>();
+        for (const line of out.split('\n')) {
+          // Parse: @@ -old +new_start[,new_count] @@
+          const m = line.match(/^@@ -\d+(?:,\d+)? \+(\d+)(?:,(\d+))? @@/);
+          if (m) {
+            const start = parseInt(m[1], 10);
+            const count = m[2] !== undefined ? parseInt(m[2], 10) : 1;
+            for (let i = 0; i < count; i++) { changed.add(start + i); }
+          }
+        }
+        resolve(Array.from(changed));
+      });
+    });
+  }
+
   private async _sendPreview(filePath: string, targetLine: number): Promise<void> {
     try {
       const stat = await fsp.stat(filePath);
@@ -287,17 +311,22 @@ export class FinderPanel {
           currentLine: 1,
           relativePath: path.relative(this._cwd, filePath),
           ext,
+          changedLines: [],
         });
         return;
       }
 
-      const content = await fsp.readFile(filePath, 'utf-8');
+      const [content, changedLines] = await Promise.all([
+        fsp.readFile(filePath, 'utf-8'),
+        this._getChangedLines(filePath),
+      ]);
       this._post({
         type: 'previewContent',
         lines: content.split('\n'),
         currentLine: targetLine,
         relativePath: path.relative(this._cwd, filePath).replace(/\\/g, '/'),
         ext,
+        changedLines,
       });
     } catch {
       this._post({
@@ -306,6 +335,7 @@ export class FinderPanel {
         currentLine: 1,
         relativePath: filePath,
         ext: path.extname(filePath).slice(1).toLowerCase(),
+        changedLines: [],
       });
     }
   }
@@ -512,6 +542,7 @@ export class FinderPanel {
   .result-line   { color: var(--f-dim); font-size: 10px; flex-shrink: 0; }
   .result-text   { color: var(--f-dim); font-size: 11px; white-space: pre; overflow: hidden; text-overflow: ellipsis; }
   .result-text mark { background: var(--f-match); color: inherit; font-weight: 700; border-radius: 2px; padding: 0 1px; }
+  .qm { background: var(--f-match); color: inherit; font-weight: 700; border-radius: 2px; padding: 0 1px; }
 
   .result.selected .result-file { color: var(--f-sel-fg); }
   .result.selected .result-line,
@@ -561,7 +592,8 @@ export class FinderPanel {
   .preview-content::-webkit-scrollbar-thumb { background: var(--f-scrollbar); border-radius: 3px; }
 
   .pline { display: flex; padding: 0 14px; line-height: 1.65; white-space: pre; }
-  .pline--cur { background: var(--f-line-hl); }
+  .pline--cur     { background: var(--f-line-hl); }
+  .pline--changed { box-shadow: inset 3px 0 0 var(--vscode-editorGutter-modifiedBackground, #1b81a8); }
   .pnum {
     color: var(--f-dim);
     text-align: right;
@@ -840,6 +872,38 @@ export class FinderPanel {
     return out.join('');
   }
 
+  // ── Query highlight in preview ─────────────────────────────────────────────
+  // Inserts <mark class="qm"> at query match positions in syntax-highlighted HTML.
+  // Traverses HTML tracking visible-char position, skipping over tags and entities.
+  function applyQueryHighlight(html, rawText, queryRe) {
+    queryRe.lastIndex = 0;
+    const opens = new Set(), closes = new Set();
+    let m;
+    while ((m = queryRe.exec(rawText)) !== null) {
+      if (m[0].length === 0) { queryRe.lastIndex++; continue; }
+      opens.add(m.index);
+      closes.add(m.index + m[0].length);
+    }
+    if (!opens.size) { return html; }
+
+    let result = '', visPos = 0, i = 0;
+    while (i < html.length) {
+      if (closes.has(visPos)) { result += '</mark>'; }
+      if (opens.has(visPos))  { result += '<mark class="qm">'; }
+      if (html[i] === '<') {
+        const end = html.indexOf('>', i);
+        result += html.slice(i, end + 1); i = end + 1;
+      } else if (html[i] === '&') {
+        const end = html.indexOf(';', i);
+        result += html.slice(i, end + 1); i = end + 1; visPos++;
+      } else {
+        result += html[i++]; visPos++;
+      }
+    }
+    if (closes.has(visPos)) { result += '</mark>'; }
+    return result;
+  }
+
   // ── Preview ────────────────────────────────────────────────────────────────
   let previewTimer = null;
 
@@ -867,20 +931,36 @@ export class FinderPanel {
     }, 80);
   }
 
-  function renderPreview(lines, currentLine, relativePath, ext) {
+  function renderPreview(lines, currentLine, relativePath, ext, changedLines, highlightQuery, useRegex) {
     previewHdr.textContent = relativePath;
     previewEmpty.style.display = 'none';
     previewCont.style.display = 'block';
 
+    let queryRe = null;
+    if (highlightQuery) {
+      try {
+        const pattern = useRegex
+          ? highlightQuery
+          : highlightQuery.replace(/[.*+?^{}()|[\]\\$]/g, '\\$&');
+        queryRe = new RegExp(pattern, 'gi');
+      } catch { /* invalid regex — skip highlighting */ }
+    }
+
+    const changedSet = new Set(changedLines || []);
     const frag = document.createDocumentFragment();
     lines.forEach((line, i) => {
       const num = i + 1;
       const isCur = num === currentLine;
+      const isChanged = changedSet.has(num);
       const div = document.createElement('div');
-      div.className = 'pline' + (isCur ? ' pline--cur' : '');
+      div.className = 'pline'
+        + (isCur     ? ' pline--cur'     : '')
+        + (isChanged ? ' pline--changed' : '');
+      let lineHtml = highlightLine(line, ext);
+      if (queryRe) { lineHtml = applyQueryHighlight(lineHtml, line, queryRe); }
       div.innerHTML =
         '<span class="pnum">' + num + '</span>' +
-        '<span class="ptext">' + highlightLine(line, ext) + '</span>';
+        '<span class="ptext">' + lineHtml + '</span>';
       frag.appendChild(div);
     });
 
@@ -1147,7 +1227,8 @@ export class FinderPanel {
         render();
         break;
       case 'previewContent':
-        renderPreview(data.lines, data.currentLine, data.relativePath, data.ext);
+        renderPreview(data.lines, data.currentLine, data.relativePath, data.ext, data.changedLines,
+          isFileScope() ? '' : state.query, state.useRegex);
         break;
       case 'error':
         state.searching = false;

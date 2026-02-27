@@ -2,7 +2,7 @@ import * as vscode from 'vscode';
 import { FinderPanel } from './FinderPanel';
 
 const MAX_RECENT = 100;
-const RECENT_KEY = 'finder.recentFiles';
+const RECENT_KEY = 'spyglass.recentFiles';
 
 function pushRecent(context: vscode.ExtensionContext, fsPath: string): void {
   const list = context.workspaceState.get<string[]>(RECENT_KEY, []);
@@ -25,7 +25,7 @@ export function activate(context: vscode.ExtensionContext): void {
     })
   );
 
-  const cmd = vscode.commands.registerCommand('finder.open', () => {
+  const cmd = vscode.commands.registerCommand('spyglass.open', () => {
     FinderPanel.createOrShow(context);
   });
   context.subscriptions.push(cmd);

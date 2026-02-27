@@ -1,10 +1,15 @@
 {
-  "name": "finder",
-  "displayName": "Finder",
+  "name": "spyglass",
+  "displayName": "Spyglass",
   "description": "Fast file and text search popup inspired by Neovim Telescope and JetBrains Finder",
   "version": "0.1.0",
   "publisher": "piotrmacai",
+  "license": "MIT",
   "icon": "images/icon.png",
+  "galleryBanner": {
+    "color": "#1e1e2e",
+    "theme": "dark"
+  },
   "engines": {
     "vscode": "^1.85.0"
   },
@@ -13,46 +18,46 @@
   ],
   "keywords": [
     "search",
-    "finder",
+    "spyglass",
     "telescope",
     "grep",
     "fuzzy"
   ],
   "repository": {
     "type": "git",
-    "url": "https://github.com/piotrmacai/finder"
+    "url": "https://github.com/piotrmacai/spyglass"
   },
   "activationEvents": [],
   "main": "./out/extension.js",
   "contributes": {
     "commands": [
       {
-        "command": "finder.open",
-        "title": "Finder: Open Search"
+        "command": "spyglass.open",
+        "title": "Spyglass: Open Search"
       }
     ],
     "keybindings": [
       {
-        "command": "finder.open",
+        "command": "spyglass.open",
         "key": "shift+alt+f",
         "mac": "shift+alt+f",
         "when": "editorTextFocus || !inputFocus"
       }
     ],
     "configuration": {
-      "title": "Finder",
+      "title": "Spyglass",
       "properties": {
-        "finder.ripgrepPath": {
+        "spyglass.ripgrepPath": {
           "type": "string",
           "default": "",
           "description": "Path to ripgrep binary. Leave empty to use bundled version."
         },
-        "finder.maxResults": {
+        "spyglass.maxResults": {
           "type": "number",
           "default": 200,
           "description": "Maximum number of search results to display."
         },
-        "finder.defaultScope": {
+        "spyglass.defaultScope": {
           "type": "string",
           "enum": [
             "project",
@@ -63,32 +68,32 @@
           "default": "project",
           "description": "Default search scope when Finder opens."
         },
-        "finder.keybindings.navigateDown": {
+        "spyglass.keybindings.navigateDown": {
           "type": "string",
           "default": "ArrowDown",
           "description": "Key to navigate down in results (e.g. 'ArrowDown', 'j')."
         },
-        "finder.keybindings.navigateUp": {
+        "spyglass.keybindings.navigateUp": {
           "type": "string",
           "default": "ArrowUp",
           "description": "Key to navigate up in results (e.g. 'ArrowUp', 'k')."
         },
-        "finder.keybindings.open": {
+        "spyglass.keybindings.open": {
           "type": "string",
           "default": "Enter",
           "description": "Key to open the selected result."
         },
-        "finder.keybindings.close": {
+        "spyglass.keybindings.close": {
           "type": "string",
           "default": "Escape",
           "description": "Key to close Finder."
         },
-        "finder.keybindings.toggleRegex": {
+        "spyglass.keybindings.toggleRegex": {
           "type": "string",
           "default": "shift+alt+r",
           "description": "Key combination to toggle regex mode (e.g. 'shift+alt+r')."
         },
-        "finder.keybindings.togglePreview": {
+        "spyglass.keybindings.togglePreview": {
           "type": "string",
           "default": "shift+alt+p",
           "description": "Key combination to toggle preview panel (e.g. 'shift+alt+p')."

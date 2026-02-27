@@ -30,7 +30,7 @@ export type MessageToWebview =
   | { type: 'focus' }
   | { type: 'setQuery'; query: string }
   | { type: 'error'; message: string }
-  | { type: 'previewContent'; lines: string[]; currentLine: number; relativePath: string; ext: string }
+  | { type: 'previewContent'; lines: string[]; currentLine: number; relativePath: string; ext: string; changedLines?: number[] }
   | { type: 'fileResults'; results: FileResult[]; query: string };
 
 export type MessageFromWebview =
