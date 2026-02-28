@@ -33,15 +33,15 @@
 
 **Full-text search with live preview**
 
-<video src="images/demo_search.mp4" autoplay loop muted playsinline></video>
+![Full-text search with live preview](images/demo_search.gif)
 
 **File search and recent files**
 
-<video src="images/files.mp4" autoplay loop muted playsinline></video>
+![File search and recent files](images/files.gif)
 
 **Split editor**
 
-<video src="images/split.mp4" autoplay loop muted playsinline></video>
+![Split editor](images/split.gif)
 
 ---
 
