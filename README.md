@@ -1,5 +1,5 @@
 <h1 align="center">
-  <img src="images/icon.svg" width="64" alt="Spyglass icon" /><br/>
+  <img src="images/icon.png" width="64" alt="Spyglass icon" /><br/>
   Spyglass
 </h1>
 

@@ -10,3 +10,7 @@ tsconfig.json
 node_modules/**
 !node_modules/@vscode/ripgrep/**
 !node_modules/highlight.js/**
+.claude/**
+images/*.mp4
+images/*.webm
+images/icon.svg
