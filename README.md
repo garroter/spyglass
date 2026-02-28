@@ -31,9 +31,17 @@
 
 ## 📸 Screenshots
 
-![Full-text search with live preview](images/demo-search.gif)
+**Full-text search with live preview**
 
-![File search and recent files](images/demo-files.gif)
+<video src="images/demo_search.mp4" autoplay loop muted playsinline></video>
+
+**File search and recent files**
+
+<video src="images/files.mp4" autoplay loop muted playsinline></video>
+
+**Split editor**
+
+<video src="images/split.mp4" autoplay loop muted playsinline></video>
 
 ---
 
