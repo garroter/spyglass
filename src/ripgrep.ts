@@ -1,7 +1,24 @@
 import { spawn } from 'child_process';
 import * as path from 'path';
-import { rgPath } from '@vscode/ripgrep';
+import * as fs from 'fs';
+import * as vscode from 'vscode';
 import { SearchResult } from './types';
+
+function resolveRgPath(): string {
+  const ext = process.platform === 'win32' ? '.exe' : '';
+  // Prefer VS Code's own ripgrep — always present, correct platform
+  const vscodeRg = path.join(vscode.env.appRoot, 'node_modules', '@vscode', 'ripgrep', 'bin', `rg${ext}`);
+  if (fs.existsSync(vscodeRg)) {
+    return vscodeRg;
+  }
+  // Fallback: bundled via npm (may fail cross-platform)
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    return (require('@vscode/ripgrep') as { rgPath: string }).rgPath;
+  } catch {
+    return `rg${ext}`;
+  }
+}
 
 interface RgSubmatch {
   start: number;
@@ -65,7 +82,7 @@ export async function searchWithRipgrep(
       args.push('.');
     }
 
-    const rg = spawn(rgPath, args, { cwd });
+    const rg = spawn(resolveRgPath(), args, { cwd });
     const results: SearchResult[] = [];
     let buffer = '';
     let errored = false;
@@ -126,7 +143,7 @@ export function listFilesWithRipgrep(cwd: string): Promise<string[]> {
       '--glob', '!*.lock',
     ];
 
-    const rg = spawn(rgPath, args, { cwd });
+    const rg = spawn(resolveRgPath(), args, { cwd });
     const files: string[] = [];
     let buffer = '';
 
@@ -149,7 +166,7 @@ export function listFilesWithRipgrep(cwd: string): Promise<string[]> {
 
 export function isRipgrepAvailable(): Promise<boolean> {
   return new Promise((resolve) => {
-    const rg = spawn(rgPath, ['--version']);
+    const rg = spawn(resolveRgPath(), ['--version']);
     rg.on('error', () => resolve(false));
     rg.on('close', (code) => resolve(code === 0));
   });
