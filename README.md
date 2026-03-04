@@ -1,5 +1,5 @@
 <h1 align="center">
-  <img src="images/icon.png" width="64" alt="Spyglass icon" /><br/>
+  <img src="https://raw.githubusercontent.com/garroter/spyglass/main/images/icon.png" width="64" alt="Spyglass icon" /><br/>
   Spyglass
 </h1>
 
@@ -9,14 +9,14 @@
 </p>
 
 <p align="center">
-  <a href="https://marketplace.visualstudio.com/items?itemName=piotrmacai.spyglass">
-    <img src="https://img.shields.io/visual-studio-marketplace/v/piotrmacai.spyglass?style=flat-square&label=VS%20Marketplace&color=7c3aed" alt="VS Marketplace"/>
+  <a href="https://marketplace.visualstudio.com/items?itemName=garroter.spyglass">
+    <img src="https://img.shields.io/visual-studio-marketplace/v/garroter.spyglass?style=flat-square&label=VS%20Marketplace&color=7c3aed" alt="VS Marketplace"/>
   </a>
-  <a href="https://marketplace.visualstudio.com/items?itemName=piotrmacai.spyglass">
-    <img src="https://img.shields.io/visual-studio-marketplace/d/piotrmacai.spyglass?style=flat-square&color=4f86f7" alt="Downloads"/>
+  <a href="https://marketplace.visualstudio.com/items?itemName=garroter.spyglass">
+    <img src="https://img.shields.io/visual-studio-marketplace/d/garroter.spyglass?style=flat-square&color=4f86f7" alt="Downloads"/>
   </a>
-  <a href="https://marketplace.visualstudio.com/items?itemName=piotrmacai.spyglass">
-    <img src="https://img.shields.io/visual-studio-marketplace/r/piotrmacai.spyglass?style=flat-square&color=f5a623" alt="Rating"/>
+  <a href="https://marketplace.visualstudio.com/items?itemName=garroter.spyglass">
+    <img src="https://img.shields.io/visual-studio-marketplace/r/garroter.spyglass?style=flat-square&color=f5a623" alt="Rating"/>
   </a>
   <a href="LICENSE">
     <img src="https://img.shields.io/badge/license-MIT-22c55e?style=flat-square" alt="License: MIT"/>
@@ -33,15 +33,15 @@
 
 **Full-text search with live preview**
 
-![Full-text search with live preview](images/demo_search.gif)
+![Full-text search with live preview](https://raw.githubusercontent.com/garroter/spyglass/main/images/demo_search.gif)
 
 **File search and recent files**
 
-![File search and recent files](images/files.gif)
+![File search and recent files](https://raw.githubusercontent.com/garroter/spyglass/main/images/files.gif)
 
 **Split editor**
 
-![Split editor](images/split.gif)
+![Split editor](https://raw.githubusercontent.com/garroter/spyglass/main/images/split.gif)
 
 ---
 
