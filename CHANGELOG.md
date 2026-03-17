@@ -4,6 +4,7 @@
 
 ### Added
 - Git status badges in results (`M` modified, `A` added, `U` untracked, `D` deleted) — colors match the file explorer
+- Recent files shown by default when opening with no query — no more empty screen on open
 - Last used scope is now remembered between sessions — reopening Spyglass restores the scope you were using
 
 ## [0.1.3] - 2026-03-17

@@ -1396,9 +1396,48 @@ export class FinderPanel {
     }
 
     if (!state.searching && state.results.length === 0) {
-      stateMsg.textContent = state.query ? 'No results.' : 'Start typing to search...';
-      stateMsg.style.display = '';
-      resultInfo.textContent = '0 results';
+      if (state.query) {
+        stateMsg.textContent = 'No results.';
+        stateMsg.style.display = '';
+        resultInfo.textContent = '0 results';
+        return;
+      }
+      // No query — show recent files as default
+      const recent = state.recentFiles.slice(0, 12);
+      if (recent.length === 0) {
+        stateMsg.textContent = 'Start typing to search...';
+        stateMsg.style.display = '';
+        resultInfo.textContent = '';
+        return;
+      }
+      stateMsg.style.display = 'none';
+      const frag = document.createDocumentFragment();
+      recent.forEach((r, i) => {
+        const lastSlash = r.rel.lastIndexOf('/');
+        const basename = r.rel.slice(lastSlash + 1);
+        const dir = r.rel.slice(0, lastSlash + 1);
+        const div = document.createElement('div');
+        div.className = 'result' + (i === state.selected ? ' selected' : '');
+        div.dataset.index = String(i);
+        div.innerHTML =
+          '<div class="result-header">' +
+            '<span class="result-file">' + escHtml(basename) + '</span>' +
+            gitBadgeHtml(r.rel) +
+          '</div>' +
+          (dir ? '<div class="result-text">' + escHtml(dir) + '</div>' : '');
+        div.addEventListener('click', () => vscode.postMessage({ type: 'open', file: r.file, line: 1 }));
+        div.addEventListener('mouseenter', () => {
+          state.selected = i; updateSelection();
+          vscode.postMessage({ type: 'preview', file: r.file, line: 1 });
+        });
+        frag.appendChild(div);
+      });
+      wrap.appendChild(frag);
+      resultInfo.textContent = 'recent';
+      scrollToSelected();
+      if (state.showPreview && recent[0]) {
+        vscode.postMessage({ type: 'preview', file: recent[0].file, line: 1 });
+      }
       return;
     }
 
