@@ -4,6 +4,7 @@
 
 ### Changed
 - Search cancellation: previous ripgrep process is now killed when a new search starts, reducing CPU usage on large projects
+- Streaming results: first matches appear immediately as ripgrep finds them, instead of waiting for the full search to complete
 
 ### Fixed
 - Search history: original query is now restored when navigating back out of history (Ctrl+Down to index -1)

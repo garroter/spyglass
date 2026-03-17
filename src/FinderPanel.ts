@@ -192,7 +192,10 @@ export class FinderPanel {
 
     const start = Date.now();
     try {
-      const search = searchWithRipgrep(query, this._cwd, useRegex, files, opts);
+      const search = searchWithRipgrep(query, this._cwd, useRegex, files, opts, (chunk) => {
+        if (seq !== this._searchSeq) { return; }
+        this._post({ type: 'resultsChunk', results: chunk.slice(0, maxResults), query });
+      });
       this._currentSearch = search;
       const results = await search.promise;
       this._currentSearch = null;
@@ -226,7 +229,10 @@ export class FinderPanel {
 
     const start = Date.now();
     try {
-      const search = searchWithRipgrep(query, cwd, useRegex, undefined, opts);
+      const search = searchWithRipgrep(query, cwd, useRegex, undefined, opts, (chunk) => {
+        if (seq !== this._searchSeq) { return; }
+        this._post({ type: 'resultsChunk', results: chunk.slice(0, maxResults), query });
+      });
       this._currentSearch = search;
       const results = await search.promise;
       this._currentSearch = null;
@@ -1783,6 +1789,11 @@ export class FinderPanel {
     switch (data.type) {
       case 'searching':
         state.searching = true;
+        render();
+        break;
+      case 'resultsChunk':
+        state.results = data.results;
+        state.selected = 0;
         render();
         break;
       case 'results':

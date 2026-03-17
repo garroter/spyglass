@@ -45,7 +45,8 @@ export function searchWithRipgrep(
   cwd: string,
   useRegex: boolean,
   files?: string[],
-  opts?: { caseSensitive?: boolean; wholeWord?: boolean; globFilter?: string }
+  opts?: { caseSensitive?: boolean; wholeWord?: boolean; globFilter?: string },
+  onChunk?: (results: SearchResult[]) => void
 ): CancellableSearch {
   let cancelled = false;
   let cancel = () => {};
@@ -99,6 +100,7 @@ export function searchWithRipgrep(
       buffer += data.toString();
       const lines = buffer.split('\n');
       buffer = lines.pop() ?? '';
+      const prevCount = results.length;
 
       for (const line of lines) {
         if (!line.trim()) { continue; }
@@ -123,6 +125,10 @@ export function searchWithRipgrep(
         } catch {
           // ignore JSON parse errors
         }
+      }
+
+      if (onChunk && results.length > prevCount) {
+        onChunk(results.slice());
       }
     });
 
