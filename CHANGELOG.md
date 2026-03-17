@@ -6,6 +6,7 @@
 - Search cancellation: previous ripgrep process is now killed when a new search starts, reducing CPU usage on large projects
 - Streaming results: first matches appear immediately as ripgrep finds them, instead of waiting for the full search to complete
 - Git diff results are now cached per panel session — navigating through results no longer spawns a git process for every file
+- Proper light theme and high-contrast theme support — syntax highlight fallback colors are now correct for all theme types, not just dark themes
 
 ### Fixed
 - Search history: original query is now restored when navigating back out of history (Ctrl+Down to index -1)

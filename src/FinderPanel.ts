@@ -736,7 +736,26 @@ export class FinderPanel {
   .hljs-deletion { color: var(--f-op); }
   .hljs-addition { color: var(--f-str); }
 
-  /* syntax colours are fully theme-adaptive via --vscode-symbolIcon-* tokens */
+  /* ── Light theme fallback overrides ─────────────────────── */
+  body.vscode-light {
+    --f-shadow:    var(--vscode-widget-shadow,              rgba(0,0,0,0.12));
+    --f-kw:    var(--vscode-symbolIcon-keywordForeground,  #7c3aed);
+    --f-str:   var(--vscode-symbolIcon-stringForeground,   #16a34a);
+    --f-cmt:   var(--vscode-descriptionForeground,         #6b7280);
+    --f-num:   var(--vscode-symbolIcon-numberForeground,   #b45309);
+    --f-fn:    var(--vscode-symbolIcon-functionForeground, #2563eb);
+    --f-op:    var(--vscode-symbolIcon-operatorForeground, #dc2626);
+    --f-match: var(--vscode-editor-findMatchHighlightBackground, rgba(255,200,0,0.45));
+  }
+
+  /* ── High contrast overrides ─────────────────────────────── */
+  body.vscode-high-contrast {
+    --f-border:    var(--vscode-contrastBorder, var(--vscode-editorWidget-border));
+    --f-border-s:  var(--vscode-contrastBorder, var(--vscode-editorGroup-border));
+    --f-shadow:    none;
+  }
+  body.vscode-high-contrast .finder { border-width: 2px; }
+  body.vscode-high-contrast .result.selected { outline: 1px solid var(--f-accent); }
 
   /* ── Replace row ─────────────────────────────────────────── */
   .replace-row {
