@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.1.7] - 2026-03-17
+
+### Changed
+- Webview CSS and JavaScript extracted to separate `media/` files — faster panel load and cleaner codebase
+- Internal code split into focused modules (`gitUtils`, `symbolSearch`, `workspaceUtils`) — no behavior changes
+- Unit test suite added (38 tests covering search logic, git parsing, path utilities)
+- README updated: multi-root workspace section, inline glob filter examples, development guide
+
 ## [0.1.6] - 2026-03-17
 
 ### Added
