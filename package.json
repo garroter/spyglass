@@ -2,7 +2,7 @@
   "name": "spyglass",
   "displayName": "Spyglass",
   "description": "Fast file and text search popup inspired by Neovim Telescope and JetBrains Finder",
-  "version": "0.1.4",
+  "version": "0.1.5",
   "publisher": "garroter",
   "license": "MIT",
   "icon": "images/icon.png",
@@ -113,6 +113,12 @@
           "type": "string",
           "default": "shift+alt+p",
           "description": "Key combination to toggle preview panel (e.g. 'shift+alt+p')."
+        },
+        "spyglass.exclude": {
+          "type": "array",
+          "items": { "type": "string" },
+          "default": [".git", "node_modules", "out", "dist", "*.lock"],
+          "description": "Glob patterns to exclude from search and file listing (e.g. \"vendor\", \"build\", \"*.min.js\"). Replaces the built-in defaults."
         }
       }
     }

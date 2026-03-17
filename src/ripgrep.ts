@@ -40,28 +40,29 @@ export interface CancellableSearch {
   cancel: () => void;
 }
 
+const DEFAULT_EXCLUDES = ['.git', 'node_modules', 'out', 'dist', '*.lock'];
+
 export function searchWithRipgrep(
   query: string,
   cwd: string,
   useRegex: boolean,
   files?: string[],
-  opts?: { caseSensitive?: boolean; wholeWord?: boolean; globFilter?: string },
+  opts?: { caseSensitive?: boolean; wholeWord?: boolean; globFilter?: string; exclude?: string[] },
   onChunk?: (results: SearchResult[]) => void
 ): CancellableSearch {
   let cancelled = false;
   let cancel = () => {};
 
   const promise = new Promise<SearchResult[]>((resolve) => {
+    const excludes = opts?.exclude ?? DEFAULT_EXCLUDES;
     const args: string[] = [
       '--json',
       '--max-count', '10',
       '--max-filesize', '1M',
-      '--glob', '!.git',
-      '--glob', '!node_modules',
-      '--glob', '!out',
-      '--glob', '!dist',
-      '--glob', '!*.lock',
     ];
+    for (const e of excludes) {
+      args.push('--glob', e.startsWith('!') ? e : `!${e}`);
+    }
 
     if (opts?.caseSensitive) {
       args.push('--case-sensitive');
@@ -154,16 +155,13 @@ export function searchWithRipgrep(
   return { promise, cancel };
 }
 
-export function listFilesWithRipgrep(cwd: string): Promise<string[]> {
+export function listFilesWithRipgrep(cwd: string, exclude?: string[]): Promise<string[]> {
   return new Promise((resolve) => {
-    const args = [
-      '--files',
-      '--glob', '!.git',
-      '--glob', '!node_modules',
-      '--glob', '!out',
-      '--glob', '!dist',
-      '--glob', '!*.lock',
-    ];
+    const excludes = exclude ?? DEFAULT_EXCLUDES;
+    const args = ['--files'];
+    for (const e of excludes) {
+      args.push('--glob', e.startsWith('!') ? e : `!${e}`);
+    }
 
     const rg = spawn(resolveRgPath(), args, { cwd });
     const files: string[] = [];

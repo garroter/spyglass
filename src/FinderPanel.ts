@@ -104,7 +104,8 @@ export class FinderPanel {
     // Warm file cache in background so Files tab is instant on first use
     if (this._cwd) {
       const cwd = this._cwd;
-      listFilesWithRipgrep(cwd).then(files => {
+      const exclude = vscode.workspace.getConfiguration('spyglass').get<string[]>('exclude');
+      listFilesWithRipgrep(cwd, exclude ?? undefined).then(files => {
         this._fileCache = files.map(f => ({ file: f, rel: path.relative(cwd, f).replace(/\\/g, '/') }));
         this._fileCacheTime = Date.now();
         this._post({ type: 'fileList', files: this._fileCache });
@@ -177,6 +178,7 @@ export class FinderPanel {
     const seq = ++this._searchSeq;
     const config = vscode.workspace.getConfiguration('spyglass');
     const maxResults = config.get<number>('maxResults', 200);
+    const exclude = config.get<string[]>('exclude');
 
     if (!query.trim()) {
       this._post({ type: 'results', results: [], query, took: 0 });
@@ -200,7 +202,7 @@ export class FinderPanel {
 
     const start = Date.now();
     try {
-      const search = searchWithRipgrep(query, this._cwd, useRegex, files, opts, (chunk) => {
+      const search = searchWithRipgrep(query, this._cwd, useRegex, files, { ...opts, exclude: exclude ?? undefined }, (chunk) => {
         if (seq !== this._searchSeq) { return; }
         this._post({ type: 'resultsChunk', results: chunk.slice(0, maxResults), query });
       });
@@ -222,6 +224,7 @@ export class FinderPanel {
     const cwd = this._activeDir || this._cwd;
     const config = vscode.workspace.getConfiguration('spyglass');
     const maxResults = config.get<number>('maxResults', 200);
+    const exclude = config.get<string[]>('exclude');
 
     if (!query.trim()) {
       this._post({ type: 'results', results: [], query, took: 0 });
@@ -237,7 +240,7 @@ export class FinderPanel {
 
     const start = Date.now();
     try {
-      const search = searchWithRipgrep(query, cwd, useRegex, undefined, opts, (chunk) => {
+      const search = searchWithRipgrep(query, cwd, useRegex, undefined, { ...opts, exclude: exclude ?? undefined }, (chunk) => {
         if (seq !== this._searchSeq) { return; }
         this._post({ type: 'resultsChunk', results: chunk.slice(0, maxResults), query });
       });
@@ -315,12 +318,14 @@ export class FinderPanel {
         .filter((f): f is string => typeof f === 'string');
     }
 
+    const exclude = vscode.workspace.getConfiguration('spyglass').get<string[]>('exclude');
     let results;
     try {
       results = await searchWithRipgrep(msg.query, cwd, msg.useRegex, files, {
         caseSensitive: msg.caseSensitive,
         wholeWord: msg.wholeWord,
         globFilter: msg.globFilter,
+        exclude: exclude ?? undefined,
       }).promise;
     } catch {
       vscode.window.showErrorMessage('Spyglass: Replace failed — search error.');
@@ -364,7 +369,8 @@ export class FinderPanel {
     const now = Date.now();
     if (!this._fileCache || now - this._fileCacheTime > FinderPanel.FILE_CACHE_TTL) {
       const cwd = this._cwd;
-      const files = await listFilesWithRipgrep(cwd);
+      const exclude = vscode.workspace.getConfiguration('spyglass').get<string[]>('exclude');
+      const files = await listFilesWithRipgrep(cwd, exclude ?? undefined);
       this._fileCache = files.map(f => ({ file: f, rel: path.relative(cwd, f).replace(/\\/g, '/') }));
       this._fileCacheTime = Date.now();
     }

@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.1.5] - 2026-03-17
+
+### Added
+- `spyglass.exclude` setting — configure which glob patterns are excluded from search and file listing (default: `.git`, `node_modules`, `out`, `dist`, `*.lock`). Add `vendor`, `build`, `*.min.js`, etc. to suit your project.
+
 ## [0.1.4] - 2026-03-17
 
 ### Added
