@@ -1,0 +1,444 @@
+  :root {
+    /* ── Theme-adaptive: VSCode injects these for every theme ── */
+    --f-bg:        var(--vscode-editor-background);
+    --f-raised:    var(--vscode-editorWidget-background,    var(--vscode-editor-background));
+    --f-border:    var(--vscode-editorWidget-border,        var(--vscode-widget-border, #454545));
+    --f-border-s:  var(--vscode-editorGroup-border,         var(--vscode-editorWidget-border, #3c3c3c));
+    --f-text:      var(--vscode-editor-foreground);
+    --f-dim:       var(--vscode-descriptionForeground,      #888);
+    --f-ph:        var(--vscode-input-placeholderForeground,var(--vscode-descriptionForeground, #666));
+    --f-hover:     var(--vscode-list-hoverBackground);
+    --f-sel:       var(--vscode-list-activeSelectionBackground);
+    --f-sel-fg:    var(--vscode-list-activeSelectionForeground, var(--vscode-editor-foreground));
+    --f-accent:    var(--vscode-focusBorder);
+    --f-scrollbar: var(--vscode-scrollbarSlider-background);
+    --f-shadow:    var(--vscode-widget-shadow,              rgba(0,0,0,0.5));
+    --f-line-hl:   var(--vscode-editor-lineHighlightBackground);
+    --f-btn-fg:    var(--vscode-button-foreground,          #fff);
+
+    /* ── Syntax: use VSCode symbolIcon tokens (theme-adaptive) ── */
+    --f-match: var(--vscode-editor-findMatchHighlightBackground, rgba(255,200,100,.35));
+    --f-kw:    var(--vscode-symbolIcon-keywordForeground,  #cba6f7);
+    --f-str:   var(--vscode-symbolIcon-stringForeground,   #a6e3a1);
+    --f-cmt:   var(--vscode-descriptionForeground,         #7f849c);
+    --f-num:   var(--vscode-symbolIcon-numberForeground,   #fab387);
+    --f-fn:    var(--vscode-symbolIcon-functionForeground, #89b4fa);
+    --f-op:    var(--vscode-symbolIcon-operatorForeground, #f38ba8);
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--f-bg);
+    color: var(--f-text);
+    font-family: 'SF Mono', 'Cascadia Code', 'Fira Code', Consolas, monospace;
+    font-size: 13px;
+    height: 100vh;
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    padding-top: 7vh;
+    overflow: hidden;
+  }
+
+  @keyframes finder-in {
+    from { opacity: 0; transform: translateY(-10px) scale(0.98); }
+    to   { opacity: 1; transform: translateY(0)     scale(1);    }
+  }
+
+  .finder {
+    width: min(960px, 95vw);
+    height: min(600px, 82vh);
+    background: var(--f-raised);
+    border: 1px solid var(--f-border);
+    border-radius: 12px;
+    box-shadow: 0 24px 72px var(--f-shadow);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    position: relative;
+    animation: finder-in 0.15s cubic-bezier(0.2, 0, 0.2, 1) both;
+  }
+
+  /* ── Top bar ─────────────────────────────────────────────── */
+  .topbar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--f-border-s);
+    flex-shrink: 0;
+  }
+
+  .search-icon { color: var(--f-dim); font-size: 15px; flex-shrink: 0; }
+
+  #query {
+    flex: 1;
+    background: transparent;
+    border: none;
+    outline: none;
+    color: var(--f-text);
+    font-family: inherit;
+    font-size: 14px;
+    caret-color: var(--f-accent);
+    min-width: 0;
+  }
+  #query::placeholder { color: var(--f-ph); }
+
+  .icon-btn {
+    background: transparent;
+    border: 1px solid var(--f-border);
+    border-radius: 6px;
+    color: var(--f-dim);
+    font-family: inherit;
+    font-size: 12px;
+    padding: 3px 8px;
+    cursor: pointer;
+    transition: all 0.12s;
+    flex-shrink: 0;
+  }
+  .icon-btn:hover  { border-color: var(--f-accent); color: var(--f-accent); }
+  .icon-btn.active { background: var(--f-accent); border-color: var(--f-accent); color: var(--f-btn-fg); font-weight: 700; }
+  .icon-btn:disabled { opacity: 0.3; cursor: default; pointer-events: none; }
+
+  .icon-btn[data-tooltip] { position: relative; }
+  .icon-btn[data-tooltip]::after {
+    content: attr(data-tooltip);
+    position: absolute;
+    top: calc(100% + 7px);
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--vscode-editorHoverWidget-background, var(--f-raised));
+    border: 1px solid var(--vscode-editorHoverWidget-border, var(--vscode-focusBorder, var(--f-border)));
+    border-radius: 5px;
+    padding: 4px 9px;
+    font-size: 11px;
+    white-space: nowrap;
+    color: var(--vscode-editorHoverWidget-foreground, var(--f-text));
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.1s;
+    z-index: 50;
+    box-shadow: 0 2px 8px var(--f-shadow);
+  }
+  .icon-btn[data-tooltip]:hover::after { opacity: 1; }
+
+  /* ── Scope tabs ──────────────────────────────────────────── */
+  .tabs {
+    display: flex;
+    gap: 2px;
+    padding: 6px 14px 0;
+    border-bottom: 1px solid var(--f-border-s);
+    flex-shrink: 0;
+  }
+
+  .tab {
+    background: transparent;
+    border: none;
+    border-bottom: 2px solid transparent;
+    color: var(--f-dim);
+    font-family: inherit;
+    font-size: 11px;
+    padding: 3px 10px 7px;
+    cursor: pointer;
+    transition: all 0.12s;
+  }
+  .tab:hover  { color: var(--f-text); }
+  .tab.active { color: var(--f-accent); border-bottom-color: var(--f-accent); }
+
+  /* ── Main layout: left + right ───────────────────────────── */
+  .layout { display: flex; flex: 1; overflow: hidden; min-height: 0; }
+
+  /* ── Left panel (results) ────────────────────────────────── */
+  .left-panel {
+    display: flex;
+    flex-direction: column;
+    width: 38%;
+    min-width: 240px;
+    max-width: 420px;
+    border-right: 1px solid var(--f-border-s);
+    overflow: hidden;
+    flex-shrink: 0;
+  }
+
+  .results-wrap {
+    flex: 1;
+    overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: var(--f-scrollbar) transparent;
+  }
+  .results-wrap::-webkit-scrollbar { width: 5px; }
+  .results-wrap::-webkit-scrollbar-thumb { background: var(--f-scrollbar); border-radius: 3px; }
+
+  .state-msg { padding: 28px 16px; text-align: center; color: var(--f-dim); font-size: 12px; }
+
+  .spinner {
+    display: inline-block;
+    width: 12px; height: 12px;
+    border: 2px solid var(--f-border);
+    border-top-color: var(--f-accent);
+    border-radius: 50%;
+    animation: spin 0.6s linear infinite;
+    vertical-align: middle;
+    margin-right: 6px;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .result {
+    padding: 7px 14px;
+    cursor: pointer;
+    border-left: 2px solid transparent;
+    transition: background 0.08s;
+  }
+  .result:hover    { background: var(--f-hover); }
+  .result.selected { background: var(--f-sel);   border-left-color: var(--f-accent); color: var(--f-sel-fg); }
+
+  .result-header { display: flex; align-items: baseline; gap: 5px; margin-bottom: 2px; }
+  .result-file   { color: var(--f-accent); font-size: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+  .result-line   { color: var(--f-dim); font-size: 10px; flex-shrink: 0; }
+  .git-badge { font-size: 9px; font-weight: 700; flex-shrink: 0; margin-left: 2px; }
+  .git-badge--M { color: var(--vscode-gitDecoration-modifiedResourceForeground,  #e2c08d); }
+  .git-badge--U { color: var(--vscode-gitDecoration-untrackedResourceForeground, #73c991); }
+  .git-badge--A { color: var(--vscode-gitDecoration-addedResourceForeground,     #73c991); }
+  .git-badge--D { color: var(--vscode-gitDecoration-deletedResourceForeground,   #f14c4c); }
+  .git-badge--R { color: var(--vscode-gitDecoration-renamedResourceForeground,   #73c991); }
+  .result-text   { color: var(--f-dim); font-size: 11px; white-space: pre; overflow: hidden; text-overflow: ellipsis; }
+  .result-text mark { background: var(--f-match); color: inherit; font-weight: 700; border-radius: 2px; padding: 0 1px; }
+  .qm { background: var(--f-match); color: inherit; font-weight: 700; border-radius: 2px; padding: 0 1px; }
+
+  .result.selected .result-file { color: var(--f-sel-fg); }
+  .result.selected .result-line,
+  .result.selected .result-text { color: var(--f-sel-fg); opacity: 0.8; }
+
+  /* ── Right panel (preview) ───────────────────────────────── */
+  .right-panel {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    min-width: 0;
+    background: var(--f-bg);
+  }
+  .right-panel.hidden { display: none; }
+  .left-panel.full    { width: 100%; max-width: none; border-right: none; }
+
+  .preview-header {
+    padding: 7px 14px;
+    border-bottom: 1px solid var(--f-border-s);
+    color: var(--f-dim);
+    font-size: 11px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    flex-shrink: 0;
+    background: var(--f-raised);
+  }
+
+  .preview-empty {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--f-dim);
+    font-size: 12px;
+  }
+
+  .preview-content {
+    flex: 1;
+    display: none;
+    overflow: auto;
+    scrollbar-width: thin;
+    scrollbar-color: var(--f-scrollbar) transparent;
+  }
+  .preview-content::-webkit-scrollbar { width: 5px; }
+  .preview-content::-webkit-scrollbar-thumb { background: var(--f-scrollbar); border-radius: 3px; }
+
+  .pline { display: flex; padding: 0 14px; line-height: 1.65; white-space: pre; }
+  .pline--cur     { background: var(--f-line-hl); }
+  .pline--changed { box-shadow: inset 3px 0 0 var(--vscode-editorGutter-modifiedBackground, #1b81a8); }
+  .pnum {
+    color: var(--f-dim);
+    text-align: right;
+    min-width: 4ch;
+    margin-right: 16px;
+    user-select: none;
+    flex-shrink: 0;
+    font-size: 11px;
+    padding-top: 1px;
+  }
+  .pline--cur .pnum { color: var(--vscode-editorLineNumber-activeForeground, var(--f-accent)); }
+  .ptext { color: var(--f-text); font-size: 12px; }
+
+  /* ── Syntax highlighting — highlight.js class mapping ───── */
+  .hljs-keyword, .hljs-operator, .hljs-punctuation { color: var(--f-kw); }
+  .hljs-string, .hljs-template-string, .hljs-template-tag { color: var(--f-str); }
+  .hljs-comment, .hljs-quote { color: var(--f-cmt); font-style: italic; }
+  .hljs-number, .hljs-literal, .hljs-symbol { color: var(--f-num); }
+  .hljs-title, .hljs-title\.function_, .hljs-title\.class_ { color: var(--f-fn); }
+  .hljs-built_in, .hljs-class { color: var(--f-fn); }
+  .hljs-attr, .hljs-attribute, .hljs-property { color: var(--f-accent); }
+  .hljs-tag { color: var(--f-op); }
+  .hljs-name { color: var(--f-kw); }
+  .hljs-selector-class, .hljs-selector-id, .hljs-selector-pseudo { color: var(--f-fn); }
+  .hljs-selector-tag { color: var(--f-kw); }
+  .hljs-type, .hljs-variable\.language_ { color: var(--f-num); }
+  .hljs-meta { color: var(--f-dim); }
+  .hljs-regexp { color: var(--f-str); }
+  .hljs-deletion { color: var(--f-op); }
+  .hljs-addition { color: var(--f-str); }
+
+  /* ── Light theme fallback overrides ─────────────────────── */
+  body.vscode-light {
+    --f-shadow:    var(--vscode-widget-shadow,              rgba(0,0,0,0.12));
+    --f-kw:    var(--vscode-symbolIcon-keywordForeground,  #7c3aed);
+    --f-str:   var(--vscode-symbolIcon-stringForeground,   #16a34a);
+    --f-cmt:   var(--vscode-descriptionForeground,         #6b7280);
+    --f-num:   var(--vscode-symbolIcon-numberForeground,   #b45309);
+    --f-fn:    var(--vscode-symbolIcon-functionForeground, #2563eb);
+    --f-op:    var(--vscode-symbolIcon-operatorForeground, #dc2626);
+    --f-match: var(--vscode-editor-findMatchHighlightBackground, rgba(255,200,0,0.45));
+  }
+
+  /* ── High contrast overrides ─────────────────────────────── */
+  body.vscode-high-contrast {
+    --f-border:    var(--vscode-contrastBorder, var(--vscode-editorWidget-border));
+    --f-border-s:  var(--vscode-contrastBorder, var(--vscode-editorGroup-border));
+    --f-shadow:    none;
+  }
+  body.vscode-high-contrast .finder { border-width: 2px; }
+  body.vscode-high-contrast .result.selected { outline: 1px solid var(--f-accent); }
+
+  /* ── Replace row ─────────────────────────────────────────── */
+  .replace-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 5px 14px;
+    border-bottom: 1px solid var(--f-border-s);
+    flex-shrink: 0;
+  }
+  .filter-label {
+    color: var(--f-dim);
+    font-size: 11px;
+    flex-shrink: 0;
+    user-select: none;
+  }
+  #replace-input {
+    flex: 1;
+    background: transparent;
+    border: none;
+    outline: none;
+    color: var(--f-text);
+    font-family: inherit;
+    font-size: 13px;
+    caret-color: var(--f-accent);
+    min-width: 0;
+  }
+  #replace-input::placeholder { color: var(--f-ph); }
+
+  /* ── Multiselect indicator (left accent stripe) ──────────── */
+  .result.multi-sel {
+    background: color-mix(in srgb, var(--f-accent) 12%, transparent);
+    border-left-color: color-mix(in srgb, var(--f-accent) 60%, transparent);
+  }
+  .result.multi-sel .result-file { opacity: 0.9; }
+
+  /* ── Symbol results ───────────────────────────────────────── */
+  .sym-kind {
+    font-size: 9px;
+    padding: 1px 4px;
+    border-radius: 3px;
+    border: 1px solid currentColor;
+    background: transparent;
+    color: var(--f-dim);
+    flex-shrink: 0;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    opacity: 0.8;
+  }
+  .sym-kind--fn   { color: var(--f-fn); }
+  .sym-kind--cls  { color: var(--f-accent); }
+  .sym-kind--var  { color: var(--f-num); }
+  .sym-kind--enum { color: var(--f-str); }
+  .sym-kind--kw   { color: var(--f-kw); }
+  .sym-kind--op   { color: var(--f-op); }
+  .sym-name { color: var(--f-text); font-size: 12px; }
+  .sym-container { color: var(--f-dim); font-size: 10px; }
+
+  /* ── Preview header as button ─────────────────────────────── */
+  .preview-header-btn {
+    padding: 7px 14px;
+    border: none;
+    border-bottom: 1px solid var(--f-border-s);
+    color: var(--f-dim);
+    font-size: 11px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    flex-shrink: 0;
+    background: var(--f-raised);
+    font-family: inherit;
+    text-align: left;
+    width: 100%;
+    cursor: pointer;
+    transition: color 0.12s;
+  }
+  .preview-header-btn:hover { color: var(--f-accent); }
+
+  /* ── Status bar (slim) ───────────────────────────────────── */
+  .statusbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 3px 10px;
+    border-top: 1px solid var(--f-border-s);
+    color: var(--f-dim);
+    font-size: 10px;
+    flex-shrink: 0;
+  }
+
+  /* ── Shortcuts overlay ───────────────────────────────────── */
+  .shortcuts-overlay {
+    display: none;
+    position: fixed;
+    bottom: calc(7vh + 38px);
+    right: calc((100vw - min(960px, 95vw)) / 2 + 10px);
+    background: var(--f-raised);
+    border: 1px solid var(--f-border);
+    border-radius: 10px;
+    box-shadow: 0 8px 32px var(--f-shadow);
+    padding: 14px 18px;
+    z-index: 100;
+    min-width: 320px;
+  }
+  .shortcuts-overlay.visible { display: block; }
+  .shortcuts-overlay h4 {
+    color: var(--f-dim);
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    margin-bottom: 8px;
+    margin-top: 12px;
+  }
+  .shortcuts-overlay h4:first-child { margin-top: 0; }
+  .shortcut-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 16px;
+    padding: 2px 0;
+    font-size: 11px;
+    color: var(--f-text);
+  }
+  .shortcut-row span { color: var(--f-dim); }
+  kbd {
+    background: var(--f-hover);
+    border: 1px solid var(--f-border);
+    border-radius: 3px;
+    padding: 1px 5px;
+    font-family: inherit;
+    font-size: 10px;
+    color: var(--f-text);
+    white-space: nowrap;
+  }
+  .shortcut-keys { display: flex; gap: 3px; flex-shrink: 0; }
