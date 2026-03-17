@@ -579,6 +579,28 @@ export class FinderPanel {
   .icon-btn.active { background: var(--f-accent); border-color: var(--f-accent); color: var(--f-btn-fg); font-weight: 700; }
   .icon-btn:disabled { opacity: 0.3; cursor: default; pointer-events: none; }
 
+  .icon-btn[data-tooltip] { position: relative; }
+  .icon-btn[data-tooltip]::after {
+    content: attr(data-tooltip);
+    position: absolute;
+    bottom: calc(100% + 7px);
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--vscode-editorHoverWidget-background, var(--f-raised));
+    border: 1px solid var(--vscode-editorHoverWidget-border, var(--vscode-focusBorder, var(--f-border)));
+    border-radius: 5px;
+    padding: 4px 9px;
+    font-size: 11px;
+    white-space: nowrap;
+    color: var(--vscode-editorHoverWidget-foreground, var(--f-text));
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.1s;
+    z-index: 50;
+    box-shadow: 0 2px 8px var(--f-shadow);
+  }
+  .icon-btn[data-tooltip]:hover::after { opacity: 1; }
+
   /* ── Scope tabs ──────────────────────────────────────────── */
   .tabs {
     display: flex;
@@ -798,12 +820,20 @@ export class FinderPanel {
     font-size: 9px;
     padding: 1px 4px;
     border-radius: 3px;
-    background: var(--f-hover);
+    border: 1px solid currentColor;
+    background: transparent;
     color: var(--f-dim);
     flex-shrink: 0;
     text-transform: uppercase;
     letter-spacing: 0.03em;
+    opacity: 0.8;
   }
+  .sym-kind--fn   { color: var(--f-fn); }
+  .sym-kind--cls  { color: var(--f-accent); }
+  .sym-kind--var  { color: var(--f-num); }
+  .sym-kind--enum { color: var(--f-str); }
+  .sym-kind--kw   { color: var(--f-kw); }
+  .sym-kind--op   { color: var(--f-op); }
   .sym-name { color: var(--f-text); font-size: 12px; }
   .sym-container { color: var(--f-dim); font-size: 10px; }
 
@@ -894,12 +924,12 @@ export class FinderPanel {
 <div class="topbar">
   <span class="search-icon">⌕</span>
   <input id="query" type="text" placeholder="Search in files..." autocomplete="off" spellcheck="false">
-  <button type="button" class="icon-btn" id="regex-btn" title="Toggle regex (Ctrl+R)">.*</button>
-  <button type="button" class="icon-btn" id="case-btn" title="Case sensitive (Alt+C)">Aa</button>
-  <button type="button" class="icon-btn" id="word-btn" title="Whole word (Alt+W)">\\b</button>
-  <button type="button" class="icon-btn" id="replace-btn" title="Replace mode (Alt+R)">⇄</button>
-  <button type="button" class="icon-btn active" id="preview-btn" title="Toggle preview (P)">⊡</button>
-  <button type="button" class="icon-btn" id="help-btn" title="Keyboard shortcuts">?</button>
+  <button type="button" class="icon-btn" id="regex-btn" aria-label="Toggle regex">.*</button>
+  <button type="button" class="icon-btn" id="case-btn" aria-label="Case sensitive" data-tooltip="Case sensitive — Alt+C">Aa</button>
+  <button type="button" class="icon-btn" id="word-btn" aria-label="Whole word" data-tooltip="Whole word — Alt+W">\\b</button>
+  <button type="button" class="icon-btn" id="replace-btn" aria-label="Replace mode" data-tooltip="Replace mode — Alt+R">⇄</button>
+  <button type="button" class="icon-btn active" id="preview-btn" aria-label="Toggle preview">⊡</button>
+  <button type="button" class="icon-btn" id="help-btn" aria-label="Keyboard shortcuts" data-tooltip="Keyboard shortcuts">?</button>
 </div>
 
 <!-- Replace row -->
@@ -1426,14 +1456,24 @@ export class FinderPanel {
 
     stateMsg.style.display = 'none';
 
+  const KIND_CLASS = {
+    'function': 'fn', 'method': 'fn', 'constructor': 'fn',
+    'class': 'cls', 'interface': 'cls', 'struct': 'cls',
+    'variable': 'var', 'constant': 'var', 'field': 'var', 'property': 'var', 'key': 'var',
+    'enum': 'enum', 'enum member': 'enum',
+    'type param': 'kw', 'boolean': 'kw',
+    'operator': 'op', 'event': 'op',
+  };
+
     const frag = document.createDocumentFragment();
     state.symbolResults.forEach((r, i) => {
       const div = document.createElement('div');
       div.className = 'result' + (i === state.selected ? ' selected' : '');
       div.dataset.index = String(i);
+      const kindCls = KIND_CLASS[r.kindLabel] ? ' sym-kind--' + KIND_CLASS[r.kindLabel] : '';
       div.innerHTML =
         '<div class="result-header">' +
-          '<span class="sym-kind">' + escHtml(r.kindLabel) + '</span>' +
+          '<span class="sym-kind' + kindCls + '">' + escHtml(r.kindLabel) + '</span>' +
           '<span class="sym-name">' + escHtml(r.name) + '</span>' +
         '</div>' +
         (r.container ? '<div class="sym-container">' + escHtml(r.container) + '</div>' : '') +
@@ -1903,6 +1943,8 @@ export class FinderPanel {
   shortcutsOverlay.addEventListener('click', e => e.stopPropagation());
 
   // ── Init ───────────────────────────────────────────────────────────────────
+  regexBtn.dataset.tooltip   = 'Regex — ' + (KB.toggleRegex || 'Shift+Alt+R');
+  previewBtn.dataset.tooltip = 'Toggle preview — ' + (KB.togglePreview || 'Shift+Alt+P');
   resultInfo.textContent = '0 results';
   state.useRegex = false;
   regexBtn.classList.remove('active');
