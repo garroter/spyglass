@@ -1,9 +1,11 @@
 import * as vscode from 'vscode';
 import * as path from 'path';
-import { spawn } from 'child_process';
 import { searchWithRipgrep, listFilesWithRipgrep, isRipgrepAvailable, CancellableSearch } from './ripgrep';
 import hljs from 'highlight.js';
-import { Scope, KeyBindings, FileResult, SymbolResult } from './types';
+import { Scope, KeyBindings } from './types';
+import { cwdForFile, makeRelative } from './workspaceUtils';
+import { loadGitStatus, getChangedLines } from './gitUtils';
+import { runSymbolSearch } from './symbolSearch';
 
 function getNonce(): string {
   const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
@@ -274,49 +276,8 @@ export class FinderPanel {
   private async _runSymbolSearch(query: string): Promise<void> {
     const seq = ++this._searchSeq;
     try {
-      const symbols = await vscode.commands.executeCommand<vscode.SymbolInformation[]>(
-        'vscode.executeWorkspaceSymbolProvider', query
-      );
+      const results = await runSymbolSearch(query, fp => this._makeRelative(fp));
       if (seq !== this._searchSeq) { return; }
-
-      const kindLabels: Record<number, string> = {
-        [vscode.SymbolKind.File]: 'file',
-        [vscode.SymbolKind.Module]: 'module',
-        [vscode.SymbolKind.Namespace]: 'namespace',
-        [vscode.SymbolKind.Package]: 'package',
-        [vscode.SymbolKind.Class]: 'class',
-        [vscode.SymbolKind.Method]: 'method',
-        [vscode.SymbolKind.Property]: 'property',
-        [vscode.SymbolKind.Field]: 'field',
-        [vscode.SymbolKind.Constructor]: 'constructor',
-        [vscode.SymbolKind.Enum]: 'enum',
-        [vscode.SymbolKind.Interface]: 'interface',
-        [vscode.SymbolKind.Function]: 'function',
-        [vscode.SymbolKind.Variable]: 'variable',
-        [vscode.SymbolKind.Constant]: 'constant',
-        [vscode.SymbolKind.String]: 'string',
-        [vscode.SymbolKind.Number]: 'number',
-        [vscode.SymbolKind.Boolean]: 'boolean',
-        [vscode.SymbolKind.Array]: 'array',
-        [vscode.SymbolKind.Object]: 'object',
-        [vscode.SymbolKind.Key]: 'key',
-        [vscode.SymbolKind.Null]: 'null',
-        [vscode.SymbolKind.EnumMember]: 'enum member',
-        [vscode.SymbolKind.Struct]: 'struct',
-        [vscode.SymbolKind.Event]: 'event',
-        [vscode.SymbolKind.Operator]: 'operator',
-        [vscode.SymbolKind.TypeParameter]: 'type param',
-      };
-
-      const results: SymbolResult[] = (symbols || []).slice(0, 200).map(s => ({
-        name: s.name,
-        kindLabel: kindLabels[s.kind] ?? 'symbol',
-        file: s.location.uri.fsPath,
-        relativePath: this._makeRelative(s.location.uri.fsPath),
-        line: s.location.range.start.line + 1,
-        container: s.containerName || undefined,
-      }));
-
       this._post({ type: 'symbolResults', results, query });
     } catch {
       if (seq !== this._searchSeq) { return; }
@@ -413,76 +374,13 @@ export class FinderPanel {
     }
   }
 
-  private _cwdForFile(filePath: string): string {
-    return this._cwdList.find(cwd => filePath.startsWith(cwd + path.sep) || filePath.startsWith(cwd + '/')) ?? this._cwd;
-  }
-
   private _makeRelative(filePath: string): string {
-    const cwd = this._cwdForFile(filePath);
-    const rel = path.relative(cwd, filePath).replace(/\\/g, '/');
-    return this._cwdList.length > 1 ? path.basename(cwd) + '/' + rel : rel;
+    return makeRelative(filePath, this._cwdList, this._cwd);
   }
 
   private _loadGitStatus(): void {
-    if (this._cwdList.length === 0) { return; }
-    const promises = this._cwdList.map(cwd => new Promise<Record<string, string>>(resolve => {
-      const git = spawn('git', ['status', '--porcelain'], { cwd });
-      let out = '';
-      git.stdout.on('data', (d: Buffer) => { out += d.toString(); });
-      git.on('error', () => resolve({}));
-      git.on('close', () => {
-        const status: Record<string, string> = {};
-        for (const line of out.split('\n')) {
-          if (line.length < 4) { continue; }
-          const xy = line.slice(0, 2);
-          let filePath = line.slice(3);
-          if (filePath.includes(' -> ')) { filePath = filePath.split(' -> ')[1]; }
-          filePath = filePath.trim();
-          if (!filePath) { continue; }
-          let s = 'M';
-          if (xy === '??')                          { s = 'U'; }
-          else if (xy[0] === 'D' || xy[1] === 'D') { s = 'D'; }
-          else if (xy[0] === 'A')                   { s = 'A'; }
-          else if (xy[0] === 'R')                   { s = 'R'; }
-          const rel = this._cwdList.length > 1 ? path.basename(cwd) + '/' + filePath : filePath;
-          status[rel] = s;
-        }
-        resolve(status);
-      });
-    }));
-    Promise.all(promises).then(statuses => {
-      const merged: Record<string, string> = {};
-      for (const s of statuses) { Object.assign(merged, s); }
-      this._post({ type: 'gitStatus', status: merged });
-    });
-  }
-
-  private _getChangedLines(filePath: string): Promise<number[]> {
-    if (this._gitCache.has(filePath)) {
-      return Promise.resolve(this._gitCache.get(filePath)!);
-    }
-    return new Promise((resolve) => {
-      const cwd = this._cwdForFile(filePath);
-      if (!cwd) { resolve([]); return; }
-      const git = spawn('git', ['diff', 'HEAD', '--unified=0', '--', filePath], { cwd });
-      let out = '';
-      git.stdout.on('data', (d: Buffer) => { out += d.toString(); });
-      git.on('error', () => resolve([]));
-      git.on('close', () => {
-        const changed = new Set<number>();
-        for (const line of out.split('\n')) {
-          // Parse: @@ -old +new_start[,new_count] @@
-          const m = line.match(/^@@ -\d+(?:,\d+)? \+(\d+)(?:,(\d+))? @@/);
-          if (m) {
-            const start = parseInt(m[1], 10);
-            const count = m[2] !== undefined ? parseInt(m[2], 10) : 1;
-            for (let i = 0; i < count; i++) { changed.add(start + i); }
-          }
-        }
-        const result = Array.from(changed);
-        this._gitCache.set(filePath, result);
-        resolve(result);
-      });
+    loadGitStatus(this._cwdList).then(status => {
+      this._post({ type: 'gitStatus', status });
     });
   }
 
@@ -500,7 +398,7 @@ export class FinderPanel {
       }
 
       const content = doc.getText();
-      const changedLines = await this._getChangedLines(filePath);
+      const changedLines = await getChangedLines(filePath, cwdForFile(filePath, this._cwdList, this._cwd), this._gitCache);
 
       let highlighted: string[];
       try {
