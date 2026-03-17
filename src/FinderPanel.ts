@@ -18,11 +18,12 @@ export class FinderPanel {
   private readonly _disposables: vscode.Disposable[] = [];
   private _scope: Scope;
   private _cwd: string = '';
+  private _cwdList: string[] = [];
   private _fileCache: Array<{file: string, rel: string}> | null = null;
   private _fileCacheTime = 0;
   private static readonly FILE_CACHE_TTL = 60_000;
   private _searchSeq = 0;
-  private _currentSearch: CancellableSearch | null = null;
+  private _currentSearches: CancellableSearch[] = [];
   private _gitCache = new Map<string, number[]>();
   private _recentFiles: string[] = [];
   private _searchHistory: string[] = [];
@@ -93,7 +94,8 @@ export class FinderPanel {
   ) {
     this._panel = panel;
     this._scope = defaultScope;
-    this._cwd = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath ?? '';
+    this._cwdList = vscode.workspace.workspaceFolders?.map(f => f.uri.fsPath) ?? [];
+    this._cwd = this._cwdList[0] ?? '';
     this._recentFiles = recentFiles;
     this._searchHistory = searchHistory;
     this._activeDir = activeDir;
@@ -102,11 +104,10 @@ export class FinderPanel {
     this._panel.webview.html = this._buildHtml(defaultScope, kb, initialQuery, this._searchHistory, this._recentFiles, maxResults);
 
     // Warm file cache in background so Files tab is instant on first use
-    if (this._cwd) {
-      const cwd = this._cwd;
+    if (this._cwdList.length > 0) {
       const exclude = vscode.workspace.getConfiguration('spyglass').get<string[]>('exclude');
-      listFilesWithRipgrep(cwd, exclude ?? undefined).then(files => {
-        this._fileCache = files.map(f => ({ file: f, rel: path.relative(cwd, f).replace(/\\/g, '/') }));
+      Promise.all(this._cwdList.map(cwd => listFilesWithRipgrep(cwd, exclude ?? undefined))).then(lists => {
+        this._fileCache = lists.flatMap(files => files.map(f => ({ file: f, rel: this._makeRelative(f) })));
         this._fileCacheTime = Date.now();
         this._post({ type: 'fileList', files: this._fileCache });
       });
@@ -173,8 +174,8 @@ export class FinderPanel {
   }
 
   private async _runSearch(query: string, useRegex: boolean, opts?: { caseSensitive?: boolean; wholeWord?: boolean; globFilter?: string }): Promise<void> {
-    this._currentSearch?.cancel();
-    this._currentSearch = null;
+    this._currentSearches.forEach(s => s.cancel());
+    this._currentSearches = [];
     const seq = ++this._searchSeq;
     const config = vscode.workspace.getConfiguration('spyglass');
     const maxResults = config.get<number>('maxResults', 200);
@@ -185,7 +186,7 @@ export class FinderPanel {
       return;
     }
 
-    if (!this._cwd) {
+    if (this._cwdList.length === 0) {
       this._post({ type: 'error', message: 'No workspace folder open.' });
       return;
     }
@@ -202,15 +203,27 @@ export class FinderPanel {
 
     const start = Date.now();
     try {
-      const search = searchWithRipgrep(query, this._cwd, useRegex, files, { ...opts, exclude: exclude ?? undefined }, (chunk) => {
+      // openFiles uses absolute paths — single search suffices; otherwise search all folders
+      const cwds = this._scope === 'openFiles' ? [this._cwd] : this._cwdList;
+      const accumulated = new Map<string, import('./types').SearchResult[]>();
+
+      const searches = cwds.map(cwd => searchWithRipgrep(query, cwd, useRegex, files, { ...opts, exclude: exclude ?? undefined }, (chunk) => {
         if (seq !== this._searchSeq) { return; }
-        this._post({ type: 'resultsChunk', results: chunk.slice(0, maxResults), query });
-      });
-      this._currentSearch = search;
-      const results = await search.promise;
-      this._currentSearch = null;
+        accumulated.set(cwd, this._cwdList.length > 1 ? chunk.map(r => ({ ...r, relativePath: this._makeRelative(r.file) })) : chunk);
+        const merged = [...accumulated.values()].flat().slice(0, maxResults);
+        this._post({ type: 'resultsChunk', results: merged, query });
+      }));
+
+      this._currentSearches = searches;
+      const allResults = await Promise.all(searches.map(s => s.promise));
+      this._currentSearches = [];
       if (seq !== this._searchSeq) { return; }
-      this._post({ type: 'results', results: results.slice(0, maxResults), query, took: Date.now() - start });
+
+      let merged = allResults.flat();
+      if (this._cwdList.length > 1) {
+        merged = merged.map(r => ({ ...r, relativePath: this._makeRelative(r.file) }));
+      }
+      this._post({ type: 'results', results: merged.slice(0, maxResults), query, took: Date.now() - start });
     } catch {
       if (seq !== this._searchSeq) { return; }
       this._post({ type: 'error', message: 'Search failed.' });
@@ -218,8 +231,8 @@ export class FinderPanel {
   }
 
   private async _runHereSearch(query: string, useRegex: boolean, opts?: { caseSensitive?: boolean; wholeWord?: boolean; globFilter?: string }): Promise<void> {
-    this._currentSearch?.cancel();
-    this._currentSearch = null;
+    this._currentSearches.forEach(s => s.cancel());
+    this._currentSearches = [];
     const seq = ++this._searchSeq;
     const cwd = this._activeDir || this._cwd;
     const config = vscode.workspace.getConfiguration('spyglass');
@@ -244,9 +257,9 @@ export class FinderPanel {
         if (seq !== this._searchSeq) { return; }
         this._post({ type: 'resultsChunk', results: chunk.slice(0, maxResults), query });
       });
-      this._currentSearch = search;
+      this._currentSearches = [search];
       const results = await search.promise;
-      this._currentSearch = null;
+      this._currentSearches = [];
       if (seq !== this._searchSeq) { return; }
       this._post({ type: 'results', results: results.slice(0, maxResults), query, took: Date.now() - start });
     } catch {
@@ -296,7 +309,7 @@ export class FinderPanel {
         name: s.name,
         kindLabel: kindLabels[s.kind] ?? 'symbol',
         file: s.location.uri.fsPath,
-        relativePath: path.relative(this._cwd, s.location.uri.fsPath).replace(/\\/g, '/'),
+        relativePath: this._makeRelative(s.location.uri.fsPath),
         line: s.location.range.start.line + 1,
         container: s.containerName || undefined,
       }));
@@ -309,7 +322,6 @@ export class FinderPanel {
   }
 
   private async _replaceAll(msg: { query: string; replacement: string; useRegex: boolean; caseSensitive: boolean; wholeWord: boolean; globFilter: string; scope: string }): Promise<void> {
-    const cwd = msg.scope === 'here' ? (this._activeDir || this._cwd) : this._cwd;
     let files: string[] | undefined;
     if (msg.scope === 'openFiles') {
       files = vscode.window.tabGroups.all
@@ -318,15 +330,22 @@ export class FinderPanel {
         .filter((f): f is string => typeof f === 'string');
     }
 
+    const cwds = msg.scope === 'here'
+      ? [this._activeDir || this._cwd]
+      : msg.scope === 'openFiles' ? [this._cwd] : this._cwdList;
+
     const exclude = vscode.workspace.getConfiguration('spyglass').get<string[]>('exclude');
     let results;
     try {
-      results = await searchWithRipgrep(msg.query, cwd, msg.useRegex, files, {
-        caseSensitive: msg.caseSensitive,
-        wholeWord: msg.wholeWord,
-        globFilter: msg.globFilter,
-        exclude: exclude ?? undefined,
-      }).promise;
+      const allResults = await Promise.all(cwds.map(cwd =>
+        searchWithRipgrep(msg.query, cwd, msg.useRegex, files, {
+          caseSensitive: msg.caseSensitive,
+          wholeWord: msg.wholeWord,
+          globFilter: msg.globFilter,
+          exclude: exclude ?? undefined,
+        }).promise
+      ));
+      results = allResults.flat();
     } catch {
       vscode.window.showErrorMessage('Spyglass: Replace failed — search error.');
       return;
@@ -361,17 +380,16 @@ export class FinderPanel {
   }
 
   private async _runFileSearch(): Promise<void> {
-    if (!this._cwd) {
+    if (this._cwdList.length === 0) {
       this._post({ type: 'error', message: 'No workspace folder open.' });
       return;
     }
 
     const now = Date.now();
     if (!this._fileCache || now - this._fileCacheTime > FinderPanel.FILE_CACHE_TTL) {
-      const cwd = this._cwd;
       const exclude = vscode.workspace.getConfiguration('spyglass').get<string[]>('exclude');
-      const files = await listFilesWithRipgrep(cwd, exclude ?? undefined);
-      this._fileCache = files.map(f => ({ file: f, rel: path.relative(cwd, f).replace(/\\/g, '/') }));
+      const lists = await Promise.all(this._cwdList.map(cwd => listFilesWithRipgrep(cwd, exclude ?? undefined)));
+      this._fileCache = lists.flatMap(files => files.map(f => ({ file: f, rel: this._makeRelative(f) })));
       this._fileCacheTime = Date.now();
     }
 
@@ -392,30 +410,47 @@ export class FinderPanel {
     }
   }
 
+  private _cwdForFile(filePath: string): string {
+    return this._cwdList.find(cwd => filePath.startsWith(cwd + path.sep) || filePath.startsWith(cwd + '/')) ?? this._cwd;
+  }
+
+  private _makeRelative(filePath: string): string {
+    const cwd = this._cwdForFile(filePath);
+    const rel = path.relative(cwd, filePath).replace(/\\/g, '/');
+    return this._cwdList.length > 1 ? path.basename(cwd) + '/' + rel : rel;
+  }
+
   private _loadGitStatus(): void {
-    if (!this._cwd) { return; }
-    const git = spawn('git', ['status', '--porcelain'], { cwd: this._cwd });
-    let out = '';
-    git.stdout.on('data', (d: Buffer) => { out += d.toString(); });
-    git.on('error', () => {});
-    git.on('close', () => {
-      const status: Record<string, string> = {};
-      for (const line of out.split('\n')) {
-        if (line.length < 4) { continue; }
-        const xy = line.slice(0, 2);
-        let filePath = line.slice(3);
-        // renamed: "R  old -> new" — take the new path
-        if (filePath.includes(' -> ')) { filePath = filePath.split(' -> ')[1]; }
-        filePath = filePath.trim();
-        if (!filePath) { continue; }
-        let s = 'M';
-        if (xy === '??')                          { s = 'U'; }
-        else if (xy[0] === 'D' || xy[1] === 'D') { s = 'D'; }
-        else if (xy[0] === 'A')                   { s = 'A'; }
-        else if (xy[0] === 'R')                   { s = 'R'; }
-        status[filePath] = s;
-      }
-      this._post({ type: 'gitStatus', status });
+    if (this._cwdList.length === 0) { return; }
+    const promises = this._cwdList.map(cwd => new Promise<Record<string, string>>(resolve => {
+      const git = spawn('git', ['status', '--porcelain'], { cwd });
+      let out = '';
+      git.stdout.on('data', (d: Buffer) => { out += d.toString(); });
+      git.on('error', () => resolve({}));
+      git.on('close', () => {
+        const status: Record<string, string> = {};
+        for (const line of out.split('\n')) {
+          if (line.length < 4) { continue; }
+          const xy = line.slice(0, 2);
+          let filePath = line.slice(3);
+          if (filePath.includes(' -> ')) { filePath = filePath.split(' -> ')[1]; }
+          filePath = filePath.trim();
+          if (!filePath) { continue; }
+          let s = 'M';
+          if (xy === '??')                          { s = 'U'; }
+          else if (xy[0] === 'D' || xy[1] === 'D') { s = 'D'; }
+          else if (xy[0] === 'A')                   { s = 'A'; }
+          else if (xy[0] === 'R')                   { s = 'R'; }
+          const rel = this._cwdList.length > 1 ? path.basename(cwd) + '/' + filePath : filePath;
+          status[rel] = s;
+        }
+        resolve(status);
+      });
+    }));
+    Promise.all(promises).then(statuses => {
+      const merged: Record<string, string> = {};
+      for (const s of statuses) { Object.assign(merged, s); }
+      this._post({ type: 'gitStatus', status: merged });
     });
   }
 
@@ -424,8 +459,9 @@ export class FinderPanel {
       return Promise.resolve(this._gitCache.get(filePath)!);
     }
     return new Promise((resolve) => {
-      if (!this._cwd) { resolve([]); return; }
-      const git = spawn('git', ['diff', 'HEAD', '--unified=0', '--', filePath], { cwd: this._cwd });
+      const cwd = this._cwdForFile(filePath);
+      if (!cwd) { resolve([]); return; }
+      const git = spawn('git', ['diff', 'HEAD', '--unified=0', '--', filePath], { cwd });
       let out = '';
       git.stdout.on('data', (d: Buffer) => { out += d.toString(); });
       git.on('error', () => resolve([]));
@@ -449,7 +485,7 @@ export class FinderPanel {
 
   private async _sendPreview(filePath: string, targetLine: number): Promise<void> {
     const ext = path.extname(filePath).slice(1).toLowerCase();
-    const relativePath = path.relative(this._cwd, filePath).replace(/\\/g, '/');
+    const relativePath = this._makeRelative(filePath);
     try {
       // Use VSCode's document API so we see in-memory edits (e.g. after WorkspaceEdit)
       const uri = vscode.Uri.file(filePath);
@@ -1065,7 +1101,7 @@ export class FinderPanel {
   const KB = ${JSON.stringify(kb)};
   const INITIAL_QUERY = ${JSON.stringify(initialQuery)};
   const INITIAL_HISTORY = ${JSON.stringify(searchHistory)};
-  const RECENT_FILES = ${JSON.stringify(recentFiles.map(f => ({ file: f, rel: path.relative(this._cwd, f).replace(/\\/g, '/') })))};
+  const RECENT_FILES = ${JSON.stringify(recentFiles.map(f => ({ file: f, rel: this._makeRelative(f) })))};
   const MAX_RESULTS = ${maxResults};
 
   function matchKey(e, binding) {
@@ -1316,11 +1352,12 @@ export class FinderPanel {
 
   function requestTextPreview() {
     if (!state.showPreview) { return; }
-    const r = state.results[state.selected];
+    const rd = recentDefault();
+    const r = rd ? rd[state.selected] : state.results[state.selected];
     if (!r) { return; }
     clearTimeout(previewTimer);
     previewTimer = setTimeout(() => {
-      vscode.postMessage({ type: 'preview', file: r.file, line: r.line });
+      vscode.postMessage({ type: 'preview', file: r.file, line: rd ? 1 : r.line });
     }, 80);
   }
 
@@ -1634,7 +1671,8 @@ export class FinderPanel {
       const r = state.symbolResults[state.selected];
       if (r) { file = r.file; }
     } else {
-      const r = state.results[state.selected];
+      const rd = recentDefault();
+      const r = rd ? rd[state.selected] : state.results[state.selected];
       if (r) { file = r.file; }
     }
     if (file) { vscode.postMessage({ type: 'copyPath', path: file }); }
@@ -1678,8 +1716,9 @@ export class FinderPanel {
       const r = state.symbolResults[index];
       if (r) { vscode.postMessage({ type: 'open', file: r.file, line: r.line }); }
     } else {
-      const r = state.results[index];
-      if (r) { vscode.postMessage({ type: 'open', file: r.file, line: r.line }); }
+      const rd = recentDefault();
+      const r = rd ? rd[index] : state.results[index];
+      if (r) { vscode.postMessage({ type: 'open', file: r.file, line: rd ? 1 : r.line }); }
     }
   }
 
@@ -1691,13 +1730,22 @@ export class FinderPanel {
       const r = state.symbolResults[index];
       if (r) { vscode.postMessage({ type: 'openInSplit', file: r.file, line: r.line }); }
     } else {
-      const r = state.results[index];
-      if (r) { vscode.postMessage({ type: 'openInSplit', file: r.file, line: r.line }); }
+      const rd = recentDefault();
+      const r = rd ? rd[index] : state.results[index];
+      if (r) { vscode.postMessage({ type: 'openInSplit', file: r.file, line: rd ? 1 : r.line }); }
     }
   }
 
+  // Returns recent files being shown as default (no query, no results) or null
+  function recentDefault() {
+    return (!state.query && !state.searching && state.results.length === 0 && !isFileScope() && !isSymbolScope())
+      ? state.recentFiles.slice(0, 12) : null;
+  }
+
   function navigate(delta) {
-    const len = isFileScope() ? state.fileResults.length
+    const rd = recentDefault();
+    const len = rd ? rd.length
+              : isFileScope() ? state.fileResults.length
               : isSymbolScope() ? state.symbolResults.length
               : state.results.length;
     state.selected = Math.max(0, Math.min(state.selected + delta, len - 1));
