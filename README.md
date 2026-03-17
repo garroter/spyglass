@@ -55,7 +55,8 @@
 - **Symbol search** — workspace symbols via LSP with color-coded kind badges (class, function, method…)
 - **Regex mode** toggle for power users
 - **Case sensitive** and **whole word** toggles
-- **Glob filter** — limit search to specific file patterns (`*.ts`, `!*.test.ts`)
+- **Inline glob filter** — append a glob to any query to narrow results: `myFunc *.ts` or `test !*.test.ts`
+- **Multi-root workspace** — searches and file listings span all workspace folders simultaneously
 
 ### 🗂️ Navigation
 - **6 search scopes** — Project, Open Files, Files, Recent, Dir, Symbols
@@ -155,6 +156,7 @@ Lines modified since the last git commit are marked with a **blue indicator** in
 |---------|---------|-------------|
 | `spyglass.defaultScope` | `project` | Scope on open: `project` `openFiles` `files` `recent` `here` `symbols` |
 | `spyglass.maxResults` | `200` | Maximum number of results to display |
+| `spyglass.exclude` | `[".git","node_modules","out","dist","*.lock"]` | Glob patterns excluded from search and file listing |
 | `spyglass.keybindings.navigateDown` | `ArrowDown` | Navigate down in results |
 | `spyglass.keybindings.navigateUp` | `ArrowUp` | Navigate up in results |
 | `spyglass.keybindings.open` | `Enter` | Open selected result |
@@ -233,6 +235,33 @@ To disable the default `Ctrl+Alt+F` binding for either setup:
 
 ---
 
+## 🌐 Multi-root Workspaces
+
+Spyglass works across all workspace folders simultaneously. Results from multiple folders are prefixed with the folder name so you always know where a match comes from:
+
+```
+backend/src/server.ts
+frontend/src/App.tsx
+```
+
+All scopes — text search, file listing, replace, and git status badges — cover every folder in the workspace.
+
+---
+
+## 🔍 Inline Glob Filter
+
+Append a glob pattern to any query to narrow the search without leaving the input field:
+
+| Query | Effect |
+|-------|--------|
+| `useState *.tsx` | Search for `useState` only in `.tsx` files |
+| `TODO !*.test.ts` | Search for `TODO`, excluding test files |
+| `error *.ts !*.d.ts` | Multiple globs combined |
+
+Patterns starting with `*` are treated as include globs, patterns starting with `!` as excludes. Everything else is the search query.
+
+---
+
 ## 📋 Requirements
 
 - VS Code `^1.85.0`
@@ -250,6 +279,39 @@ Spyglass collects **no data**. All processing happens locally on your machine:
 - No telemetry, analytics, or crash reporting
 - Search history is stored locally in VS Code's `workspaceState` and never leaves your machine
 - Dependencies (`@vscode/ripgrep`, `highlight.js`) are fully local with no network activity
+
+---
+
+## 🛠️ Development
+
+```bash
+git clone https://github.com/garroter/spyglass
+cd spyglass
+npm install
+
+npm run compile   # compile TypeScript
+npm run watch     # watch mode
+npm test          # run unit tests (vitest)
+```
+
+Press `F5` in VS Code to launch an Extension Development Host.
+
+### Project structure
+
+```
+src/
+  extension.ts       — activation, command registration
+  FinderPanel.ts     — webview panel lifecycle, message handler
+  ripgrep.ts         — ripgrep search backend
+  gitUtils.ts        — git status and diff parsing
+  symbolSearch.ts    — LSP workspace symbol search
+  workspaceUtils.ts  — path helpers (cwdForFile, makeRelative)
+  webviewUtils.ts    — pure functions shared with tests (fuzzyScore, parseQueryInput)
+  test/              — unit tests (vitest)
+media/
+  webview.css        — panel styles
+  webview.js         — panel UI logic
+```
 
 ---
 
