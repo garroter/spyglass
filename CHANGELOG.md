@@ -1,6 +1,6 @@
 # Changelog
 
-## [Unreleased]
+## [0.1.4] - 2026-03-17
 
 ### Added
 - Git status badges in results (`M` modified, `A` added, `U` untracked, `D` deleted) — colors match the file explorer

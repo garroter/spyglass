@@ -59,7 +59,8 @@
 
 ### 🗂️ Navigation
 - **6 search scopes** — Project, Open Files, Files, Recent, Dir, Symbols
-- **Recent files** — instantly access your most recently opened files
+- **Recent files on open** — opens to recent files immediately, no empty screen
+- **Scope memory** — last used scope is restored when you reopen
 - **Dir scope** — search only within the directory of the active file
 - **Search history** — navigate previous queries with `Ctrl+↑` / `Ctrl+↓`
 - **Multi-select** — pick multiple results and open them all at once
