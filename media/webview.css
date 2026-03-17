@@ -442,3 +442,39 @@
     white-space: nowrap;
   }
   .shortcut-keys { display: flex; gap: 3px; flex-shrink: 0; }
+
+  /* ── Context menu ────────────────────────────────────────── */
+  .ctx-menu {
+    display: none;
+    position: fixed;
+    background: var(--f-raised);
+    border: 1px solid var(--f-border);
+    border-radius: 8px;
+    box-shadow: 0 8px 24px var(--f-shadow);
+    padding: 4px 0;
+    z-index: 300;
+    min-width: 210px;
+  }
+  .ctx-menu.visible { display: block; }
+  .ctx-item {
+    padding: 6px 14px;
+    font-size: 12px;
+    cursor: pointer;
+    color: var(--f-text);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    white-space: nowrap;
+  }
+  .ctx-item:hover { background: var(--f-hover); }
+  .ctx-hint {
+    color: var(--f-dim);
+    font-size: 10px;
+    flex-shrink: 0;
+  }
+  .ctx-sep {
+    height: 1px;
+    background: var(--f-border-s);
+    margin: 4px 0;
+  }

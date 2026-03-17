@@ -559,6 +559,17 @@ export class FinderPanel {
   <div class="shortcut-row"><span>Toggle preview</span><div class="shortcut-keys"><kbd>Shift</kbd><kbd>Alt</kbd><kbd>P</kbd></div></div>
 </div>
 
+<!-- Context menu -->
+<div class="ctx-menu" id="ctx-menu">
+  <div class="ctx-item" id="ctx-open"><span>Open</span><span class="ctx-hint">Enter</span></div>
+  <div class="ctx-item" id="ctx-open-split"><span>Open in split</span><span class="ctx-hint">Ctrl+Enter</span></div>
+  <div class="ctx-sep"></div>
+  <div class="ctx-item" id="ctx-copy-abs"><span>Copy absolute path</span><span class="ctx-hint">Alt+Y</span></div>
+  <div class="ctx-item" id="ctx-copy-rel"><span>Copy relative path</span></div>
+  <div class="ctx-sep"></div>
+  <div class="ctx-item" id="ctx-reveal"><span>Reveal in Explorer</span></div>
+</div>
+
 <script nonce="${nonce}">window.__spyglass = ${JSON.stringify(config)};</script>
 <script src="${jsUri}"></script>
 </body>

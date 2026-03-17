@@ -1006,6 +1006,73 @@ window.addEventListener('message', ({ data }) => {
   }
 });
 
+// ── Context menu ───────────────────────────────────────────────────────────
+const ctxMenu      = document.getElementById('ctx-menu');
+const ctxOpen      = document.getElementById('ctx-open');
+const ctxOpenSplit = document.getElementById('ctx-open-split');
+const ctxCopyAbs   = document.getElementById('ctx-copy-abs');
+const ctxCopyRel   = document.getElementById('ctx-copy-rel');
+const ctxReveal    = document.getElementById('ctx-reveal');
+
+let ctxTarget = null; // { file, rel, line }
+
+function getResultData(i) {
+  const rd = recentDefault();
+  if (rd) {
+    const r = rd[i];
+    return r ? { file: r.file, rel: r.rel, line: 1 } : null;
+  }
+  if (isFileScope()) {
+    const r = state.fileResults[i];
+    return r ? { file: r.file, rel: r.relativePath, line: 1 } : null;
+  }
+  if (isSymbolScope()) {
+    const r = state.symbolResults[i];
+    return r ? { file: r.file, rel: r.relativePath, line: r.line } : null;
+  }
+  const r = state.results[i];
+  return r ? { file: r.file, rel: r.relativePath, line: r.line } : null;
+}
+
+function showCtxMenu(x, y, index) {
+  const data = getResultData(index);
+  if (!data) { return; }
+  ctxTarget = data;
+  ctxMenu.style.left = x + 'px';
+  ctxMenu.style.top  = y + 'px';
+  ctxMenu.classList.add('visible');
+  // Adjust if menu goes off-screen
+  const rect = ctxMenu.getBoundingClientRect();
+  if (rect.right  > window.innerWidth)  { ctxMenu.style.left = (x - rect.width)  + 'px'; }
+  if (rect.bottom > window.innerHeight) { ctxMenu.style.top  = (y - rect.height) + 'px'; }
+}
+
+function hideCtxMenu() {
+  ctxMenu.classList.remove('visible');
+  ctxTarget = null;
+}
+
+wrap.addEventListener('contextmenu', (e) => {
+  const el = e.target.closest('.result');
+  if (!el) { return; }
+  e.preventDefault();
+  const i = parseInt(el.dataset.index);
+  state.selected = i;
+  updateSelection();
+  showCtxMenu(e.clientX, e.clientY, i);
+});
+
+ctxOpen.addEventListener('click',      () => { if (ctxTarget) { openResult(state.selected); }                                                      hideCtxMenu(); });
+ctxOpenSplit.addEventListener('click', () => { if (ctxTarget) { openResultInSplit(state.selected); }                                               hideCtxMenu(); });
+ctxCopyAbs.addEventListener('click',   () => { if (ctxTarget) { vscode.postMessage({ type: 'copyPath', path: ctxTarget.file }); }                  hideCtxMenu(); });
+ctxCopyRel.addEventListener('click',   () => { if (ctxTarget) { vscode.postMessage({ type: 'copyPath', path: ctxTarget.rel }); }                   hideCtxMenu(); });
+ctxReveal.addEventListener('click',    () => { if (ctxTarget) { vscode.postMessage({ type: 'revealFile', file: ctxTarget.file }); }                hideCtxMenu(); });
+
+ctxMenu.addEventListener('click', e => e.stopPropagation());
+
+document.addEventListener('contextmenu', (e) => { if (!e.target.closest('#ctx-menu') && !e.target.closest('.result')) { hideCtxMenu(); } });
+document.addEventListener('keydown',     (e) => { if (e.key === 'Escape') { hideCtxMenu(); } }, true);
+
 // ── Shortcuts overlay ──────────────────────────────────────────────────────
 const helpBtn      = document.getElementById('help-btn');
 const shortcutsOverlay = document.getElementById('shortcuts-overlay');
@@ -1019,6 +1086,7 @@ helpBtn.addEventListener('click', (e) => {
 document.addEventListener('click', () => {
   shortcutsOverlay.classList.remove('visible');
   helpBtn.classList.remove('active');
+  hideCtxMenu();
 });
 
 shortcutsOverlay.addEventListener('click', e => e.stopPropagation());
