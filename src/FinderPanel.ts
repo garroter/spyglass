@@ -1016,6 +1016,7 @@ export class FinderPanel {
 <!-- Status bar -->
 <div class="statusbar">
   <span id="result-info"></span>
+  <span id="search-took"></span>
 </div>
 
 </div><!-- .finder -->
@@ -1112,6 +1113,7 @@ export class FinderPanel {
   const wrap         = document.getElementById('results-wrap');
   const stateMsg     = document.getElementById('state-msg');
   const resultInfo   = document.getElementById('result-info');
+  const searchTook   = document.getElementById('search-took');
   const leftPanel    = document.getElementById('left-panel');
   const rightPanel   = document.getElementById('right-panel');
   const previewHdr   = document.getElementById('preview-header');
@@ -1960,6 +1962,7 @@ export class FinderPanel {
     switch (data.type) {
       case 'searching':
         state.searching = true;
+        searchTook.textContent = '';
         render();
         break;
       case 'resultsChunk':
@@ -1971,6 +1974,7 @@ export class FinderPanel {
         state.searching = false;
         state.results = data.results;
         state.selected = 0;
+        if (data.took > 0) { searchTook.textContent = data.took + 'ms'; }
         render();
         break;
       case 'gitStatus':
