@@ -1,5 +1,10 @@
 # Changelog
 
+## [Unreleased]
+
+### Changed
+- Last used scope is now remembered between sessions — reopening Spyglass restores the scope you were using
+
 ## [0.1.3] - 2026-03-17
 
 ### Changed

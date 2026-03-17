@@ -58,9 +58,10 @@ export class FinderPanel {
       : '';
 
     const config = vscode.workspace.getConfiguration('spyglass');
-    const rawScope = config.get<string>('defaultScope', 'project');
-    const defaultScope: Scope = (rawScope === 'project' || rawScope === 'openFiles' || rawScope === 'files' || rawScope === 'recent')
-      ? rawScope : 'project';
+    const validScopes: Scope[] = ['project', 'openFiles', 'files', 'recent', 'here', 'symbols'];
+    const lastScope = context.workspaceState.get<string>('spyglass.lastScope');
+    const rawScope = lastScope ?? config.get<string>('defaultScope', 'project');
+    const defaultScope: Scope = validScopes.includes(rawScope as Scope) ? rawScope as Scope : 'project';
     const kb: KeyBindings = {
       navigateDown:   config.get<string>('keybindings.navigateDown',   'ArrowDown'),
       navigateUp:     config.get<string>('keybindings.navigateUp',     'ArrowUp'),
@@ -153,6 +154,10 @@ export class FinderPanel {
           break;
         case 'open':
           await this._openFile(msg.file as string, msg.line as number);
+          break;
+        case 'scopeChanged':
+          this._scope = msg.scope as Scope;
+          this._context?.workspaceState.update('spyglass.lastScope', this._scope);
           break;
         case 'close':
           this.dispose();
@@ -1717,6 +1722,7 @@ export class FinderPanel {
     state.selected = 0;
     state.multiSelected = new Set();
     clearPreview();
+    vscode.postMessage({ type: 'scopeChanged', scope });
     tabs.forEach(t => t.classList.toggle('active', t.dataset.scope === scope));
     const isFile = isFileScope();
     const isSym = isSymbolScope();

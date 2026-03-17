@@ -198,9 +198,9 @@ Add to your `settings.json`:
 
 ## 🟢 Vim Setup
 
-If you use the [VSCode Vim extension](https://marketplace.visualstudio.com/items?itemName=vscodevim.vim), bind `<Space>f` just like Telescope in Neovim.
+### vscodevim (VSCode Vim extension)
 
-Add to your `settings.json`:
+VSCode Vim intercepts `Space` before VS Code sees it, so the built-in `Space f` shortcut won't work. Configure it through VSCode Vim instead — add to your `settings.json`:
 
 ```json
 {
@@ -213,7 +213,13 @@ Add to your `settings.json`:
 }
 ```
 
-To disable the default `Ctrl+Alt+F` binding:
+### vscode-neovim
+
+The built-in `Space f` binding works out of the box in normal mode — no extra configuration needed.
+
+---
+
+To disable the default `Ctrl+Alt+F` binding for either setup:
 
 ```json
 [
