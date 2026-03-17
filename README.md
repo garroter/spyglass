@@ -233,6 +233,17 @@ To disable the default `Ctrl+Alt+F` binding:
 
 ---
 
+## Privacy
+
+Spyglass collects **no data**. All processing happens locally on your machine:
+
+- No network requests are made (webview CSP is `default-src 'none'`)
+- No telemetry, analytics, or crash reporting
+- Search history is stored locally in VS Code's `workspaceState` and never leaves your machine
+- Dependencies (`@vscode/ripgrep`, `highlight.js`) are fully local with no network activity
+
+---
+
 ## 🤝 Contributing
 
 PRs and issues welcome at [github.com/garroter/spyglass](https://github.com/garroter/spyglass).

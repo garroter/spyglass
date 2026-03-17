@@ -2,7 +2,7 @@
   "name": "spyglass",
   "displayName": "Spyglass",
   "description": "Fast file and text search popup inspired by Neovim Telescope and JetBrains Finder",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "publisher": "garroter",
   "license": "MIT",
   "icon": "images/icon.png",
@@ -42,6 +42,11 @@
         "key": "ctrl+alt+f",
         "mac": "cmd+alt+f",
         "when": "!inputFocus || editorTextFocus"
+      },
+      {
+        "command": "spyglass.open",
+        "key": "space f",
+        "when": "editorTextFocus && neovim.mode == 'normal'"
       }
     ],
     "configuration": {
