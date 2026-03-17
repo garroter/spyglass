@@ -1,0 +1,29 @@
+// DOM element references
+
+export const queryEl       = document.getElementById('query')        as HTMLInputElement;
+export const regexBtn      = document.getElementById('regex-btn')    as HTMLButtonElement;
+export const caseBtn       = document.getElementById('case-btn')     as HTMLButtonElement;
+export const wordBtn       = document.getElementById('word-btn')     as HTMLButtonElement;
+export const replaceBtn    = document.getElementById('replace-btn')  as HTMLButtonElement;
+export const previewBtn    = document.getElementById('preview-btn')  as HTMLButtonElement;
+export const replaceRow    = document.getElementById('replace-row')  as HTMLElement;
+export const replaceInput  = document.getElementById('replace-input') as HTMLInputElement;
+export const replaceAllBtn = document.getElementById('replace-all-btn') as HTMLButtonElement;
+export const wrap          = document.getElementById('results-wrap') as HTMLElement;
+export const stateMsg      = document.getElementById('state-msg')   as HTMLElement;
+export const resultInfo    = document.getElementById('result-info') as HTMLElement;
+export const searchTook    = document.getElementById('search-took') as HTMLElement;
+export const leftPanel     = document.getElementById('left-panel')  as HTMLElement;
+export const rightPanel    = document.getElementById('right-panel') as HTMLElement;
+export const previewHdr    = document.getElementById('preview-header') as HTMLElement;
+export const previewEmpty  = document.getElementById('preview-empty')  as HTMLElement;
+export const previewCont   = document.getElementById('preview-content') as HTMLElement;
+export const tabs          = document.querySelectorAll<HTMLElement>('.tab');
+export const helpBtn       = document.getElementById('help-btn')           as HTMLButtonElement;
+export const shortcutsOverlay = document.getElementById('shortcuts-overlay') as HTMLElement;
+export const ctxMenu       = document.getElementById('ctx-menu')     as HTMLElement;
+export const ctxOpen       = document.getElementById('ctx-open')     as HTMLElement;
+export const ctxOpenSplit  = document.getElementById('ctx-open-split') as HTMLElement;
+export const ctxCopyAbs    = document.getElementById('ctx-copy-abs') as HTMLElement;
+export const ctxCopyRel    = document.getElementById('ctx-copy-rel') as HTMLElement;
+export const ctxReveal     = document.getElementById('ctx-reveal')   as HTMLElement;

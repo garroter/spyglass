@@ -131,9 +131,11 @@
     }
   },
   "scripts": {
-    "vscode:prepublish": "npm run compile",
+    "vscode:prepublish": "npm run compile && npm run bundle-webview",
     "compile": "tsc -p ./",
+    "bundle-webview": "node esbuild.webview.mjs",
     "watch": "tsc -watch -p ./",
+    "watch-webview": "node esbuild.webview.mjs --watch",
     "lint": "eslint src --ext ts",
     "test": "vitest run"
   },
@@ -142,6 +144,7 @@
     "@types/vscode": "^1.85.0",
     "@typescript-eslint/eslint-plugin": "^7.0.0",
     "@typescript-eslint/parser": "^7.0.0",
+    "esbuild": "^0.27.4",
     "eslint": "^8.56.0",
     "typescript": "^5.3.0",
     "vitest": "^4.1.0"
