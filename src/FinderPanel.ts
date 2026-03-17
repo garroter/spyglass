@@ -97,7 +97,8 @@ export class FinderPanel {
     this._searchHistory = searchHistory;
     this._activeDir = activeDir;
     this._context = context;
-    this._panel.webview.html = this._buildHtml(defaultScope, kb, initialQuery, this._searchHistory, this._recentFiles);
+    const maxResults = vscode.workspace.getConfiguration('spyglass').get<number>('maxResults', 200);
+    this._panel.webview.html = this._buildHtml(defaultScope, kb, initialQuery, this._searchHistory, this._recentFiles, maxResults);
 
     // Warm file cache in background so Files tab is instant on first use
     if (this._cwd) {
@@ -471,7 +472,7 @@ export class FinderPanel {
     this._disposables.length = 0;
   }
 
-  private _buildHtml(defaultScope: Scope, kb: KeyBindings, initialQuery: string = '', searchHistory: string[] = [], recentFiles: string[] = []): string {
+  private _buildHtml(defaultScope: Scope, kb: KeyBindings, initialQuery: string = '', searchHistory: string[] = [], recentFiles: string[] = [], maxResults: number = 200): string {
     const nonce = getNonce();
     return /* html */`<!DOCTYPE html>
 <html lang="en">
@@ -983,6 +984,7 @@ export class FinderPanel {
   const INITIAL_QUERY = ${JSON.stringify(initialQuery)};
   const INITIAL_HISTORY = ${JSON.stringify(searchHistory)};
   const RECENT_FILES = ${JSON.stringify(recentFiles.map(f => ({ file: f, rel: path.relative(this._cwd, f).replace(/\\/g, '/') })))};
+  const MAX_RESULTS = ${maxResults};
 
   function matchKey(e, binding) {
     if (!binding) { return false; }
@@ -1304,21 +1306,26 @@ export class FinderPanel {
   function renderTextResults() {
     wrap.querySelectorAll('.result').forEach(el => el.remove());
 
-    if (state.searching) {
+    if (state.searching && state.results.length === 0) {
       stateMsg.innerHTML = '<span class="spinner"></span>Searching…';
       stateMsg.style.display = '';
       resultInfo.textContent = '…';
       return;
     }
 
-    if (state.results.length === 0) {
+    if (!state.searching && state.results.length === 0) {
       stateMsg.textContent = state.query ? 'No results.' : 'Start typing to search...';
       stateMsg.style.display = '';
       resultInfo.textContent = '0 results';
       return;
     }
 
-    stateMsg.style.display = 'none';
+    if (state.searching) {
+      stateMsg.innerHTML = '<span class="spinner"></span>';
+      stateMsg.style.display = '';
+    } else {
+      stateMsg.style.display = 'none';
+    }
 
     const frag = document.createDocumentFragment();
     state.results.forEach((r, i) => {
@@ -1341,7 +1348,9 @@ export class FinderPanel {
     });
 
     wrap.appendChild(frag);
-    resultInfo.textContent = state.results.length + ' result' + (state.results.length !== 1 ? 's' : '');
+    const n = state.results.length;
+    const capped = !state.searching && n >= MAX_RESULTS;
+    resultInfo.textContent = n + (state.searching ? '…' : capped ? '+' : '') + ' result' + (n !== 1 ? 's' : '');
     scrollToSelected();
     requestPreview();
   }
@@ -1391,9 +1400,9 @@ export class FinderPanel {
     });
 
     wrap.appendChild(frag);
-    resultInfo.textContent = state.fileResults.length
-      + (state.scope === 'recent' ? ' recent file' : ' file')
-      + (state.fileResults.length !== 1 ? 's' : '');
+    const nf = state.fileResults.length;
+    const cappedF = nf >= MAX_RESULTS;
+    resultInfo.textContent = nf + (cappedF ? '+' : '') + (state.scope === 'recent' ? ' recent file' : ' file') + (nf !== 1 ? 's' : '');
     scrollToSelected();
     requestPreview();
   }
@@ -1436,7 +1445,9 @@ export class FinderPanel {
     });
 
     wrap.appendChild(frag);
-    resultInfo.textContent = state.symbolResults.length + ' symbol' + (state.symbolResults.length !== 1 ? 's' : '');
+    const ns = state.symbolResults.length;
+    const cappedS = ns >= MAX_RESULTS;
+    resultInfo.textContent = ns + (cappedS ? '+' : '') + ' symbol' + (ns !== 1 ? 's' : '');
     scrollToSelected();
     requestPreview();
   }
