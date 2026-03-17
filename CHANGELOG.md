@@ -1,5 +1,31 @@
 # Changelog
 
+## [Unreleased]
+
+### Changed
+- Search cancellation: previous ripgrep process is now killed when a new search starts, reducing CPU usage on large projects
+
+## [0.1.2] - 2026-03-17
+
+### Added
+- Privacy disclosure in README
+
+## [0.1.1] - 2026-02-27
+
+### Fixed
+- ripgrep path resolution on Windows
+
+### Added
+- Case-sensitive toggle (Alt+C), whole-word toggle (Alt+W)
+- Glob filter row (`*.ts`, `!*.test.ts`)
+- Replace mode (Alt+R) with Replace All via WorkspaceEdit
+- Search history (Ctrl+↑/↓, persisted, max 50 entries)
+- Copy path (Alt+Y), Reveal in Explorer (click preview header)
+- Multi-select (Ctrl+Click, Ctrl+Space, Shift+Enter, Ctrl+A)
+- Symbol search via LSP (executeWorkspaceSymbolProvider)
+- Dir scope — search in active file's directory
+- Git diff highlights in preview
+
 ## [0.1.0] - 2026-02-25
 
 ### Added

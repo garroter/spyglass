@@ -35,14 +35,22 @@ interface RgMatch {
   };
 }
 
-export async function searchWithRipgrep(
+export interface CancellableSearch {
+  promise: Promise<SearchResult[]>;
+  cancel: () => void;
+}
+
+export function searchWithRipgrep(
   query: string,
   cwd: string,
   useRegex: boolean,
   files?: string[],
   opts?: { caseSensitive?: boolean; wholeWord?: boolean; globFilter?: string }
-): Promise<SearchResult[]> {
-  return new Promise((resolve) => {
+): CancellableSearch {
+  let cancelled = false;
+  let cancel = () => {};
+
+  const promise = new Promise<SearchResult[]>((resolve) => {
     const args: string[] = [
       '--json',
       '--max-count', '10',
@@ -124,12 +132,20 @@ export async function searchWithRipgrep(
     });
 
     rg.on('close', () => {
+      if (cancelled) { resolve([]); return; }
       if (!errored) {
         // code 0 = matches found, code 1 = no matches, code 2 = error
         resolve(results.slice(0, 200));
       }
     });
+
+    cancel = () => {
+      cancelled = true;
+      rg.kill();
+    };
   });
+
+  return { promise, cancel };
 }
 
 export function listFilesWithRipgrep(cwd: string): Promise<string[]> {

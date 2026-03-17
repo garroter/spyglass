@@ -1,7 +1,7 @@
 import * as vscode from 'vscode';
 import * as path from 'path';
 import { spawn } from 'child_process';
-import { searchWithRipgrep, listFilesWithRipgrep, isRipgrepAvailable } from './ripgrep';
+import { searchWithRipgrep, listFilesWithRipgrep, isRipgrepAvailable, CancellableSearch } from './ripgrep';
 import hljs from 'highlight.js';
 import { Scope, KeyBindings, FileResult, SymbolResult } from './types';
 
@@ -22,6 +22,7 @@ export class FinderPanel {
   private _fileCacheTime = 0;
   private static readonly FILE_CACHE_TTL = 60_000;
   private _searchSeq = 0;
+  private _currentSearch: CancellableSearch | null = null;
   private _recentFiles: string[] = [];
   private _searchHistory: string[] = [];
   private _activeDir: string = '';
@@ -163,6 +164,8 @@ export class FinderPanel {
   }
 
   private async _runSearch(query: string, useRegex: boolean, opts?: { caseSensitive?: boolean; wholeWord?: boolean; globFilter?: string }): Promise<void> {
+    this._currentSearch?.cancel();
+    this._currentSearch = null;
     const seq = ++this._searchSeq;
     const config = vscode.workspace.getConfiguration('spyglass');
     const maxResults = config.get<number>('maxResults', 200);
@@ -189,7 +192,10 @@ export class FinderPanel {
 
     const start = Date.now();
     try {
-      const results = await searchWithRipgrep(query, this._cwd, useRegex, files, opts);
+      const search = searchWithRipgrep(query, this._cwd, useRegex, files, opts);
+      this._currentSearch = search;
+      const results = await search.promise;
+      this._currentSearch = null;
       if (seq !== this._searchSeq) { return; }
       this._post({ type: 'results', results: results.slice(0, maxResults), query, took: Date.now() - start });
     } catch {
@@ -199,6 +205,8 @@ export class FinderPanel {
   }
 
   private async _runHereSearch(query: string, useRegex: boolean, opts?: { caseSensitive?: boolean; wholeWord?: boolean; globFilter?: string }): Promise<void> {
+    this._currentSearch?.cancel();
+    this._currentSearch = null;
     const seq = ++this._searchSeq;
     const cwd = this._activeDir || this._cwd;
     const config = vscode.workspace.getConfiguration('spyglass');
@@ -218,7 +226,10 @@ export class FinderPanel {
 
     const start = Date.now();
     try {
-      const results = await searchWithRipgrep(query, cwd, useRegex, undefined, opts);
+      const search = searchWithRipgrep(query, cwd, useRegex, undefined, opts);
+      this._currentSearch = search;
+      const results = await search.promise;
+      this._currentSearch = null;
       if (seq !== this._searchSeq) { return; }
       this._post({ type: 'results', results: results.slice(0, maxResults), query, took: Date.now() - start });
     } catch {
@@ -296,7 +307,7 @@ export class FinderPanel {
         caseSensitive: msg.caseSensitive,
         wholeWord: msg.wholeWord,
         globFilter: msg.globFilter,
-      });
+      }).promise;
     } catch {
       vscode.window.showErrorMessage('Spyglass: Replace failed — search error.');
       return;
