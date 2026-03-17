@@ -109,6 +109,7 @@ export class FinderPanel {
         this._fileCacheTime = Date.now();
         this._post({ type: 'fileList', files: this._fileCache });
       });
+      this._loadGitStatus();
     }
 
     this._panel.onDidDispose(() => this.dispose(), null, this._disposables);
@@ -383,6 +384,33 @@ export class FinderPanel {
     } catch {
       vscode.window.showErrorMessage(`Finder: Could not open file ${filePath}`);
     }
+  }
+
+  private _loadGitStatus(): void {
+    if (!this._cwd) { return; }
+    const git = spawn('git', ['status', '--porcelain'], { cwd: this._cwd });
+    let out = '';
+    git.stdout.on('data', (d: Buffer) => { out += d.toString(); });
+    git.on('error', () => {});
+    git.on('close', () => {
+      const status: Record<string, string> = {};
+      for (const line of out.split('\n')) {
+        if (line.length < 4) { continue; }
+        const xy = line.slice(0, 2);
+        let filePath = line.slice(3);
+        // renamed: "R  old -> new" — take the new path
+        if (filePath.includes(' -> ')) { filePath = filePath.split(' -> ')[1]; }
+        filePath = filePath.trim();
+        if (!filePath) { continue; }
+        let s = 'M';
+        if (xy === '??')                          { s = 'U'; }
+        else if (xy[0] === 'D' || xy[1] === 'D') { s = 'D'; }
+        else if (xy[0] === 'A')                   { s = 'A'; }
+        else if (xy[0] === 'R')                   { s = 'R'; }
+        status[filePath] = s;
+      }
+      this._post({ type: 'gitStatus', status });
+    });
   }
 
   private _getChangedLines(filePath: string): Promise<number[]> {
@@ -685,6 +713,12 @@ export class FinderPanel {
   .result-header { display: flex; align-items: baseline; gap: 5px; margin-bottom: 2px; }
   .result-file   { color: var(--f-accent); font-size: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
   .result-line   { color: var(--f-dim); font-size: 10px; flex-shrink: 0; }
+  .git-badge { font-size: 9px; font-weight: 700; flex-shrink: 0; margin-left: 2px; }
+  .git-badge--M { color: var(--vscode-gitDecoration-modifiedResourceForeground,  #e2c08d); }
+  .git-badge--U { color: var(--vscode-gitDecoration-untrackedResourceForeground, #73c991); }
+  .git-badge--A { color: var(--vscode-gitDecoration-addedResourceForeground,     #73c991); }
+  .git-badge--D { color: var(--vscode-gitDecoration-deletedResourceForeground,   #f14c4c); }
+  .git-badge--R { color: var(--vscode-gitDecoration-renamedResourceForeground,   #73c991); }
   .result-text   { color: var(--f-dim); font-size: 11px; white-space: pre; overflow: hidden; text-overflow: ellipsis; }
   .result-text mark { background: var(--f-match); color: inherit; font-weight: 700; border-radius: 2px; padding: 0 1px; }
   .qm { background: var(--f-match); color: inherit; font-weight: 700; border-radius: 2px; padding: 0 1px; }
@@ -1047,6 +1081,7 @@ export class FinderPanel {
     symbolResults: [],
     fileList: null,
     recentFiles: RECENT_FILES,
+    gitStatus: {},
     selected: 0,
     scope: '${defaultScope}',
     useRegex: false,
@@ -1090,6 +1125,12 @@ export class FinderPanel {
       .replace(/&/g, '&amp;')
       .replace(/</g, '&lt;')
       .replace(/>/g, '&gt;');
+  }
+
+  function gitBadgeHtml(relativePath) {
+    const s = state.gitStatus[relativePath];
+    if (!s) { return ''; }
+    return '<span class="git-badge git-badge--' + s + '">' + s + '</span>';
   }
 
   function highlightMatch(text, start, end) {
@@ -1377,6 +1418,7 @@ export class FinderPanel {
       div.innerHTML =
         '<div class="result-header">' +
           '<span class="result-file">' + escHtml(r.relativePath) + '</span>' +
+          gitBadgeHtml(r.relativePath) +
           '<span class="result-line">:' + r.line + '</span>' +
         '</div>' +
         '<div class="result-text">' + highlightMatch(r.text, r.matchStart, r.matchEnd) + '</div>';
@@ -1432,6 +1474,7 @@ export class FinderPanel {
       div.innerHTML =
         '<div class="result-header">' +
           '<span class="result-file">' + highlightPositions(basename, bnPos) + '</span>' +
+          gitBadgeHtml(r.relativePath) +
         '</div>' +
         (dir ? '<div class="result-text">' + highlightPositions(dir, dirPos) + '</div>' : '');
 
@@ -1889,6 +1932,10 @@ export class FinderPanel {
         state.searching = false;
         state.results = data.results;
         state.selected = 0;
+        render();
+        break;
+      case 'gitStatus':
+        state.gitStatus = data.status;
         render();
         break;
       case 'fileList':
