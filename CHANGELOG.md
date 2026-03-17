@@ -5,6 +5,11 @@
 ### Added
 - Multi-root workspace support — search, file listing, replace, and git badges now work across all workspace folders simultaneously. Results from multiple folders are prefixed with the folder name (e.g. `backend/src/main.ts`).
 
+### Fixed
+- Arrow key navigation now works on the default recent files list (no query typed yet)
+- `Ctrl+A` now selects all results in Files and Symbols scopes, not only in text search
+- `Ctrl+↑` history navigation now resets correctly when switching scope
+
 ## [0.1.5] - 2026-03-17
 
 ### Added

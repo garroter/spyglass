@@ -1649,16 +1649,33 @@ export class FinderPanel {
   }
 
   function selectAll() {
-    const len = isTextScope() ? state.results.length : 0;
+    const rd = recentDefault();
+    const len = rd ? rd.length
+              : isFileScope() ? state.fileResults.length
+              : isSymbolScope() ? state.symbolResults.length
+              : state.results.length;
     for (let i = 0; i < len; i++) { state.multiSelected.add(i); }
     render();
   }
 
   function openAllSelected() {
     if (state.multiSelected.size === 0) { openResult(state.selected); return; }
-    for (const i of state.multiSelected) {
-      const r = state.results[i];
-      if (r) { vscode.postMessage({ type: 'open', file: r.file, line: r.line }); }
+    if (isFileScope()) {
+      for (const i of state.multiSelected) {
+        const r = state.fileResults[i];
+        if (r) { vscode.postMessage({ type: 'open', file: r.file, line: 1 }); }
+      }
+    } else if (isSymbolScope()) {
+      for (const i of state.multiSelected) {
+        const r = state.symbolResults[i];
+        if (r) { vscode.postMessage({ type: 'open', file: r.file, line: r.line }); }
+      }
+    } else {
+      const rd = recentDefault();
+      for (const i of state.multiSelected) {
+        const r = rd ? rd[i] : state.results[i];
+        if (r) { vscode.postMessage({ type: 'open', file: r.file, line: rd ? 1 : r.line }); }
+      }
     }
   }
 
@@ -1859,6 +1876,7 @@ export class FinderPanel {
     state.scope = scope;
     state.selected = 0;
     state.multiSelected = new Set();
+    state.historyIndex = -1;
     clearPreview();
     vscode.postMessage({ type: 'scopeChanged', scope });
     tabs.forEach(t => t.classList.toggle('active', t.dataset.scope === scope));
