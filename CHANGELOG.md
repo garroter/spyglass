@@ -1,6 +1,6 @@
 # Changelog
 
-## [Unreleased]
+## [0.1.3] - 2026-03-17
 
 ### Changed
 - Search cancellation: previous ripgrep process is now killed when a new search starts, reducing CPU usage on large projects

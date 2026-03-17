@@ -5,7 +5,8 @@
 
 <p align="center">
   <strong>Fast, keyboard-driven search popup for VS Code</strong><br/>
-  Inspired by <a href="https://github.com/nvim-telescope/telescope.nvim">Neovim Telescope</a> and JetBrains Search Everywhere
+  Inspired by <a href="https://github.com/nvim-telescope/telescope.nvim">Neovim Telescope</a> and JetBrains Search Everywhere<br/>
+  <em>Results stream in as you type — no waiting for large projects</em>
 </p>
 
 <p align="center">
@@ -49,8 +50,9 @@
 
 ### 🔍 Search
 - **Full-text search** across the whole project powered by ripgrep (blazing fast)
+- **Streaming results** — matches appear instantly as ripgrep finds them, no waiting
 - **Fuzzy file search** — search by filename with character-level match highlighting
-- **Symbol search** — workspace symbols via LSP (classes, functions, variables…)
+- **Symbol search** — workspace symbols via LSP with color-coded kind badges (class, function, method…)
 - **Regex mode** toggle for power users
 - **Case sensitive** and **whole word** toggles
 - **Glob filter** — limit search to specific file patterns (`*.ts`, `!*.test.ts`)
@@ -65,7 +67,7 @@
 ### 👁️ Preview
 - **Live preview** — file content as you navigate, with syntax highlighting
 - **Git change indicators** — modified lines highlighted in the gutter
-- **Theme adaptive** — works with any VS Code theme (dark, light, high contrast)
+- **Theme adaptive** — native look in any VS Code theme: dark, light, high contrast
 
 ### ⚡ Actions
 - **Find & Replace** — replace across all matched files instantly (with undo)
