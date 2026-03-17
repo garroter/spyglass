@@ -278,8 +278,17 @@ function requestFilePreview() {
   }, 80);
 }
 
+function renderBreadcrumbs(relativePath) {
+  const parts = relativePath.split('/');
+  previewHdr.innerHTML = parts.map((part, i) => {
+    const isLast = i === parts.length - 1;
+    return '<span class="bc-' + (isLast ? 'file' : 'dir') + '">' + escHtml(part) + '</span>'
+      + (isLast ? '' : '<span class="bc-sep"> / </span>');
+  }).join('');
+}
+
 function renderPreview(lines, currentLine, relativePath, ext, changedLines, highlightQuery, useRegex, preHighlighted) {
-  previewHdr.textContent = relativePath;
+  renderBreadcrumbs(relativePath);
   state.currentPreviewFile = relativePath;
   previewEmpty.style.display = 'none';
   previewCont.style.display = 'block';
@@ -772,7 +781,7 @@ function updateReplaceRowVisibility() {
 }
 
 function clearPreview() {
-  previewHdr.textContent = 'No file selected';
+  previewHdr.innerHTML = '<span class="bc-dim">No file selected</span>';
   previewEmpty.style.display = '';
   previewCont.style.display = 'none';
   previewCont.innerHTML = '';

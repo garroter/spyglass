@@ -443,6 +443,12 @@
   }
   .shortcut-keys { display: flex; gap: 3px; flex-shrink: 0; }
 
+  /* ── Breadcrumbs in preview header ──────────────────────── */
+  .bc-dir  { color: var(--f-dim); }
+  .bc-file { color: var(--f-text); font-weight: 500; }
+  .bc-sep  { color: var(--f-dim); opacity: 0.5; margin: 0 1px; }
+  .bc-dim  { color: var(--f-dim); }
+
   /* ── Context menu ────────────────────────────────────────── */
   .ctx-menu {
     display: none;
