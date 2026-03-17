@@ -622,7 +622,7 @@ export class FinderPanel {
   .icon-btn[data-tooltip]::after {
     content: attr(data-tooltip);
     position: absolute;
-    bottom: calc(100% + 7px);
+    top: calc(100% + 7px);
     left: 50%;
     transform: translateX(-50%);
     background: var(--vscode-editorHoverWidget-background, var(--f-raised));
