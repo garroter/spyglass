@@ -985,6 +985,7 @@ export class FinderPanel {
     multiSelected: new Set(),
     searchHistory: INITIAL_HISTORY.slice(),
     historyIndex: -1,
+    historyPreQuery: '',
     currentPreviewFile: null,
   };
 
@@ -1458,11 +1459,16 @@ export class FinderPanel {
   // ── History ────────────────────────────────────────────────────────────────
   function navigateHistory(dir) {
     if (state.searchHistory.length === 0) { return; }
+    if (state.historyIndex === -1 && dir < 0) {
+      state.historyPreQuery = queryEl.value;
+    }
     state.historyIndex = Math.max(-1, Math.min(state.searchHistory.length - 1, state.historyIndex + dir));
     if (state.historyIndex >= 0) {
       queryEl.value = state.searchHistory[state.historyIndex];
-      state.query = queryEl.value;
+    } else {
+      queryEl.value = state.historyPreQuery;
     }
+    state.query = queryEl.value;
   }
 
   // ── Replace ────────────────────────────────────────────────────────────────
@@ -1666,6 +1672,7 @@ export class FinderPanel {
       state.globFilter = globFilter;
     }
     state.selected = 0;
+    state.historyIndex = -1;
     triggerSearch();
   });
 

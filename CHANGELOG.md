@@ -5,6 +5,10 @@
 ### Changed
 - Search cancellation: previous ripgrep process is now killed when a new search starts, reducing CPU usage on large projects
 
+### Fixed
+- Search history: original query is now restored when navigating back out of history (Ctrl+Down to index -1)
+- Search history: typing in the input now resets history navigation index, so next Ctrl+Up always starts from the most recent entry
+
 ## [0.1.2] - 2026-03-17
 
 ### Added
