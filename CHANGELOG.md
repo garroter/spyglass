@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.8] - 2026-03-17
+
+### Changed
+- Context menu on right-click — Open, Open in split, Copy absolute/relative path, Reveal in Explorer
+- Breadcrumbs in preview header (dir / dir / file) instead of plain path
+- Webview JavaScript refactored into TypeScript modules (`src/webview/`) bundled with esbuild
+
 ## [0.1.7] - 2026-03-17
 
 ### Changed
