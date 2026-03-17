@@ -116,8 +116,16 @@
         },
         "spyglass.exclude": {
           "type": "array",
-          "items": { "type": "string" },
-          "default": [".git", "node_modules", "out", "dist", "*.lock"],
+          "items": {
+            "type": "string"
+          },
+          "default": [
+            ".git",
+            "node_modules",
+            "out",
+            "dist",
+            "*.lock"
+          ],
           "description": "Glob patterns to exclude from search and file listing (e.g. \"vendor\", \"build\", \"*.min.js\"). Replaces the built-in defaults."
         }
       }
@@ -127,7 +135,8 @@
     "vscode:prepublish": "npm run compile",
     "compile": "tsc -p ./",
     "watch": "tsc -watch -p ./",
-    "lint": "eslint src --ext ts"
+    "lint": "eslint src --ext ts",
+    "test": "vitest run"
   },
   "devDependencies": {
     "@types/node": "^20.0.0",
@@ -135,7 +144,8 @@
     "@typescript-eslint/eslint-plugin": "^7.0.0",
     "@typescript-eslint/parser": "^7.0.0",
     "eslint": "^8.56.0",
-    "typescript": "^5.3.0"
+    "typescript": "^5.3.0",
+    "vitest": "^4.1.0"
   },
   "dependencies": {
     "@vscode/ripgrep": "^1.17.0",
