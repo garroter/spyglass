@@ -14,14 +14,25 @@
     "vscode": "^1.85.0"
   },
   "categories": [
-    "Other"
+    "Other",
+    "Visualization"
   ],
   "keywords": [
     "search",
+    "finder",
     "spyglass",
     "telescope",
     "grep",
-    "fuzzy"
+    "fuzzy",
+    "ripgrep",
+    "file search",
+    "text search",
+    "symbol search",
+    "replace",
+    "popup",
+    "quick open",
+    "neovim",
+    "jetbrains"
   ],
   "repository": {
     "type": "git",

@@ -525,6 +525,11 @@ export class FinderPanel {
     overflow: hidden;
   }
 
+  @keyframes finder-in {
+    from { opacity: 0; transform: translateY(-10px) scale(0.98); }
+    to   { opacity: 1; transform: translateY(0)     scale(1);    }
+  }
+
   .finder {
     width: min(960px, 95vw);
     height: min(600px, 82vh);
@@ -536,6 +541,7 @@ export class FinderPanel {
     flex-direction: column;
     overflow: hidden;
     position: relative;
+    animation: finder-in 0.15s cubic-bezier(0.2, 0, 0.2, 1) both;
   }
 
   /* ── Top bar ─────────────────────────────────────────────── */

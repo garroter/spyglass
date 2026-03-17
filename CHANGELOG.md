@@ -7,6 +7,7 @@
 - Streaming results: first matches appear immediately as ripgrep finds them, instead of waiting for the full search to complete
 - Git diff results are now cached per panel session — navigating through results no longer spawns a git process for every file
 - Proper light theme and high-contrast theme support — syntax highlight fallback colors are now correct for all theme types, not just dark themes
+- Panel opening animation (fade + slide) for a smoother first impression
 - Symbol kinds are now color-coded (function/method in blue, class/interface in accent, variable/field in orange, enum in green, etc.)
 - Buttons (regex, case, word, replace, preview) now show fast custom tooltips with keyboard shortcut hints on hover
 - Result counter now updates live during streaming (e.g. `12… results`), shows `200+ results` when the cap is reached, and shows a spinner inline while searching
