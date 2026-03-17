@@ -23,6 +23,7 @@ export class FinderPanel {
   private static readonly FILE_CACHE_TTL = 60_000;
   private _searchSeq = 0;
   private _currentSearch: CancellableSearch | null = null;
+  private _gitCache = new Map<string, number[]>();
   private _recentFiles: string[] = [];
   private _searchHistory: string[] = [];
   private _activeDir: string = '';
@@ -343,6 +344,7 @@ export class FinderPanel {
     }
 
     await vscode.workspace.applyEdit(edit);
+    this._gitCache.clear();
     this._post({ type: 'replaceApplied' });
   }
 
@@ -378,6 +380,9 @@ export class FinderPanel {
   }
 
   private _getChangedLines(filePath: string): Promise<number[]> {
+    if (this._gitCache.has(filePath)) {
+      return Promise.resolve(this._gitCache.get(filePath)!);
+    }
     return new Promise((resolve) => {
       if (!this._cwd) { resolve([]); return; }
       const git = spawn('git', ['diff', 'HEAD', '--unified=0', '--', filePath], { cwd: this._cwd });
@@ -395,7 +400,9 @@ export class FinderPanel {
             for (let i = 0; i < count; i++) { changed.add(start + i); }
           }
         }
-        resolve(Array.from(changed));
+        const result = Array.from(changed);
+        this._gitCache.set(filePath, result);
+        resolve(result);
       });
     });
   }
