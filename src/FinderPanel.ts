@@ -352,7 +352,7 @@ export class FinderPanel {
       try { await vscode.workspace.save(vscode.Uri.file(filePath)); } catch { /* skip */ }
     }
     this._gitCache.clear();
-    this._post({ type: 'replaceApplied' });
+    this._post({ type: 'replaceApplied', fileCount: fileSet.size } as any);
   }
 
   private async _runGitSearch(): Promise<void> {

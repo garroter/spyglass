@@ -338,6 +338,7 @@ export function selectAll(): void {
             : isSymbolScope() ? state.symbolResults.length
             : state.results.length;
   for (let i = 0; i < len; i++) { state.multiSelected.add(i); }
+  showToast('Selected ' + len + ' result' + (len !== 1 ? 's' : ''));
   render();
 }
 
@@ -381,7 +382,10 @@ export function copyCurrentPath(): void {
         if (r) { paths.push(r.file); }
       }
     }
-    if (paths.length > 0) { vscode.postMessage({ type: 'copyPath', path: paths.join('\n') }); }
+    if (paths.length > 0) {
+      vscode.postMessage({ type: 'copyPath', path: paths.join('\n') });
+      showToast('Copied ' + paths.length + ' path' + (paths.length !== 1 ? 's' : ''));
+    }
     return;
   }
 
@@ -397,7 +401,10 @@ export function copyCurrentPath(): void {
     const r = rd ? rd[state.selected] : state.results[state.selected];
     if (r) { file = r.file; }
   }
-  if (file) { vscode.postMessage({ type: 'copyPath', path: file }); }
+  if (file) {
+    vscode.postMessage({ type: 'copyPath', path: file });
+    showToast('Copied: ' + file.split('/').pop());
+  }
 }
 
 export function currentFile(): { file: string; rel: string } | null {
@@ -420,7 +427,7 @@ export function isPinnedFile(file: string): boolean {
 
 let toastTimer: ReturnType<typeof setTimeout> | null = null;
 
-function showToast(msg: string): void {
+export function showToast(msg: string): void {
   let el = document.getElementById('spyglass-toast');
   if (!el) {
     el = document.createElement('div');
@@ -455,6 +462,7 @@ export function togglePin(): void {
 export function refreshGitScope(renderFn: () => void): void {
   state.gitFiles = null;
   state.selected = 0;
+  showToast('Refreshing…');
   triggerSearch(renderFn);
 }
 

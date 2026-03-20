@@ -7,7 +7,7 @@ import { isFileScope, isSymbolScope, isGitScope, isTextScope, parseQueryInput, t
 import { clearPreview, togglePreview, requestPreview } from './preview';
 import { render, navigate, openResult, openResultInSplit, openAllSelected,
          toggleSelectResult, selectAll, copyCurrentPath, refreshGitScope,
-         togglePin, isPinnedFile } from './render';
+         togglePin, isPinnedFile, showToast } from './render';
 import { hideCtxMenu } from './contextMenu';
 
 import { vscode } from './vscode';
@@ -260,6 +260,8 @@ export function initMessages(): void {
         if (isGitScope()) {
           filterFilesLocally(state.gitFiles!, state.query);
           render();
+          const n = state.gitFiles!.length;
+          showToast(n === 0 ? 'Working tree clean' : n + ' changed file' + (n !== 1 ? 's' : ''));
         }
         break;
       case 'fileResults':
@@ -299,6 +301,7 @@ export function initMessages(): void {
         break;
       case 'replaceApplied':
         state.selected = 0;
+        showToast('Replaced in ' + data.fileCount + ' file' + (data.fileCount !== 1 ? 's' : ''));
         triggerSearch(render);
         break;
     }

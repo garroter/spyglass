@@ -905,6 +905,7 @@
     for (let i = 0; i < len; i++) {
       state.multiSelected.add(i);
     }
+    showToast("Selected " + len + " result" + (len !== 1 ? "s" : ""));
     render();
   }
   function openAllSelected() {
@@ -963,6 +964,7 @@
       }
       if (paths.length > 0) {
         vscode.postMessage({ type: "copyPath", path: paths.join("\n") });
+        showToast("Copied " + paths.length + " path" + (paths.length !== 1 ? "s" : ""));
       }
       return;
     }
@@ -986,6 +988,7 @@
     }
     if (file) {
       vscode.postMessage({ type: "copyPath", path: file });
+      showToast("Copied: " + file.split("/").pop());
     }
   }
   function currentFile() {
@@ -1044,6 +1047,7 @@
   function refreshGitScope(renderFn) {
     state.gitFiles = null;
     state.selected = 0;
+    showToast("Refreshing\u2026");
     triggerSearch(renderFn);
   }
   function navigate(delta) {
@@ -1445,6 +1449,8 @@
           if (isGitScope()) {
             filterFilesLocally(state.gitFiles, state.query);
             render();
+            const n = state.gitFiles.length;
+            showToast(n === 0 ? "Working tree clean" : n + " changed file" + (n !== 1 ? "s" : ""));
           }
           break;
         case "fileResults":
@@ -1490,6 +1496,7 @@
           break;
         case "replaceApplied":
           state.selected = 0;
+          showToast("Replaced in " + data.fileCount + " file" + (data.fileCount !== 1 ? "s" : ""));
           triggerSearch(render);
           break;
       }
