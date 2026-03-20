@@ -61,7 +61,7 @@ export class FinderPanel {
       : '';
 
     const config = vscode.workspace.getConfiguration('spyglass');
-    const validScopes: Scope[] = ['project', 'openFiles', 'files', 'recent', 'here', 'symbols'];
+    const validScopes: Scope[] = ['project', 'openFiles', 'files', 'recent', 'here', 'symbols', 'git'];
     const lastScope = context.workspaceState.get<string>('spyglass.lastScope');
     const rawScope = lastScope ?? config.get<string>('defaultScope', 'project');
     const defaultScope: Scope = validScopes.includes(rawScope as Scope) ? rawScope as Scope : 'project';
@@ -107,7 +107,8 @@ export class FinderPanel {
     this._context = context;
     const maxResults = vscode.workspace.getConfiguration('spyglass').get<number>('maxResults', 200);
     const pinnedFiles = context.workspaceState.get<string[]>('spyglass.pinnedFiles', []);
-    this._panel.webview.html = this._buildHtml(defaultScope, kb, initialQuery, this._searchHistory, this._recentFiles, maxResults, pinnedFiles);
+    const groupResults = context.workspaceState.get<boolean>('spyglass.groupResults', false);
+    this._panel.webview.html = this._buildHtml(defaultScope, kb, initialQuery, this._searchHistory, this._recentFiles, maxResults, pinnedFiles, groupResults);
 
     // Warm file cache in background so Files tab is instant on first use
     if (this._cwdList.length > 0) {
@@ -157,6 +158,9 @@ export class FinderPanel {
           await this._context!.workspaceState.update('spyglass.pinnedFiles', files);
           break;
         }
+        case 'setGroupResults':
+          await this._context!.workspaceState.update('spyglass.groupResults', msg.value as boolean);
+          break;
         case 'revealFile':
           await vscode.commands.executeCommand('revealInExplorer', vscode.Uri.file(msg.file as string));
           break;
@@ -474,7 +478,7 @@ export class FinderPanel {
     this._disposables.length = 0;
   }
 
-  private _buildHtml(defaultScope: Scope, kb: KeyBindings, initialQuery: string = '', searchHistory: string[] = [], recentFiles: string[] = [], maxResults: number = 200, pinnedFiles: string[] = []): string {
+  private _buildHtml(defaultScope: Scope, kb: KeyBindings, initialQuery: string = '', searchHistory: string[] = [], recentFiles: string[] = [], maxResults: number = 200, pinnedFiles: string[] = [], groupResults: boolean = false): string {
     const nonce = getNonce();
     const webview = this._panel.webview;
     const extensionUri = this._context!.extensionUri;
@@ -489,6 +493,7 @@ export class FinderPanel {
       PINNED_FILES: pinnedFiles.filter(f => require('fs').existsSync(f)).map(f => ({ file: f, rel: this._makeRelative(f) })),
       MAX_RESULTS: maxResults,
       DEFAULT_SCOPE: defaultScope,
+      GROUP_RESULTS: groupResults,
     };
 
     return /* html */`<!DOCTYPE html>

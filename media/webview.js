@@ -2,7 +2,7 @@
 "use strict";
 (() => {
   // src/webview/state.ts
-  var { INITIAL_HISTORY, RECENT_FILES, PINNED_FILES, DEFAULT_SCOPE } = window.__spyglass;
+  var { INITIAL_HISTORY, RECENT_FILES, PINNED_FILES, DEFAULT_SCOPE, GROUP_RESULTS } = window.__spyglass;
   var state = {
     results: [],
     fileResults: [],
@@ -19,7 +19,7 @@
     wholeWord: false,
     globFilter: "",
     replaceMode: false,
-    groupResults: false,
+    groupResults: GROUP_RESULTS,
     query: "",
     searching: false,
     showPreview: true,
@@ -1267,6 +1267,7 @@
     state.groupResults = !state.groupResults;
     groupBtn.classList.toggle("active", state.groupResults);
     showToast(state.groupResults ? "Grouped by file" : "Flat list");
+    vscode.postMessage({ type: "setGroupResults", value: state.groupResults });
     render();
   }
   function toggleReplaceMode() {

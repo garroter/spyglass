@@ -98,6 +98,7 @@ function toggleGroup(): void {
   state.groupResults = !state.groupResults;
   groupBtn.classList.toggle('active', state.groupResults);
   showToast(state.groupResults ? 'Grouped by file' : 'Flat list');
+  vscode.postMessage({ type: 'setGroupResults', value: state.groupResults });
   render();
 }
 

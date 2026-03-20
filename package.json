@@ -78,7 +78,10 @@
             "project",
             "openFiles",
             "files",
-            "recent"
+            "recent",
+            "here",
+            "symbols",
+            "git"
           ],
           "default": "project",
           "description": "Default search scope when Finder opens."

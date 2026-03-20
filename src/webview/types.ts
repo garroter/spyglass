@@ -48,6 +48,7 @@ export interface SpyglassConfig {
   PINNED_FILES: RecentFile[];
   MAX_RESULTS: number;
   DEFAULT_SCOPE: string;
+  GROUP_RESULTS: boolean;
 }
 
 export interface AppState {
