@@ -106,7 +106,8 @@ export class FinderPanel {
     this._activeDir = activeDir;
     this._context = context;
     const maxResults = vscode.workspace.getConfiguration('spyglass').get<number>('maxResults', 200);
-    this._panel.webview.html = this._buildHtml(defaultScope, kb, initialQuery, this._searchHistory, this._recentFiles, maxResults);
+    const pinnedFiles = context.workspaceState.get<string[]>('spyglass.pinnedFiles', []);
+    this._panel.webview.html = this._buildHtml(defaultScope, kb, initialQuery, this._searchHistory, this._recentFiles, maxResults, pinnedFiles);
 
     // Warm file cache in background so Files tab is instant on first use
     if (this._cwdList.length > 0) {
@@ -151,6 +152,11 @@ export class FinderPanel {
         case 'copyPath':
           await vscode.env.clipboard.writeText(msg.path as string);
           break;
+        case 'setPinnedFiles': {
+          const files = (msg.files as { file: string; rel: string }[]).map(f => f.file);
+          await this._context!.workspaceState.update('spyglass.pinnedFiles', files);
+          break;
+        }
         case 'revealFile':
           await vscode.commands.executeCommand('revealInExplorer', vscode.Uri.file(msg.file as string));
           break;
@@ -468,7 +474,7 @@ export class FinderPanel {
     this._disposables.length = 0;
   }
 
-  private _buildHtml(defaultScope: Scope, kb: KeyBindings, initialQuery: string = '', searchHistory: string[] = [], recentFiles: string[] = [], maxResults: number = 200): string {
+  private _buildHtml(defaultScope: Scope, kb: KeyBindings, initialQuery: string = '', searchHistory: string[] = [], recentFiles: string[] = [], maxResults: number = 200, pinnedFiles: string[] = []): string {
     const nonce = getNonce();
     const webview = this._panel.webview;
     const extensionUri = this._context!.extensionUri;
@@ -480,6 +486,7 @@ export class FinderPanel {
       INITIAL_QUERY: initialQuery,
       INITIAL_HISTORY: searchHistory,
       RECENT_FILES: recentFiles.map(f => ({ file: f, rel: this._makeRelative(f) })),
+      PINNED_FILES: pinnedFiles.filter(f => require('fs').existsSync(f)).map(f => ({ file: f, rel: this._makeRelative(f) })),
       MAX_RESULTS: maxResults,
       DEFAULT_SCOPE: defaultScope,
     };
@@ -589,6 +596,8 @@ export class FinderPanel {
   <div class="ctx-item" id="ctx-copy-rel"><span>Copy relative path</span></div>
   <div class="ctx-sep"></div>
   <div class="ctx-item" id="ctx-reveal"><span>Reveal in Explorer</span></div>
+  <div class="ctx-sep"></div>
+  <div class="ctx-item" id="ctx-pin"><span>Pin file</span><span class="ctx-hint">Alt+P</span></div>
 </div>
 
 <script nonce="${nonce}">window.__spyglass = ${JSON.stringify(config)};</script>

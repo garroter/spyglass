@@ -2,7 +2,7 @@ import type { AppState, SpyglassConfig } from './types';
 
 declare const window: Window & { __spyglass: SpyglassConfig };
 
-const { INITIAL_HISTORY, RECENT_FILES, DEFAULT_SCOPE } = window.__spyglass;
+const { INITIAL_HISTORY, RECENT_FILES, PINNED_FILES, DEFAULT_SCOPE } = window.__spyglass;
 
 export const state: AppState = {
   results: [],
@@ -11,6 +11,7 @@ export const state: AppState = {
   fileList: null,
   gitFiles: null,
   recentFiles: RECENT_FILES,
+  pinnedFiles: PINNED_FILES.slice(),
   gitStatus: {},
   selected: 0,
   scope: DEFAULT_SCOPE,

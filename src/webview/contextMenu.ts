@@ -1,8 +1,8 @@
 import { state } from './state';
-import { ctxMenu, ctxOpen, ctxOpenSplit, ctxCopyAbs, ctxCopyRel, ctxReveal, wrap } from './dom';
+import { ctxMenu, ctxOpen, ctxOpenSplit, ctxCopyAbs, ctxCopyRel, ctxReveal, ctxPin, wrap } from './dom';
 import { isFileScope, isSymbolScope } from './search';
 import { recentDefault } from './preview';
-import { openResult, openResultInSplit, updateSelection } from './render';
+import { openResult, openResultInSplit, updateSelection, togglePin, isPinnedFile } from './render';
 
 import { vscode } from './vscode';
 
@@ -31,6 +31,7 @@ export function showCtxMenu(x: number, y: number, index: number): void {
   const data = getResultData(index);
   if (!data) { return; }
   ctxTarget = data;
+  ctxPin.querySelector('span')!.textContent = isPinnedFile(data.file) ? 'Unpin file' : 'Pin file';
   ctxMenu.style.left = x + 'px';
   ctxMenu.style.top  = y + 'px';
   ctxMenu.classList.add('visible');
@@ -60,6 +61,7 @@ export function initContextMenu(): void {
   ctxCopyAbs.addEventListener('click',   () => { if (ctxTarget) { vscode.postMessage({ type: 'copyPath', path: ctxTarget.file }); } hideCtxMenu(); });
   ctxCopyRel.addEventListener('click',   () => { if (ctxTarget) { vscode.postMessage({ type: 'copyPath', path: ctxTarget.rel });  } hideCtxMenu(); });
   ctxReveal.addEventListener('click',    () => { if (ctxTarget) { vscode.postMessage({ type: 'revealFile', file: ctxTarget.file }); } hideCtxMenu(); });
+  ctxPin.addEventListener('click',       () => { togglePin(); hideCtxMenu(); });
 
   ctxMenu.addEventListener('click', e => e.stopPropagation());
   document.addEventListener('contextmenu', (e) => {

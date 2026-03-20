@@ -27,3 +27,4 @@ export const ctxOpenSplit  = document.getElementById('ctx-open-split') as HTMLEl
 export const ctxCopyAbs    = document.getElementById('ctx-copy-abs') as HTMLElement;
 export const ctxCopyRel    = document.getElementById('ctx-copy-rel') as HTMLElement;
 export const ctxReveal     = document.getElementById('ctx-reveal')   as HTMLElement;
+export const ctxPin        = document.getElementById('ctx-pin')       as HTMLElement;

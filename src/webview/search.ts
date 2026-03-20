@@ -43,22 +43,38 @@ export function fuzzyScore(str: string, query: string): { score: number; positio
   return { score, positions };
 }
 
+function fuzzyFilter(fileList: RecentFile[], query: string): FileResult[] {
+  if (!query.trim()) {
+    return fileList.map(({ file, rel }) => ({ file, relativePath: rel, matchPositions: [] }));
+  }
+  const scored: (FileResult & { score: number })[] = [];
+  for (const { file, rel } of fileList) {
+    const match = fuzzyScore(rel, query);
+    if (match) { scored.push({ file, relativePath: rel, matchPositions: match.positions, score: match.score }); }
+  }
+  scored.sort((a, b) => b.score - a.score);
+  return scored.map(({ file, relativePath, matchPositions }) => ({ file, relativePath, matchPositions }));
+}
+
 export function filterFilesLocally(fileList: RecentFile[], query: string): void {
   const maxResults = 200;
-  let results: FileResult[];
-  if (!query.trim()) {
-    results = fileList.slice(0, maxResults).map(({ file, rel }) => ({ file, relativePath: rel, matchPositions: [] }));
-  } else {
-    const scored: (FileResult & { score: number })[] = [];
-    for (const { file, rel } of fileList) {
-      const match = fuzzyScore(rel, query);
-      if (match) { scored.push({ file, relativePath: rel, matchPositions: match.positions, score: match.score }); }
-    }
-    scored.sort((a, b) => b.score - a.score);
-    results = scored.slice(0, maxResults).map(({ file, relativePath, matchPositions }) => ({ file, relativePath, matchPositions }));
+
+  if (state.scope === 'recent' && state.pinnedFiles.length > 0) {
+    const pinnedPaths = new Set(state.pinnedFiles.map(f => f.file));
+    const pinned  = fuzzyFilter(state.pinnedFiles, query)
+      .map(r => ({ ...r, isPinned: true }));
+    const nonPinned = fuzzyFilter(
+      fileList.filter(f => !pinnedPaths.has(f.file)),
+      query,
+    );
+    state.fileResults = [...pinned, ...nonPinned].slice(0, maxResults);
+    state.searching = false;
+    state.selected = 0;
+    return;
   }
+
+  state.fileResults = fuzzyFilter(fileList, query).slice(0, maxResults);
   state.searching = false;
-  state.fileResults = results;
   state.selected = 0;
 }
 

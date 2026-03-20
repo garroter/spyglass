@@ -2,7 +2,7 @@
 "use strict";
 (() => {
   // src/webview/state.ts
-  var { INITIAL_HISTORY, RECENT_FILES, DEFAULT_SCOPE } = window.__spyglass;
+  var { INITIAL_HISTORY, RECENT_FILES, PINNED_FILES, DEFAULT_SCOPE } = window.__spyglass;
   var state = {
     results: [],
     fileResults: [],
@@ -10,6 +10,7 @@
     fileList: null,
     gitFiles: null,
     recentFiles: RECENT_FILES,
+    pinnedFiles: PINNED_FILES.slice(),
     gitStatus: {},
     selected: 0,
     scope: DEFAULT_SCOPE,
@@ -56,6 +57,7 @@
   var ctxCopyAbs = document.getElementById("ctx-copy-abs");
   var ctxCopyRel = document.getElementById("ctx-copy-rel");
   var ctxReveal = document.getElementById("ctx-reveal");
+  var ctxPin = document.getElementById("ctx-pin");
 
   // src/webview/vscode.ts
   var vscode = acquireVsCodeApi();
@@ -126,24 +128,36 @@
     score -= slashes * 2;
     return { score, positions };
   }
+  function fuzzyFilter(fileList, query) {
+    if (!query.trim()) {
+      return fileList.map(({ file, rel }) => ({ file, relativePath: rel, matchPositions: [] }));
+    }
+    const scored = [];
+    for (const { file, rel } of fileList) {
+      const match = fuzzyScore(rel, query);
+      if (match) {
+        scored.push({ file, relativePath: rel, matchPositions: match.positions, score: match.score });
+      }
+    }
+    scored.sort((a, b) => b.score - a.score);
+    return scored.map(({ file, relativePath, matchPositions }) => ({ file, relativePath, matchPositions }));
+  }
   function filterFilesLocally(fileList, query) {
     const maxResults = 200;
-    let results;
-    if (!query.trim()) {
-      results = fileList.slice(0, maxResults).map(({ file, rel }) => ({ file, relativePath: rel, matchPositions: [] }));
-    } else {
-      const scored = [];
-      for (const { file, rel } of fileList) {
-        const match = fuzzyScore(rel, query);
-        if (match) {
-          scored.push({ file, relativePath: rel, matchPositions: match.positions, score: match.score });
-        }
-      }
-      scored.sort((a, b) => b.score - a.score);
-      results = scored.slice(0, maxResults).map(({ file, relativePath, matchPositions }) => ({ file, relativePath, matchPositions }));
+    if (state.scope === "recent" && state.pinnedFiles.length > 0) {
+      const pinnedPaths = new Set(state.pinnedFiles.map((f) => f.file));
+      const pinned = fuzzyFilter(state.pinnedFiles, query).map((r) => ({ ...r, isPinned: true }));
+      const nonPinned = fuzzyFilter(
+        fileList.filter((f) => !pinnedPaths.has(f.file)),
+        query
+      );
+      state.fileResults = [...pinned, ...nonPinned].slice(0, maxResults);
+      state.searching = false;
+      state.selected = 0;
+      return;
     }
+    state.fileResults = fuzzyFilter(fileList, query).slice(0, maxResults);
     state.searching = false;
-    state.fileResults = results;
     state.selected = 0;
   }
   var searchTimer = null;
@@ -737,7 +751,18 @@
     }
     stateMsg.style.display = "none";
     const frag = document.createDocumentFragment();
+    const isRecent = state.scope === "recent";
+    let sectionHeaderShown = false;
     state.fileResults.forEach((r, i) => {
+      if (isRecent && !r.isPinned && !sectionHeaderShown) {
+        sectionHeaderShown = true;
+        if (state.fileResults.some((x) => x.isPinned)) {
+          const sep = document.createElement("div");
+          sep.className = "pin-section-sep";
+          sep.textContent = "recent";
+          frag.appendChild(sep);
+        }
+      }
       const lastSlash = r.relativePath.lastIndexOf("/");
       const basenameStart = lastSlash + 1;
       const basename = r.relativePath.slice(basenameStart);
@@ -752,7 +777,8 @@
         const label = GIT_LABEL[s] ?? s;
         div.innerHTML = '<div class="result-header"><span class="git-status-pill git-badge--' + s + '">' + label + '</span><span class="result-file">' + highlightPositions(basename, bnPos) + "</span></div>" + (dir ? '<div class="result-text">' + highlightPositions(dir, dirPos) + "</div>" : "");
       } else {
-        div.innerHTML = '<div class="result-header"><span class="result-file">' + highlightPositions(basename, bnPos) + "</span>" + gitBadgeHtml(r.relativePath) + "</div>" + (dir ? '<div class="result-text">' + highlightPositions(dir, dirPos) + "</div>" : "");
+        const pinIcon = r.isPinned ? '<span class="pin-icon">\u2605</span>' : "";
+        div.innerHTML = '<div class="result-header">' + pinIcon + '<span class="result-file">' + highlightPositions(basename, bnPos) + "</span>" + gitBadgeHtml(r.relativePath) + "</div>" + (dir ? '<div class="result-text">' + highlightPositions(dir, dirPos) + "</div>" : "");
       }
       div.addEventListener("click", () => openResult(i));
       div.addEventListener("mouseenter", () => {
@@ -961,6 +987,39 @@
       vscode.postMessage({ type: "copyPath", path: file });
     }
   }
+  function currentFile() {
+    if (isFileScope()) {
+      const r2 = state.fileResults[state.selected];
+      return r2 ? { file: r2.file, rel: r2.relativePath } : null;
+    }
+    if (isSymbolScope()) {
+      const r2 = state.symbolResults[state.selected];
+      return r2 ? { file: r2.file, rel: r2.relativePath } : null;
+    }
+    const rd = recentDefault();
+    const r = rd ? rd[state.selected] : state.results[state.selected];
+    return r ? { file: r.file, rel: "rel" in r ? r.rel : r.relativePath } : null;
+  }
+  function isPinnedFile(file) {
+    return state.pinnedFiles.some((f) => f.file === file);
+  }
+  function togglePin() {
+    const cur = currentFile();
+    if (!cur) {
+      return;
+    }
+    if (isPinnedFile(cur.file)) {
+      state.pinnedFiles = state.pinnedFiles.filter((f) => f.file !== cur.file);
+    } else {
+      state.pinnedFiles = [...state.pinnedFiles, { file: cur.file, rel: cur.rel }];
+    }
+    vscode.postMessage({ type: "setPinnedFiles", files: state.pinnedFiles });
+    if (state.scope === "recent") {
+      triggerSearch(render);
+    } else {
+      render();
+    }
+  }
   function refreshGitScope(renderFn) {
     state.gitFiles = null;
     state.selected = 0;
@@ -999,6 +1058,7 @@
       return;
     }
     ctxTarget = data;
+    ctxPin.querySelector("span").textContent = isPinnedFile(data.file) ? "Unpin file" : "Pin file";
     ctxMenu.style.left = x + "px";
     ctxMenu.style.top = y + "px";
     ctxMenu.classList.add("visible");
@@ -1054,6 +1114,10 @@
       if (ctxTarget) {
         vscode.postMessage({ type: "revealFile", file: ctxTarget.file });
       }
+      hideCtxMenu();
+    });
+    ctxPin.addEventListener("click", () => {
+      togglePin();
       hideCtxMenu();
     });
     ctxMenu.addEventListener("click", (e) => e.stopPropagation());
@@ -1191,6 +1255,9 @@
       } else if (e.key === "F5" && isGitScope()) {
         e.preventDefault();
         refreshGitScope(render);
+      } else if (e.altKey && e.key === "p") {
+        e.preventDefault();
+        togglePin();
       } else if (matchKey(e, KB.navigateDown)) {
         e.preventDefault();
         navigate(1);
@@ -1244,6 +1311,9 @@
       } else if (e.key === "F5" && isGitScope()) {
         e.preventDefault();
         refreshGitScope(render);
+      } else if (e.altKey && e.key === "p") {
+        e.preventDefault();
+        togglePin();
       } else if (e.ctrlKey && e.key === " ") {
         e.preventDefault();
         toggleSelectResult(state.selected);

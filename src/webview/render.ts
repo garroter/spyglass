@@ -176,7 +176,21 @@ export function renderFileResults(): void {
 
   stateMsg.style.display = 'none';
   const frag = document.createDocumentFragment();
+  const isRecent = state.scope === 'recent';
+  let sectionHeaderShown = false;
+
   state.fileResults.forEach((r, i) => {
+    // Section separator between pinned and recent
+    if (isRecent && !r.isPinned && !sectionHeaderShown) {
+      sectionHeaderShown = true;
+      if (state.fileResults.some(x => x.isPinned)) {
+        const sep = document.createElement('div');
+        sep.className = 'pin-section-sep';
+        sep.textContent = 'recent';
+        frag.appendChild(sep);
+      }
+    }
+
     const lastSlash = r.relativePath.lastIndexOf('/');
     const basenameStart = lastSlash + 1;
     const basename = r.relativePath.slice(basenameStart);
@@ -198,8 +212,10 @@ export function renderFileResults(): void {
         '</div>' +
         (dir ? '<div class="result-text">' + highlightPositions(dir, dirPos) + '</div>' : '');
     } else {
+      const pinIcon = r.isPinned ? '<span class="pin-icon">★</span>' : '';
       div.innerHTML =
         '<div class="result-header">' +
+          pinIcon +
           '<span class="result-file">' + highlightPositions(basename, bnPos) + '</span>' +
           gitBadgeHtml(r.relativePath) +
         '</div>' +
@@ -380,6 +396,36 @@ export function copyCurrentPath(): void {
     if (r) { file = r.file; }
   }
   if (file) { vscode.postMessage({ type: 'copyPath', path: file }); }
+}
+
+export function currentFile(): { file: string; rel: string } | null {
+  if (isFileScope()) {
+    const r = state.fileResults[state.selected];
+    return r ? { file: r.file, rel: r.relativePath } : null;
+  }
+  if (isSymbolScope()) {
+    const r = state.symbolResults[state.selected];
+    return r ? { file: r.file, rel: r.relativePath } : null;
+  }
+  const rd = recentDefault();
+  const r = rd ? rd[state.selected] : state.results[state.selected];
+  return r ? { file: r.file, rel: 'rel' in r ? (r as any).rel : r.relativePath } : null;
+}
+
+export function isPinnedFile(file: string): boolean {
+  return state.pinnedFiles.some(f => f.file === file);
+}
+
+export function togglePin(): void {
+  const cur = currentFile();
+  if (!cur) { return; }
+  if (isPinnedFile(cur.file)) {
+    state.pinnedFiles = state.pinnedFiles.filter(f => f.file !== cur.file);
+  } else {
+    state.pinnedFiles = [...state.pinnedFiles, { file: cur.file, rel: cur.rel }];
+  }
+  vscode.postMessage({ type: 'setPinnedFiles', files: state.pinnedFiles });
+  if (state.scope === 'recent') { triggerSearch(render); } else { render(); }
 }
 
 export function refreshGitScope(renderFn: () => void): void {

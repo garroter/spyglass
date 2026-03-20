@@ -72,6 +72,7 @@ VS Code's built-in search (`Ctrl+Shift+F`) is powerful but slow to use — it op
 
 ### 🗂️ Navigation
 - **7 search scopes** — Project, Open Files, Files, Recent, Dir, Symbols, Git
+- **Pinned files** — pin any file with `Alt+P`; pinned files stay at the top of the Recent tab marked with `★` and persist across sessions
 - **Recent files on open** — opens to recent files immediately, no empty screen
 - **Scope memory** — last used scope is restored when you reopen
 - **Dir scope** — search only within the directory of the active file
@@ -120,6 +121,7 @@ VS Code's built-in search (`Ctrl+Shift+F`) is powerful but slow to use — it op
 | History — previous query | `Ctrl+↑` |
 | History — next query | `Ctrl+↓` |
 | Copy path | `Alt+Y` |
+| Pin / Unpin file | `Alt+P` |
 | Multi-select toggle | `Ctrl+Space` / `Ctrl+Click` |
 | Select all results | `Ctrl+A` |
 | Open all selected | `Shift+Enter` |

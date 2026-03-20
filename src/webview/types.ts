@@ -14,6 +14,7 @@ export interface FileResult {
   relativePath: string;
   matchPositions: number[];
   score?: number;
+  isPinned?: boolean;
 }
 
 export interface RecentFile {
@@ -44,6 +45,7 @@ export interface SpyglassConfig {
   INITIAL_QUERY: string;
   INITIAL_HISTORY: string[];
   RECENT_FILES: RecentFile[];
+  PINNED_FILES: RecentFile[];
   MAX_RESULTS: number;
   DEFAULT_SCOPE: string;
 }
@@ -55,6 +57,7 @@ export interface AppState {
   fileList: RecentFile[] | null;
   gitFiles: RecentFile[] | null;
   recentFiles: RecentFile[];
+  pinnedFiles: RecentFile[];
   gitStatus: Record<string, string>;
   selected: number;
   scope: string;
