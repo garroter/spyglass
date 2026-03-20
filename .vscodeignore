@@ -4,6 +4,8 @@ src/**
 .gitignore
 .eslintrc.json
 tsconfig.json
+esbuild.webview.mjs
+vitest.config.ts
 **/*.map
 **/*.ts
 !out/**
