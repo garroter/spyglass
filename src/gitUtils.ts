@@ -37,6 +37,18 @@ export function parseGitDiff(output: string): number[] {
   return Array.from(changed);
 }
 
+export function relToAbsolute(rel: string, cwdList: string[], fallbackCwd: string): string {
+  if (cwdList.length <= 1) {
+    return path.join(fallbackCwd, rel);
+  }
+  const slashIdx = rel.indexOf('/');
+  if (slashIdx === -1) { return path.join(fallbackCwd, rel); }
+  const folderName = rel.slice(0, slashIdx);
+  const rest = rel.slice(slashIdx + 1);
+  const matchingCwd = cwdList.find(c => path.basename(c) === folderName) ?? fallbackCwd;
+  return path.join(matchingCwd, rest);
+}
+
 // ── Spawn-based functions ──────────────────────────────────────────────────
 
 export function loadGitStatus(cwdList: string[]): Promise<Record<string, string>> {

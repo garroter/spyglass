@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { parseGitStatus, parseGitDiff } from '../gitUtils';
+import { parseGitStatus, parseGitDiff, relToAbsolute } from '../gitUtils';
 
 describe('parseGitStatus', () => {
   const single = ['/workspace'];
@@ -50,6 +50,34 @@ describe('parseGitStatus', () => {
       'src/c.ts': 'A',
     });
   });
+
+  it('returns empty object for clean working tree (empty output)', () => {
+    expect(parseGitStatus('', single, '/workspace')).toEqual({});
+  });
+
+  it('treats staged+worktree modified (MM) as M', () => {
+    const out = 'MM src/both.ts\n';
+    expect(parseGitStatus(out, single, '/workspace')).toEqual({ 'src/both.ts': 'M' });
+  });
+
+  it('handles files in nested subdirectories', () => {
+    const out = ' M src/deep/nested/file.ts\n';
+    expect(parseGitStatus(out, single, '/workspace')).toEqual({ 'src/deep/nested/file.ts': 'M' });
+  });
+
+  it('handles multiple folders in multi-root workspace', () => {
+    const outFE = ' M pages/index.tsx\n';
+    const outBE = '?? routes/api.ts\n';
+    const fe = parseGitStatus(outFE, multi, '/workspace/frontend');
+    const be = parseGitStatus(outBE, multi, '/workspace/backend');
+    expect(fe).toEqual({ 'frontend/pages/index.tsx': 'M' });
+    expect(be).toEqual({ 'backend/routes/api.ts': 'U' });
+  });
+
+  it('staged deletion (D in index) is marked D', () => {
+    const out = 'D  staged-delete.ts\n';
+    expect(parseGitStatus(out, single, '/workspace')).toEqual({ 'staged-delete.ts': 'D' });
+  });
 });
 
 describe('parseGitDiff', () => {
@@ -86,5 +114,42 @@ describe('parseGitDiff', () => {
   it('ignores non-hunk lines', () => {
     const out = 'diff --git a/foo b/foo\n--- a/foo\n+++ b/foo\n@@ -1 +1 @@\n+changed';
     expect(parseGitDiff(out)).toEqual([1]);
+  });
+});
+
+describe('relToAbsolute', () => {
+  const single = ['/workspace'];
+  const multi  = ['/workspace/frontend', '/workspace/backend'];
+
+  it('resolves path in single-root workspace', () => {
+    expect(relToAbsolute('src/index.ts', single, '/workspace')).toBe('/workspace/src/index.ts');
+  });
+
+  it('resolves file at root level in single-root', () => {
+    expect(relToAbsolute('README.md', single, '/workspace')).toBe('/workspace/README.md');
+  });
+
+  it('resolves path in multi-root using folder prefix', () => {
+    expect(relToAbsolute('frontend/src/app.tsx', multi, '/workspace/frontend'))
+      .toBe('/workspace/frontend/src/app.tsx');
+  });
+
+  it('resolves path to the correct folder in multi-root', () => {
+    expect(relToAbsolute('backend/routes/api.ts', multi, '/workspace/frontend'))
+      .toBe('/workspace/backend/routes/api.ts');
+  });
+
+  it('falls back to fallbackCwd when folder name not matched in multi-root', () => {
+    expect(relToAbsolute('unknown/file.ts', multi, '/workspace/frontend'))
+      .toBe('/workspace/frontend/file.ts');
+  });
+
+  it('handles nested path in multi-root', () => {
+    expect(relToAbsolute('backend/src/deep/nested/util.ts', multi, '/workspace/frontend'))
+      .toBe('/workspace/backend/src/deep/nested/util.ts');
+  });
+
+  it('falls back gracefully when no slash in rel for single-root', () => {
+    expect(relToAbsolute('file.ts', single, '/workspace')).toBe('/workspace/file.ts');
   });
 });

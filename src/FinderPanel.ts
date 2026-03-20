@@ -4,7 +4,7 @@ import { searchWithRipgrep, listFilesWithRipgrep, isRipgrepAvailable, Cancellabl
 import hljs from 'highlight.js';
 import { Scope, KeyBindings } from './types';
 import { cwdForFile, makeRelative } from './workspaceUtils';
-import { loadGitStatus, getChangedLines } from './gitUtils';
+import { loadGitStatus, getChangedLines, relToAbsolute } from './gitUtils';
 import { runSymbolSearch } from './symbolSearch';
 
 function getNonce(): string {
@@ -355,19 +355,10 @@ export class FinderPanel {
       return;
     }
     const statuses = await loadGitStatus(this._cwdList);
-    const files = Object.keys(statuses).map(rel => {
-      let absFile: string;
-      if (this._cwdList.length <= 1) {
-        absFile = path.join(this._cwd, rel);
-      } else {
-        const slashIdx = rel.indexOf('/');
-        const folderName = slashIdx >= 0 ? rel.slice(0, slashIdx) : '';
-        const rest = slashIdx >= 0 ? rel.slice(slashIdx + 1) : rel;
-        const matchingCwd = this._cwdList.find(c => path.basename(c) === folderName) ?? this._cwd;
-        absFile = path.join(matchingCwd, rest);
-      }
-      return { file: absFile, rel };
-    });
+    const files = Object.keys(statuses).map(rel => ({
+      file: relToAbsolute(rel, this._cwdList, this._cwd),
+      rel,
+    }));
     this._post({ type: 'gitFiles', files });
     this._post({ type: 'gitStatus', status: statuses });
   }
