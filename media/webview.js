@@ -1316,7 +1316,7 @@
       } else if (e.altKey && e.key === "p") {
         e.preventDefault();
         togglePin();
-      } else if (e.altKey && e.key === "g") {
+      } else if (e.altKey && e.key === "l") {
         e.preventDefault();
         toggleGroup();
       } else if (matchKey(e, KB.navigateDown)) {
@@ -1375,7 +1375,7 @@
       } else if (e.altKey && e.key === "p") {
         e.preventDefault();
         togglePin();
-      } else if (e.altKey && e.key === "g") {
+      } else if (e.altKey && e.key === "l") {
         e.preventDefault();
         toggleGroup();
       } else if (e.ctrlKey && e.key === " ") {

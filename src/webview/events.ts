@@ -142,7 +142,7 @@ export function initEvents(): void {
       e.preventDefault(); refreshGitScope(render);
     } else if (e.altKey && e.key === 'p') {
       e.preventDefault(); togglePin();
-    } else if (e.altKey && e.key === 'g') {
+    } else if (e.altKey && e.key === 'l') {
       e.preventDefault(); toggleGroup();
     } else if (matchKey(e, KB.navigateDown)) {
       e.preventDefault(); navigate(1);
@@ -179,7 +179,7 @@ export function initEvents(): void {
     else if (e.altKey && e.key === 'y')        { e.preventDefault(); copyCurrentPath(); }
     else if (e.key === 'F5' && isGitScope())   { e.preventDefault(); refreshGitScope(render); }
     else if (e.altKey && e.key === 'p')        { e.preventDefault(); togglePin(); }
-    else if (e.altKey && e.key === 'g')        { e.preventDefault(); toggleGroup(); }
+    else if (e.altKey && e.key === 'l')        { e.preventDefault(); toggleGroup(); }
     else if (e.ctrlKey && e.key === ' ')       { e.preventDefault(); toggleSelectResult(state.selected); }
     else if (e.shiftKey && e.key === 'Enter')  { e.preventDefault(); openAllSelected(); }
     else if (e.ctrlKey && e.key === 'a')       { e.preventDefault(); selectAll(); }

@@ -4,7 +4,7 @@
 
 ### Added
 - **Pinned files** — pin any file with `Alt+P` (or right-click → Pin file); pinned files appear at the top of the Recent tab marked with `★` and persist across sessions; `Alt+P` again unpins
-- **Group by file toggle** — press `Alt+G` or click `▤` to switch between flat list (default) and results grouped by file with sticky headers; button disabled in Files/Recent/Git/Symbols scopes
+- **Group by file toggle** — press `Alt+L` or click `▤` to switch between flat list (default) and results grouped by file with sticky headers; button disabled in Files/Recent/Git/Symbols scopes
 - **Git scope refresh** — press `F5` in the Git tab to reload the list of changed files without reopening the panel
 - **Copy paths from multi-select** — `Alt+Y` with multiple files selected copies all their paths joined by newlines, instead of only the current file
 - Text search results are now grouped by file — a sticky header shows the filename, directory, and match count badge for each group; line numbers are displayed in a fixed column beside each match
