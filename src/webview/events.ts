@@ -6,7 +6,7 @@ import {
 import { isFileScope, isSymbolScope, isGitScope, isTextScope, parseQueryInput, triggerSearch, filterFilesLocally } from './search';
 import { clearPreview, togglePreview, requestPreview } from './preview';
 import { render, navigate, openResult, openResultInSplit, openAllSelected,
-         toggleSelectResult, selectAll, copyCurrentPath } from './render';
+         toggleSelectResult, selectAll, copyCurrentPath, refreshGitScope } from './render';
 import { hideCtxMenu } from './contextMenu';
 
 import { vscode } from './vscode';
@@ -129,6 +129,8 @@ export function initEvents(): void {
       e.preventDefault(); navigateHistory(1);
     } else if (e.altKey && e.key === 'y') {
       e.preventDefault(); copyCurrentPath();
+    } else if (e.key === 'F5' && isGitScope()) {
+      e.preventDefault(); refreshGitScope(render);
     } else if (matchKey(e, KB.navigateDown)) {
       e.preventDefault(); navigate(1);
     } else if (matchKey(e, KB.navigateUp)) {
@@ -162,6 +164,7 @@ export function initEvents(): void {
     if (matchKey(e, KB.navigateDown))         { e.preventDefault(); navigate(1); }
     else if (matchKey(e, KB.navigateUp))      { e.preventDefault(); navigate(-1); }
     else if (e.altKey && e.key === 'y')        { e.preventDefault(); copyCurrentPath(); }
+    else if (e.key === 'F5' && isGitScope())   { e.preventDefault(); refreshGitScope(render); }
     else if (e.ctrlKey && e.key === ' ')       { e.preventDefault(); toggleSelectResult(state.selected); }
     else if (e.shiftKey && e.key === 'Enter')  { e.preventDefault(); openAllSelected(); }
     else if (e.ctrlKey && e.key === 'a')       { e.preventDefault(); selectAll(); }

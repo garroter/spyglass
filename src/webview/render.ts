@@ -1,7 +1,7 @@
 import { state } from './state';
 import { escHtml, highlightMatch, highlightPositions } from './highlight';
 import { wrap, stateMsg, resultInfo } from './dom';
-import { isFileScope, isSymbolScope, isGitScope } from './search';
+import { isFileScope, isSymbolScope, isGitScope, triggerSearch } from './search';
 import { requestPreview, recentDefault } from './preview';
 
 import { vscode } from './vscode';
@@ -345,6 +345,28 @@ export function openAllSelected(): void {
 }
 
 export function copyCurrentPath(): void {
+  if (state.multiSelected.size > 0) {
+    const paths: string[] = [];
+    if (isFileScope()) {
+      for (const i of state.multiSelected) {
+        const r = state.fileResults[i];
+        if (r) { paths.push(r.file); }
+      }
+    } else if (isSymbolScope()) {
+      for (const i of state.multiSelected) {
+        const r = state.symbolResults[i];
+        if (r) { paths.push(r.file); }
+      }
+    } else {
+      for (const i of state.multiSelected) {
+        const r = state.results[i];
+        if (r) { paths.push(r.file); }
+      }
+    }
+    if (paths.length > 0) { vscode.postMessage({ type: 'copyPath', path: paths.join('\n') }); }
+    return;
+  }
+
   let file: string | null = null;
   if (isFileScope()) {
     const r = state.fileResults[state.selected];
@@ -358,6 +380,12 @@ export function copyCurrentPath(): void {
     if (r) { file = r.file; }
   }
   if (file) { vscode.postMessage({ type: 'copyPath', path: file }); }
+}
+
+export function refreshGitScope(renderFn: () => void): void {
+  state.gitFiles = null;
+  state.selected = 0;
+  triggerSearch(renderFn);
 }
 
 export function navigate(delta: number): void {

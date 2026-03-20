@@ -910,6 +910,35 @@
     }
   }
   function copyCurrentPath() {
+    if (state.multiSelected.size > 0) {
+      const paths = [];
+      if (isFileScope()) {
+        for (const i of state.multiSelected) {
+          const r = state.fileResults[i];
+          if (r) {
+            paths.push(r.file);
+          }
+        }
+      } else if (isSymbolScope()) {
+        for (const i of state.multiSelected) {
+          const r = state.symbolResults[i];
+          if (r) {
+            paths.push(r.file);
+          }
+        }
+      } else {
+        for (const i of state.multiSelected) {
+          const r = state.results[i];
+          if (r) {
+            paths.push(r.file);
+          }
+        }
+      }
+      if (paths.length > 0) {
+        vscode.postMessage({ type: "copyPath", path: paths.join("\n") });
+      }
+      return;
+    }
     let file = null;
     if (isFileScope()) {
       const r = state.fileResults[state.selected];
@@ -931,6 +960,11 @@
     if (file) {
       vscode.postMessage({ type: "copyPath", path: file });
     }
+  }
+  function refreshGitScope(renderFn) {
+    state.gitFiles = null;
+    state.selected = 0;
+    triggerSearch(renderFn);
   }
   function navigate(delta) {
     const rd = recentDefault();
@@ -1154,6 +1188,9 @@
       } else if (e.altKey && e.key === "y") {
         e.preventDefault();
         copyCurrentPath();
+      } else if (e.key === "F5" && isGitScope()) {
+        e.preventDefault();
+        refreshGitScope(render);
       } else if (matchKey(e, KB.navigateDown)) {
         e.preventDefault();
         navigate(1);
@@ -1204,6 +1241,9 @@
       } else if (e.altKey && e.key === "y") {
         e.preventDefault();
         copyCurrentPath();
+      } else if (e.key === "F5" && isGitScope()) {
+        e.preventDefault();
+        refreshGitScope(render);
       } else if (e.ctrlKey && e.key === " ") {
         e.preventDefault();
         toggleSelectResult(state.selected);
