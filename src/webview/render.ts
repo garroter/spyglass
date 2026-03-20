@@ -116,7 +116,9 @@ export function renderTextResults(): void {
 
     const hdr = document.createElement('div');
     hdr.className = 'file-group-header';
+    const pinned = state.pinnedFiles.some(f => f.file === group.file);
     hdr.innerHTML =
+      (pinned ? '<span class="pin-icon">★</span>' : '') +
       '<span class="fgh-name">' + escHtml(basename) + '</span>' +
       (dir ? '<span class="fgh-dir">' + escHtml(dir) + '</span>' : '') +
       gitBadgeHtml(group.relativePath) +
@@ -416,13 +418,35 @@ export function isPinnedFile(file: string): boolean {
   return state.pinnedFiles.some(f => f.file === file);
 }
 
+let toastTimer: ReturnType<typeof setTimeout> | null = null;
+
+function showToast(msg: string): void {
+  let el = document.getElementById('spyglass-toast');
+  if (!el) {
+    el = document.createElement('div');
+    el.id = 'spyglass-toast';
+    document.body.appendChild(el);
+  }
+  el.textContent = msg;
+  el.classList.remove('toast-hide');
+  el.classList.add('toast-show');
+  clearTimeout(toastTimer!);
+  toastTimer = setTimeout(() => {
+    el!.classList.remove('toast-show');
+    el!.classList.add('toast-hide');
+  }, 1800);
+}
+
 export function togglePin(): void {
   const cur = currentFile();
   if (!cur) { return; }
+  const basename = cur.rel.split('/').pop() ?? cur.rel;
   if (isPinnedFile(cur.file)) {
     state.pinnedFiles = state.pinnedFiles.filter(f => f.file !== cur.file);
+    showToast('Unpinned: ' + basename);
   } else {
     state.pinnedFiles = [...state.pinnedFiles, { file: cur.file, rel: cur.rel }];
+    showToast('★ Pinned: ' + basename);
   }
   vscode.postMessage({ type: 'setPinnedFiles', files: state.pinnedFiles });
   if (state.scope === 'recent') { triggerSearch(render); } else { render(); }

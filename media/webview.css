@@ -198,6 +198,17 @@
   .result-line   { color: var(--f-dim); font-size: 10px; flex-shrink: 0; }
   .git-badge { font-size: 9px; font-weight: 700; flex-shrink: 0; margin-left: 2px; }
   .pin-icon  { font-size: 10px; color: var(--f-accent); flex-shrink: 0; margin-right: 4px; opacity: 0.8; }
+
+  #spyglass-toast {
+    position: fixed; bottom: 18px; left: 50%; transform: translateX(-50%);
+    background: var(--f-raised); border: 1px solid var(--f-border);
+    color: var(--f-text); font-size: 12px; padding: 6px 14px; border-radius: 6px;
+    box-shadow: 0 2px 8px var(--f-shadow); pointer-events: none;
+    opacity: 0; transition: opacity 0.15s;
+    z-index: 999;
+  }
+  #spyglass-toast.toast-show { opacity: 1; }
+  #spyglass-toast.toast-hide { opacity: 0; }
   .pin-section-sep {
     font-size: 10px; color: var(--f-dim); padding: 5px 14px 2px 14px;
     border-top: 1px solid var(--f-border-s); margin-top: 2px; text-transform: uppercase;

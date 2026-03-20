@@ -702,7 +702,8 @@
       const cnt = group.indices.length;
       const hdr = document.createElement("div");
       hdr.className = "file-group-header";
-      hdr.innerHTML = '<span class="fgh-name">' + escHtml(basename) + "</span>" + (dir ? '<span class="fgh-dir">' + escHtml(dir) + "</span>" : "") + gitBadgeHtml(group.relativePath) + '<span class="fgh-count">' + cnt + "</span>";
+      const pinned = state.pinnedFiles.some((f) => f.file === group.file);
+      hdr.innerHTML = (pinned ? '<span class="pin-icon">\u2605</span>' : "") + '<span class="fgh-name">' + escHtml(basename) + "</span>" + (dir ? '<span class="fgh-dir">' + escHtml(dir) + "</span>" : "") + gitBadgeHtml(group.relativePath) + '<span class="fgh-count">' + cnt + "</span>";
       frag.appendChild(hdr);
       for (const i of group.indices) {
         const r = state.results[i];
@@ -1003,15 +1004,35 @@
   function isPinnedFile(file) {
     return state.pinnedFiles.some((f) => f.file === file);
   }
+  var toastTimer = null;
+  function showToast(msg) {
+    let el = document.getElementById("spyglass-toast");
+    if (!el) {
+      el = document.createElement("div");
+      el.id = "spyglass-toast";
+      document.body.appendChild(el);
+    }
+    el.textContent = msg;
+    el.classList.remove("toast-hide");
+    el.classList.add("toast-show");
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => {
+      el.classList.remove("toast-show");
+      el.classList.add("toast-hide");
+    }, 1800);
+  }
   function togglePin() {
     const cur = currentFile();
     if (!cur) {
       return;
     }
+    const basename = cur.rel.split("/").pop() ?? cur.rel;
     if (isPinnedFile(cur.file)) {
       state.pinnedFiles = state.pinnedFiles.filter((f) => f.file !== cur.file);
+      showToast("Unpinned: " + basename);
     } else {
       state.pinnedFiles = [...state.pinnedFiles, { file: cur.file, rel: cur.rel }];
+      showToast("\u2605 Pinned: " + basename);
     }
     vscode.postMessage({ type: "setPinnedFiles", files: state.pinnedFiles });
     if (state.scope === "recent") {
