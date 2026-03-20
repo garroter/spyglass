@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.1.9] - 2026-03-20
+
+### Added
+- Text search results are now grouped by file — a sticky header shows the filename, directory, and match count badge for each group; line numbers are displayed in a fixed column beside each match
+
+### Fixed
+- Replace all now saves files to disk immediately — previously files were left with unsaved changes after replacing
+
 ## [0.1.8] - 2026-03-17
 
 ### Changed

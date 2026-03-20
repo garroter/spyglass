@@ -339,6 +339,9 @@ export class FinderPanel {
     }
 
     await vscode.workspace.applyEdit(edit);
+    for (const filePath of fileSet) {
+      try { await vscode.workspace.save(vscode.Uri.file(filePath)); } catch { /* skip */ }
+    }
     this._gitCache.clear();
     this._post({ type: 'replaceApplied' });
   }

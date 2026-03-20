@@ -30,7 +30,7 @@ function gitBadgeHtml(relativePath: string): string {
 }
 
 export function renderTextResults(): void {
-  wrap.querySelectorAll('.result').forEach(el => el.remove());
+  wrap.querySelectorAll('.result, .file-group-header').forEach(el => el.remove());
   const MAX_RESULTS = (window as any).__spyglass.MAX_RESULTS;
 
   if (state.searching && state.results.length === 0) {
@@ -93,24 +93,54 @@ export function renderTextResults(): void {
   }
 
   const frag = document.createDocumentFragment();
+
+  // Group results by file
+  type Group = { relativePath: string; file: string; indices: number[] };
+  const groups: Group[] = [];
+  const seen = new Map<string, number>();
   state.results.forEach((r, i) => {
-    const isMultiSel = state.multiSelected.has(i);
-    const div = document.createElement('div');
-    div.className = 'result' + (i === state.selected ? ' selected' : '') + (isMultiSel ? ' multi-sel' : '');
-    div.dataset.index = String(i);
-    div.innerHTML =
-      '<div class="result-header">' +
-        '<span class="result-file">' + escHtml(r.relativePath) + '</span>' +
-        gitBadgeHtml(r.relativePath) +
-        '<span class="result-line">:' + r.line + '</span>' +
-      '</div>' +
-      '<div class="result-text">' + highlightMatch(r.text, r.matchStart, r.matchEnd) + '</div>';
-    div.addEventListener('click', (e) => {
-      if (e.ctrlKey) { toggleSelectResult(i); } else { openResult(i); }
-    });
-    div.addEventListener('mouseenter', () => { state.selected = i; updateSelection(); requestPreview(); });
-    frag.appendChild(div);
+    let gi = seen.get(r.relativePath);
+    if (gi === undefined) {
+      gi = groups.length;
+      seen.set(r.relativePath, gi);
+      groups.push({ relativePath: r.relativePath, file: r.file, indices: [] });
+    }
+    groups[gi].indices.push(i);
   });
+
+  for (const group of groups) {
+    const lastSlash = group.relativePath.lastIndexOf('/');
+    const basename  = group.relativePath.slice(lastSlash + 1);
+    const dir       = group.relativePath.slice(0, lastSlash + 1);
+    const cnt       = group.indices.length;
+
+    const hdr = document.createElement('div');
+    hdr.className = 'file-group-header';
+    hdr.innerHTML =
+      '<span class="fgh-name">' + escHtml(basename) + '</span>' +
+      (dir ? '<span class="fgh-dir">' + escHtml(dir) + '</span>' : '') +
+      gitBadgeHtml(group.relativePath) +
+      '<span class="fgh-count">' + cnt + '</span>';
+    frag.appendChild(hdr);
+
+    for (const i of group.indices) {
+      const r = state.results[i];
+      const isMultiSel = state.multiSelected.has(i);
+      const div = document.createElement('div');
+      div.className = 'result result--grouped' +
+        (i === state.selected ? ' selected' : '') +
+        (isMultiSel ? ' multi-sel' : '');
+      div.dataset.index = String(i);
+      div.innerHTML =
+        '<span class="result-line">' + r.line + '</span>' +
+        '<div class="result-text">' + highlightMatch(r.text, r.matchStart, r.matchEnd) + '</div>';
+      div.addEventListener('click', (e) => {
+        if (e.ctrlKey) { toggleSelectResult(i); } else { openResult(i); }
+      });
+      div.addEventListener('mouseenter', () => { state.selected = i; updateSelection(); requestPreview(); });
+      frag.appendChild(div);
+    }
+  }
 
   wrap.appendChild(frag);
   const n = state.results.length;

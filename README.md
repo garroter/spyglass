@@ -30,7 +30,18 @@
 
 ---
 
-## 📸 Screenshots
+## Why Spyglass?
+
+VS Code's built-in search (`Ctrl+Shift+F`) is powerful but slow to use — it opens a sidebar panel, requires mouse clicks to navigate, and doesn't show a live preview. Spyglass is designed to keep your hands on the keyboard:
+
+- **One shortcut** to open, type, navigate, open — no mouse needed
+- **Live preview** updates as you move through results
+- **Unified interface** for text search, file search, and symbols — no switching panels
+- **Instant results** streaming from ripgrep, even in large projects
+
+---
+
+## 📸 Demo
 
 **Full-text search with live preview**
 
@@ -51,6 +62,7 @@
 ### 🔍 Search
 - **Full-text search** across the whole project powered by ripgrep (blazing fast)
 - **Streaming results** — matches appear instantly as ripgrep finds them, no waiting
+- **Results grouped by file** — sticky file header with match count; line numbers in a fixed column for easy scanning
 - **Fuzzy file search** — search by filename with character-level match highlighting
 - **Symbol search** — workspace symbols via LSP with color-coded kind badges (class, function, method…)
 - **Regex mode** toggle for power users
@@ -72,7 +84,7 @@
 - **Theme adaptive** — native look in any VS Code theme: dark, light, high contrast
 
 ### ⚡ Actions
-- **Find & Replace** — replace across all matched files instantly (with undo)
+- **Find & Replace** — replace across all matched files instantly, saved to disk automatically (with undo)
 - **Copy path** — copy the absolute path of the selected result
 - **Reveal in Explorer** — click the preview header to locate the file
 - **Open in split** — open any result beside the current editor
@@ -307,10 +319,16 @@ src/
   symbolSearch.ts    — LSP workspace symbol search
   workspaceUtils.ts  — path helpers (cwdForFile, makeRelative)
   webviewUtils.ts    — pure functions shared with tests (fuzzyScore, parseQueryInput)
+  webview/           — webview UI (TypeScript, bundled with esbuild)
+    main.ts          — entry point
+    state.ts         — UI state management
+    search.ts        — search logic
+    render.ts        — results rendering
+    preview.ts       — preview panel
+    events.ts        — keyboard/mouse event handlers
+    contextMenu.ts   — right-click context menu
+    highlight.ts     — syntax highlighting helpers
   test/              — unit tests (vitest)
-media/
-  webview.css        — panel styles
-  webview.js         — panel UI logic
 ```
 
 ---
