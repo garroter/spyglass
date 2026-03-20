@@ -53,6 +53,7 @@ export interface AppState {
   fileResults: FileResult[];
   symbolResults: SymbolResult[];
   fileList: RecentFile[] | null;
+  gitFiles: RecentFile[] | null;
   recentFiles: RecentFile[];
   gitStatus: Record<string, string>;
   selected: number;

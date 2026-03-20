@@ -9,6 +9,7 @@ export const state: AppState = {
   fileResults: [],
   symbolResults: [],
   fileList: null,
+  gitFiles: null,
   recentFiles: RECENT_FILES,
   gitStatus: {},
   selected: 0,

@@ -8,6 +8,7 @@
     fileResults: [],
     symbolResults: [],
     fileList: null,
+    gitFiles: null,
     recentFiles: RECENT_FILES,
     gitStatus: {},
     selected: 0,
@@ -61,10 +62,13 @@
 
   // src/webview/search.ts
   function isFileScope() {
-    return state.scope === "files" || state.scope === "recent";
+    return state.scope === "files" || state.scope === "recent" || state.scope === "git";
   }
   function isSymbolScope() {
     return state.scope === "symbols";
+  }
+  function isGitScope() {
+    return state.scope === "git";
   }
   function isTextScope() {
     return !isFileScope() && !isSymbolScope();
@@ -159,6 +163,17 @@
     if (state.scope === "recent") {
       filterFilesLocally(state.recentFiles, state.query);
       renderFn();
+      return;
+    }
+    if (state.scope === "git") {
+      if (state.gitFiles) {
+        filterFilesLocally(state.gitFiles, state.query);
+        renderFn();
+      } else {
+        state.searching = true;
+        renderFn();
+        searchTimer = setTimeout(() => vscode.postMessage({ type: "gitSearch" }), 50);
+      }
       return;
     }
     searchTimer = setTimeout(() => {
@@ -600,7 +615,7 @@
     return '<span class="git-badge git-badge--' + s + '">' + s + "</span>";
   }
   function renderTextResults() {
-    wrap.querySelectorAll(".result").forEach((el) => el.remove());
+    wrap.querySelectorAll(".result, .file-group-header").forEach((el) => el.remove());
     const MAX_RESULTS = window.__spyglass.MAX_RESULTS;
     if (state.searching && state.results.length === 0) {
       stateMsg.innerHTML = '<span class="spinner"></span>Searching\u2026';
@@ -655,26 +670,48 @@
       stateMsg.style.display = "none";
     }
     const frag = document.createDocumentFragment();
+    const groups = [];
+    const seen = /* @__PURE__ */ new Map();
     state.results.forEach((r, i) => {
-      const isMultiSel = state.multiSelected.has(i);
-      const div = document.createElement("div");
-      div.className = "result" + (i === state.selected ? " selected" : "") + (isMultiSel ? " multi-sel" : "");
-      div.dataset.index = String(i);
-      div.innerHTML = '<div class="result-header"><span class="result-file">' + escHtml(r.relativePath) + "</span>" + gitBadgeHtml(r.relativePath) + '<span class="result-line">:' + r.line + '</span></div><div class="result-text">' + highlightMatch(r.text, r.matchStart, r.matchEnd) + "</div>";
-      div.addEventListener("click", (e) => {
-        if (e.ctrlKey) {
-          toggleSelectResult(i);
-        } else {
-          openResult(i);
-        }
-      });
-      div.addEventListener("mouseenter", () => {
-        state.selected = i;
-        updateSelection();
-        requestPreview();
-      });
-      frag.appendChild(div);
+      let gi = seen.get(r.relativePath);
+      if (gi === void 0) {
+        gi = groups.length;
+        seen.set(r.relativePath, gi);
+        groups.push({ relativePath: r.relativePath, file: r.file, indices: [] });
+      }
+      groups[gi].indices.push(i);
     });
+    for (const group of groups) {
+      const lastSlash = group.relativePath.lastIndexOf("/");
+      const basename = group.relativePath.slice(lastSlash + 1);
+      const dir = group.relativePath.slice(0, lastSlash + 1);
+      const cnt = group.indices.length;
+      const hdr = document.createElement("div");
+      hdr.className = "file-group-header";
+      hdr.innerHTML = '<span class="fgh-name">' + escHtml(basename) + "</span>" + (dir ? '<span class="fgh-dir">' + escHtml(dir) + "</span>" : "") + gitBadgeHtml(group.relativePath) + '<span class="fgh-count">' + cnt + "</span>";
+      frag.appendChild(hdr);
+      for (const i of group.indices) {
+        const r = state.results[i];
+        const isMultiSel = state.multiSelected.has(i);
+        const div = document.createElement("div");
+        div.className = "result result--grouped" + (i === state.selected ? " selected" : "") + (isMultiSel ? " multi-sel" : "");
+        div.dataset.index = String(i);
+        div.innerHTML = '<span class="result-line">' + r.line + '</span><div class="result-text">' + highlightMatch(r.text, r.matchStart, r.matchEnd) + "</div>";
+        div.addEventListener("click", (e) => {
+          if (e.ctrlKey) {
+            toggleSelectResult(i);
+          } else {
+            openResult(i);
+          }
+        });
+        div.addEventListener("mouseenter", () => {
+          state.selected = i;
+          updateSelection();
+          requestPreview();
+        });
+        frag.appendChild(div);
+      }
+    }
     wrap.appendChild(frag);
     const n = state.results.length;
     const capped = !state.searching && n >= MAX_RESULTS;
@@ -691,10 +728,11 @@
       resultInfo.textContent = "\u2026";
       return;
     }
+    const GIT_LABEL = { M: "modified", A: "added", U: "untracked", D: "deleted", R: "renamed" };
     if (state.fileResults.length === 0) {
-      stateMsg.textContent = state.query ? "No files found." : state.scope === "recent" ? "No recent files yet." : "Start typing to search files...";
+      stateMsg.textContent = state.query ? "No files found." : state.scope === "recent" ? "No recent files yet." : state.scope === "git" ? "Working tree is clean \u2014 no changes." : "Start typing to search files...";
       stateMsg.style.display = "";
-      resultInfo.textContent = "0 files";
+      resultInfo.textContent = isGitScope() ? "0 changes" : "0 files";
       return;
     }
     stateMsg.style.display = "none";
@@ -709,7 +747,13 @@
       const div = document.createElement("div");
       div.className = "result" + (i === state.selected ? " selected" : "");
       div.dataset.index = String(i);
-      div.innerHTML = '<div class="result-header"><span class="result-file">' + highlightPositions(basename, bnPos) + "</span>" + gitBadgeHtml(r.relativePath) + "</div>" + (dir ? '<div class="result-text">' + highlightPositions(dir, dirPos) + "</div>" : "");
+      if (isGitScope()) {
+        const s = state.gitStatus[r.relativePath] ?? "M";
+        const label = GIT_LABEL[s] ?? s;
+        div.innerHTML = '<div class="result-header"><span class="git-status-pill git-badge--' + s + '">' + label + '</span><span class="result-file">' + highlightPositions(basename, bnPos) + "</span></div>" + (dir ? '<div class="result-text">' + highlightPositions(dir, dirPos) + "</div>" : "");
+      } else {
+        div.innerHTML = '<div class="result-header"><span class="result-file">' + highlightPositions(basename, bnPos) + "</span>" + gitBadgeHtml(r.relativePath) + "</div>" + (dir ? '<div class="result-text">' + highlightPositions(dir, dirPos) + "</div>" : "");
+      }
       div.addEventListener("click", () => openResult(i));
       div.addEventListener("mouseenter", () => {
         state.selected = i;
@@ -721,7 +765,7 @@
     wrap.appendChild(frag);
     const nf = state.fileResults.length;
     const cappedF = nf >= MAX_RESULTS;
-    resultInfo.textContent = nf + (cappedF ? "+" : "") + (state.scope === "recent" ? " recent file" : " file") + (nf !== 1 ? "s" : "");
+    resultInfo.textContent = nf + (cappedF ? "+" : "") + (state.scope === "recent" ? " recent file" : state.scope === "git" ? " change" : " file") + (nf !== 1 ? "s" : "");
     scrollToSelected();
     requestPreview();
   }
@@ -1004,11 +1048,14 @@
     return e.key.toLowerCase() === key && e.ctrlKey === ctrl && e.shiftKey === shift && e.altKey === alt;
   }
   var KB = window.__spyglass.KB;
-  var SCOPES = ["project", "openFiles", "files", "recent", "here", "symbols"];
+  var SCOPES = ["project", "openFiles", "files", "recent", "here", "symbols", "git"];
   function updateReplaceRowVisibility() {
     replaceRow.style.display = isTextScope() && state.replaceMode ? "" : "none";
   }
   function setScope(scope) {
+    if (scope === "git") {
+      state.gitFiles = null;
+    }
     state.scope = scope;
     state.selected = 0;
     state.multiSelected = /* @__PURE__ */ new Set();
@@ -1023,7 +1070,7 @@
     wordBtn.disabled = isFile || isSym;
     replaceBtn.disabled = isFile || isSym;
     updateReplaceRowVisibility();
-    queryEl.placeholder = scope === "files" ? "Search files by name..." : scope === "recent" ? "Filter recent files..." : scope === "symbols" ? "Search symbols..." : scope === "here" ? "query *.ts  \u2014 search in current dir..." : "query *.ts  \u2014 search in project...";
+    queryEl.placeholder = scope === "files" ? "Search files by name..." : scope === "recent" ? "Filter recent files..." : scope === "symbols" ? "Search symbols..." : scope === "here" ? "query *.ts  \u2014 search in current dir..." : scope === "git" ? "Filter changed files..." : "query *.ts  \u2014 search in project...";
     if (state.query || scope === "recent") {
       triggerSearch(render);
     } else {
@@ -1259,6 +1306,13 @@
           state.fileList = data.files;
           if (state.scope === "files") {
             filterFilesLocally(state.fileList, state.query);
+            render();
+          }
+          break;
+        case "gitFiles":
+          state.gitFiles = data.files;
+          if (isGitScope()) {
+            filterFilesLocally(state.gitFiles, state.query);
             render();
           }
           break;

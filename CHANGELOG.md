@@ -4,6 +4,7 @@
 
 ### Added
 - Text search results are now grouped by file — a sticky header shows the filename, directory, and match count badge for each group; line numbers are displayed in a fixed column beside each match
+- **Git scope** — new tab showing all files with uncommitted changes (modified, added, untracked, deleted, renamed); filter by typing, open and preview like any other scope; status shown as a colored pill badge beside each filename
 
 ### Fixed
 - Replace all now saves files to disk immediately — previously files were left with unsaved changes after replacing

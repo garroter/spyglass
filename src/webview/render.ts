@@ -1,7 +1,7 @@
 import { state } from './state';
 import { escHtml, highlightMatch, highlightPositions } from './highlight';
 import { wrap, stateMsg, resultInfo } from './dom';
-import { isFileScope, isSymbolScope } from './search';
+import { isFileScope, isSymbolScope, isGitScope } from './search';
 import { requestPreview, recentDefault } from './preview';
 
 import { vscode } from './vscode';
@@ -161,12 +161,16 @@ export function renderFileResults(): void {
     return;
   }
 
+  const GIT_LABEL: Record<string, string> = { M: 'modified', A: 'added', U: 'untracked', D: 'deleted', R: 'renamed' };
+
   if (state.fileResults.length === 0) {
     stateMsg.textContent = state.query
       ? 'No files found.'
-      : state.scope === 'recent' ? 'No recent files yet.' : 'Start typing to search files...';
+      : state.scope === 'recent' ? 'No recent files yet.'
+      : state.scope === 'git'   ? 'Working tree is clean — no changes.'
+      : 'Start typing to search files...';
     stateMsg.style.display = '';
-    resultInfo.textContent = '0 files';
+    resultInfo.textContent = isGitScope() ? '0 changes' : '0 files';
     return;
   }
 
@@ -183,12 +187,25 @@ export function renderFileResults(): void {
     const div = document.createElement('div');
     div.className = 'result' + (i === state.selected ? ' selected' : '');
     div.dataset.index = String(i);
-    div.innerHTML =
-      '<div class="result-header">' +
-        '<span class="result-file">' + highlightPositions(basename, bnPos) + '</span>' +
-        gitBadgeHtml(r.relativePath) +
-      '</div>' +
-      (dir ? '<div class="result-text">' + highlightPositions(dir, dirPos) + '</div>' : '');
+
+    if (isGitScope()) {
+      const s = state.gitStatus[r.relativePath] ?? 'M';
+      const label = GIT_LABEL[s] ?? s;
+      div.innerHTML =
+        '<div class="result-header">' +
+          '<span class="git-status-pill git-badge--' + s + '">' + label + '</span>' +
+          '<span class="result-file">' + highlightPositions(basename, bnPos) + '</span>' +
+        '</div>' +
+        (dir ? '<div class="result-text">' + highlightPositions(dir, dirPos) + '</div>' : '');
+    } else {
+      div.innerHTML =
+        '<div class="result-header">' +
+          '<span class="result-file">' + highlightPositions(basename, bnPos) + '</span>' +
+          gitBadgeHtml(r.relativePath) +
+        '</div>' +
+        (dir ? '<div class="result-text">' + highlightPositions(dir, dirPos) + '</div>' : '');
+    }
+
     div.addEventListener('click', () => openResult(i));
     div.addEventListener('mouseenter', () => { state.selected = i; updateSelection(); requestPreview(); });
     frag.appendChild(div);
@@ -197,7 +214,11 @@ export function renderFileResults(): void {
   wrap.appendChild(frag);
   const nf = state.fileResults.length;
   const cappedF = nf >= MAX_RESULTS;
-  resultInfo.textContent = nf + (cappedF ? '+' : '') + (state.scope === 'recent' ? ' recent file' : ' file') + (nf !== 1 ? 's' : '');
+  resultInfo.textContent = nf + (cappedF ? '+' : '') + (
+    state.scope === 'recent' ? ' recent file' :
+    state.scope === 'git'    ? ' change' :
+    ' file'
+  ) + (nf !== 1 ? 's' : '');
   scrollToSelected();
   requestPreview();
 }

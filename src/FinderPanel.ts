@@ -142,6 +142,9 @@ export class FinderPanel {
         case 'fileSearch':
           await this._runFileSearch();
           break;
+        case 'gitSearch':
+          await this._runGitSearch();
+          break;
         case 'symbolSearch':
           await this._runSymbolSearch(msg.query as string);
           break;
@@ -346,6 +349,29 @@ export class FinderPanel {
     this._post({ type: 'replaceApplied' });
   }
 
+  private async _runGitSearch(): Promise<void> {
+    if (this._cwdList.length === 0) {
+      this._post({ type: 'gitFiles', files: [] });
+      return;
+    }
+    const statuses = await loadGitStatus(this._cwdList);
+    const files = Object.keys(statuses).map(rel => {
+      let absFile: string;
+      if (this._cwdList.length <= 1) {
+        absFile = path.join(this._cwd, rel);
+      } else {
+        const slashIdx = rel.indexOf('/');
+        const folderName = slashIdx >= 0 ? rel.slice(0, slashIdx) : '';
+        const rest = slashIdx >= 0 ? rel.slice(slashIdx + 1) : rel;
+        const matchingCwd = this._cwdList.find(c => path.basename(c) === folderName) ?? this._cwd;
+        absFile = path.join(matchingCwd, rest);
+      }
+      return { file: absFile, rel };
+    });
+    this._post({ type: 'gitFiles', files });
+    this._post({ type: 'gitStatus', status: statuses });
+  }
+
   private async _runFileSearch(): Promise<void> {
     if (this._cwdList.length === 0) {
       this._post({ type: 'error', message: 'No workspace folder open.' });
@@ -507,6 +533,7 @@ export class FinderPanel {
   <button type="button" class="tab" data-scope="recent">Recent</button>
   <button type="button" class="tab" data-scope="here">Dir</button>
   <button type="button" class="tab" data-scope="symbols">Symbols</button>
+  <button type="button" class="tab" data-scope="git">Git</button>
 </div>
 
 <!-- Main layout -->

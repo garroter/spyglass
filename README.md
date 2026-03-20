@@ -71,7 +71,7 @@ VS Code's built-in search (`Ctrl+Shift+F`) is powerful but slow to use — it op
 - **Multi-root workspace** — searches and file listings span all workspace folders simultaneously
 
 ### 🗂️ Navigation
-- **6 search scopes** — Project, Open Files, Files, Recent, Dir, Symbols
+- **7 search scopes** — Project, Open Files, Files, Recent, Dir, Symbols, Git
 - **Recent files on open** — opens to recent files immediately, no empty screen
 - **Scope memory** — last used scope is restored when you reopen
 - **Dir scope** — search only within the directory of the active file
@@ -137,6 +137,7 @@ VS Code's built-in search (`Ctrl+Shift+F`) is powerful but slow to use — it op
 | **Recent** | Recently opened files, ordered by most recent |
 | **Dir** | Full-text search within the directory of the active file |
 | **Symbols** | Workspace symbol search via LSP (requires a language extension) |
+| **Git** | All files with uncommitted changes — modified, added, untracked, deleted, renamed |
 
 Switch between scopes with `Tab` while Spyglass is open.
 

@@ -3,8 +3,9 @@ import type { RecentFile, FileResult } from './types';
 
 import { vscode } from './vscode';
 
-export function isFileScope(): boolean   { return state.scope === 'files' || state.scope === 'recent'; }
+export function isFileScope(): boolean   { return state.scope === 'files' || state.scope === 'recent' || state.scope === 'git'; }
 export function isSymbolScope(): boolean { return state.scope === 'symbols'; }
+export function isGitScope(): boolean    { return state.scope === 'git'; }
 export function isTextScope(): boolean   { return !isFileScope() && !isSymbolScope(); }
 
 export function parseQueryInput(raw: string): { query: string; globFilter: string } {
@@ -79,6 +80,17 @@ export function triggerSearch(renderFn: () => void): void {
   if (state.scope === 'recent') {
     filterFilesLocally(state.recentFiles, state.query);
     renderFn();
+    return;
+  }
+  if (state.scope === 'git') {
+    if (state.gitFiles) {
+      filterFilesLocally(state.gitFiles, state.query);
+      renderFn();
+    } else {
+      state.searching = true;
+      renderFn();
+      searchTimer = setTimeout(() => vscode.postMessage({ type: 'gitSearch' }), 50);
+    }
     return;
   }
   searchTimer = setTimeout(() => {

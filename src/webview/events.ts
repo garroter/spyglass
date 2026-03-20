@@ -3,7 +3,7 @@ import {
   queryEl, regexBtn, caseBtn, wordBtn, replaceBtn, previewBtn,
   replaceRow, replaceAllBtn, tabs, previewHdr,
 } from './dom';
-import { isFileScope, isSymbolScope, isTextScope, parseQueryInput, triggerSearch, filterFilesLocally } from './search';
+import { isFileScope, isSymbolScope, isGitScope, isTextScope, parseQueryInput, triggerSearch, filterFilesLocally } from './search';
 import { clearPreview, togglePreview, requestPreview } from './preview';
 import { render, navigate, openResult, openResultInSplit, openAllSelected,
          toggleSelectResult, selectAll, copyCurrentPath } from './render';
@@ -25,13 +25,14 @@ function matchKey(e: KeyboardEvent, binding: string): boolean {
 }
 
 const KB = (window as any).__spyglass.KB;
-const SCOPES = ['project', 'openFiles', 'files', 'recent', 'here', 'symbols'];
+const SCOPES = ['project', 'openFiles', 'files', 'recent', 'here', 'symbols', 'git'];
 
 export function updateReplaceRowVisibility(): void {
   replaceRow.style.display = (isTextScope() && state.replaceMode) ? '' : 'none';
 }
 
 export function setScope(scope: string): void {
+  if (scope === 'git') { state.gitFiles = null; }
   state.scope = scope;
   state.selected = 0;
   state.multiSelected = new Set();
@@ -50,6 +51,7 @@ export function setScope(scope: string): void {
                       : scope === 'recent'  ? 'Filter recent files...'
                       : scope === 'symbols' ? 'Search symbols...'
                       : scope === 'here'    ? 'query *.ts  — search in current dir...'
+                      : scope === 'git'     ? 'Filter changed files...'
                       : 'query *.ts  — search in project...';
   if (state.query || scope === 'recent') {
     triggerSearch(render);
@@ -243,6 +245,13 @@ export function initMessages(): void {
         state.fileList = data.files;
         if (state.scope === 'files') {
           filterFilesLocally(state.fileList!, state.query);
+          render();
+        }
+        break;
+      case 'gitFiles':
+        state.gitFiles = data.files;
+        if (isGitScope()) {
+          filterFilesLocally(state.gitFiles!, state.query);
           render();
         }
         break;
