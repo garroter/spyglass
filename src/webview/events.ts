@@ -53,7 +53,7 @@ export function setScope(scope: string): void {
                       : scope === 'here'    ? 'query *.ts  — search in current dir...'
                       : scope === 'git'     ? 'Filter changed files...'
                       : 'query *.ts  — search in project...';
-  if (state.query || scope === 'recent') {
+  if (state.query || scope === 'recent' || scope === 'git') {
     triggerSearch(render);
   } else {
     state.results = [];

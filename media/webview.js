@@ -1071,7 +1071,7 @@
     replaceBtn.disabled = isFile || isSym;
     updateReplaceRowVisibility();
     queryEl.placeholder = scope === "files" ? "Search files by name..." : scope === "recent" ? "Filter recent files..." : scope === "symbols" ? "Search symbols..." : scope === "here" ? "query *.ts  \u2014 search in current dir..." : scope === "git" ? "Filter changed files..." : "query *.ts  \u2014 search in project...";
-    if (state.query || scope === "recent") {
+    if (state.query || scope === "recent" || scope === "git") {
       triggerSearch(render);
     } else {
       state.results = [];
