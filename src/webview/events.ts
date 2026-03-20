@@ -1,6 +1,6 @@
 import { state } from './state';
 import {
-  queryEl, regexBtn, caseBtn, wordBtn, replaceBtn, previewBtn,
+  queryEl, regexBtn, caseBtn, wordBtn, groupBtn, replaceBtn, previewBtn,
   replaceRow, replaceAllBtn, tabs, previewHdr,
 } from './dom';
 import { isFileScope, isSymbolScope, isGitScope, isTextScope, parseQueryInput, triggerSearch, filterFilesLocally } from './search';
@@ -46,6 +46,7 @@ export function setScope(scope: string): void {
   regexBtn.disabled   = isFile || isSym;
   caseBtn.disabled    = isFile || isSym;
   wordBtn.disabled    = isFile || isSym;
+  groupBtn.disabled   = isFile || isSym;
   replaceBtn.disabled = isFile || isSym;
   updateReplaceRowVisibility();
   queryEl.placeholder = scope === 'files'   ? 'Search files by name...'
@@ -93,6 +94,13 @@ function toggleWord(): void {
   if (state.query) { triggerSearch(render); }
 }
 
+function toggleGroup(): void {
+  state.groupResults = !state.groupResults;
+  groupBtn.classList.toggle('active', state.groupResults);
+  showToast(state.groupResults ? 'Grouped by file' : 'Flat list');
+  render();
+}
+
 function toggleReplaceMode(): void {
   state.replaceMode = !state.replaceMode;
   replaceBtn.classList.toggle('active', state.replaceMode);
@@ -134,6 +142,8 @@ export function initEvents(): void {
       e.preventDefault(); refreshGitScope(render);
     } else if (e.altKey && e.key === 'p') {
       e.preventDefault(); togglePin();
+    } else if (e.altKey && e.key === 'g') {
+      e.preventDefault(); toggleGroup();
     } else if (matchKey(e, KB.navigateDown)) {
       e.preventDefault(); navigate(1);
     } else if (matchKey(e, KB.navigateUp)) {
@@ -169,6 +179,7 @@ export function initEvents(): void {
     else if (e.altKey && e.key === 'y')        { e.preventDefault(); copyCurrentPath(); }
     else if (e.key === 'F5' && isGitScope())   { e.preventDefault(); refreshGitScope(render); }
     else if (e.altKey && e.key === 'p')        { e.preventDefault(); togglePin(); }
+    else if (e.altKey && e.key === 'g')        { e.preventDefault(); toggleGroup(); }
     else if (e.ctrlKey && e.key === ' ')       { e.preventDefault(); toggleSelectResult(state.selected); }
     else if (e.shiftKey && e.key === 'Enter')  { e.preventDefault(); openAllSelected(); }
     else if (e.ctrlKey && e.key === 'a')       { e.preventDefault(); selectAll(); }
@@ -184,6 +195,7 @@ export function initEvents(): void {
   regexBtn.addEventListener('click', toggleRegex);
   caseBtn.addEventListener('click', toggleCase);
   wordBtn.addEventListener('click', toggleWord);
+  groupBtn.addEventListener('click', toggleGroup);
   replaceBtn.addEventListener('click', toggleReplaceMode);
   previewBtn.addEventListener('click', togglePreview);
   replaceAllBtn.addEventListener('click', applyReplaceAll);

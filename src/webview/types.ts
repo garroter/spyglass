@@ -66,6 +66,7 @@ export interface AppState {
   wholeWord: boolean;
   globFilter: string;
   replaceMode: boolean;
+  groupResults: boolean;
   query: string;
   searching: boolean;
   showPreview: boolean;

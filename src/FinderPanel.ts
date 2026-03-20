@@ -511,6 +511,7 @@ export class FinderPanel {
   <button type="button" class="icon-btn" id="regex-btn" aria-label="Toggle regex">.*</button>
   <button type="button" class="icon-btn" id="case-btn" aria-label="Case sensitive" data-tooltip="Case sensitive — Alt+C">Aa</button>
   <button type="button" class="icon-btn" id="word-btn" aria-label="Whole word" data-tooltip="Whole word — Alt+W">\\b</button>
+  <button type="button" class="icon-btn" id="group-btn" aria-label="Group by file" data-tooltip="Group by file — Alt+G">▤</button>
   <button type="button" class="icon-btn" id="replace-btn" aria-label="Replace mode" data-tooltip="Replace mode — Alt+R">⇄</button>
   <button type="button" class="icon-btn active" id="preview-btn" aria-label="Toggle preview">⊡</button>
   <button type="button" class="icon-btn" id="help-btn" aria-label="Keyboard shortcuts" data-tooltip="Keyboard shortcuts">?</button>
@@ -574,6 +575,7 @@ export class FinderPanel {
   <div class="shortcut-row"><span>Toggle regex</span><div class="shortcut-keys"><kbd>Shift</kbd><kbd>Alt</kbd><kbd>R</kbd></div></div>
   <div class="shortcut-row"><span>Case sensitive</span><div class="shortcut-keys"><kbd>Alt</kbd><kbd>C</kbd></div></div>
   <div class="shortcut-row"><span>Whole word</span><div class="shortcut-keys"><kbd>Alt</kbd><kbd>W</kbd></div></div>
+  <div class="shortcut-row"><span>Group results by file</span><div class="shortcut-keys"><kbd>Alt</kbd><kbd>G</kbd></div></div>
   <div class="shortcut-row"><span>Replace mode</span><div class="shortcut-keys"><kbd>Alt</kbd><kbd>R</kbd></div></div>
   <div class="shortcut-row"><span>History prev / next</span><div class="shortcut-keys"><kbd>Ctrl</kbd><kbd>↑</kbd><kbd>↓</kbd></div></div>
   <h4>Selection</h4>

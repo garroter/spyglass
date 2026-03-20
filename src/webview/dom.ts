@@ -4,6 +4,7 @@ export const queryEl       = document.getElementById('query')        as HTMLInpu
 export const regexBtn      = document.getElementById('regex-btn')    as HTMLButtonElement;
 export const caseBtn       = document.getElementById('case-btn')     as HTMLButtonElement;
 export const wordBtn       = document.getElementById('word-btn')     as HTMLButtonElement;
+export const groupBtn      = document.getElementById('group-btn')    as HTMLButtonElement;
 export const replaceBtn    = document.getElementById('replace-btn')  as HTMLButtonElement;
 export const previewBtn    = document.getElementById('preview-btn')  as HTMLButtonElement;
 export const replaceRow    = document.getElementById('replace-row')  as HTMLElement;

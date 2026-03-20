@@ -20,6 +20,7 @@ export const state: AppState = {
   wholeWord: false,
   globFilter: '',
   replaceMode: false,
+  groupResults: false,
   query: '',
   searching: false,
   showPreview: true,

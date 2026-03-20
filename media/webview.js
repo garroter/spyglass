@@ -19,6 +19,7 @@
     wholeWord: false,
     globFilter: "",
     replaceMode: false,
+    groupResults: false,
     query: "",
     searching: false,
     showPreview: true,
@@ -34,6 +35,7 @@
   var regexBtn = document.getElementById("regex-btn");
   var caseBtn = document.getElementById("case-btn");
   var wordBtn = document.getElementById("word-btn");
+  var groupBtn = document.getElementById("group-btn");
   var replaceBtn = document.getElementById("replace-btn");
   var previewBtn = document.getElementById("preview-btn");
   var replaceRow = document.getElementById("replace-row");
@@ -684,34 +686,58 @@
       stateMsg.style.display = "none";
     }
     const frag = document.createDocumentFragment();
-    const groups = [];
-    const seen = /* @__PURE__ */ new Map();
-    state.results.forEach((r, i) => {
-      let gi = seen.get(r.relativePath);
-      if (gi === void 0) {
-        gi = groups.length;
-        seen.set(r.relativePath, gi);
-        groups.push({ relativePath: r.relativePath, file: r.file, indices: [] });
+    if (state.groupResults) {
+      const groups = [];
+      const seen = /* @__PURE__ */ new Map();
+      state.results.forEach((r, i) => {
+        let gi = seen.get(r.relativePath);
+        if (gi === void 0) {
+          gi = groups.length;
+          seen.set(r.relativePath, gi);
+          groups.push({ relativePath: r.relativePath, file: r.file, indices: [] });
+        }
+        groups[gi].indices.push(i);
+      });
+      for (const group of groups) {
+        const lastSlash = group.relativePath.lastIndexOf("/");
+        const basename = group.relativePath.slice(lastSlash + 1);
+        const dir = group.relativePath.slice(0, lastSlash + 1);
+        const cnt = group.indices.length;
+        const hdr = document.createElement("div");
+        hdr.className = "file-group-header";
+        const pinned = state.pinnedFiles.some((f) => f.file === group.file);
+        hdr.innerHTML = (pinned ? '<span class="pin-icon">\u2605</span>' : "") + '<span class="fgh-name">' + escHtml(basename) + "</span>" + (dir ? '<span class="fgh-dir">' + escHtml(dir) + "</span>" : "") + gitBadgeHtml(group.relativePath) + '<span class="fgh-count">' + cnt + "</span>";
+        frag.appendChild(hdr);
+        for (const i of group.indices) {
+          const r = state.results[i];
+          const isMultiSel = state.multiSelected.has(i);
+          const div = document.createElement("div");
+          div.className = "result result--grouped" + (i === state.selected ? " selected" : "") + (isMultiSel ? " multi-sel" : "");
+          div.dataset.index = String(i);
+          div.innerHTML = '<span class="result-line">' + r.line + '</span><div class="result-text">' + highlightMatch(r.text, r.matchStart, r.matchEnd) + "</div>";
+          div.addEventListener("click", (e) => {
+            if (e.ctrlKey) {
+              toggleSelectResult(i);
+            } else {
+              openResult(i);
+            }
+          });
+          div.addEventListener("mouseenter", () => {
+            state.selected = i;
+            updateSelection();
+            requestPreview();
+          });
+          frag.appendChild(div);
+        }
       }
-      groups[gi].indices.push(i);
-    });
-    for (const group of groups) {
-      const lastSlash = group.relativePath.lastIndexOf("/");
-      const basename = group.relativePath.slice(lastSlash + 1);
-      const dir = group.relativePath.slice(0, lastSlash + 1);
-      const cnt = group.indices.length;
-      const hdr = document.createElement("div");
-      hdr.className = "file-group-header";
-      const pinned = state.pinnedFiles.some((f) => f.file === group.file);
-      hdr.innerHTML = (pinned ? '<span class="pin-icon">\u2605</span>' : "") + '<span class="fgh-name">' + escHtml(basename) + "</span>" + (dir ? '<span class="fgh-dir">' + escHtml(dir) + "</span>" : "") + gitBadgeHtml(group.relativePath) + '<span class="fgh-count">' + cnt + "</span>";
-      frag.appendChild(hdr);
-      for (const i of group.indices) {
-        const r = state.results[i];
+    } else {
+      state.results.forEach((r, i) => {
         const isMultiSel = state.multiSelected.has(i);
+        const pinned = state.pinnedFiles.some((f) => f.file === r.file);
         const div = document.createElement("div");
-        div.className = "result result--grouped" + (i === state.selected ? " selected" : "") + (isMultiSel ? " multi-sel" : "");
+        div.className = "result" + (i === state.selected ? " selected" : "") + (isMultiSel ? " multi-sel" : "");
         div.dataset.index = String(i);
-        div.innerHTML = '<span class="result-line">' + r.line + '</span><div class="result-text">' + highlightMatch(r.text, r.matchStart, r.matchEnd) + "</div>";
+        div.innerHTML = '<div class="result-header">' + (pinned ? '<span class="pin-icon">\u2605</span>' : "") + '<span class="result-file">' + escHtml(r.relativePath) + "</span>" + gitBadgeHtml(r.relativePath) + '<span class="result-line">:' + r.line + '</span></div><div class="result-text">' + highlightMatch(r.text, r.matchStart, r.matchEnd) + "</div>";
         div.addEventListener("click", (e) => {
           if (e.ctrlKey) {
             toggleSelectResult(i);
@@ -725,7 +751,7 @@
           requestPreview();
         });
         frag.appendChild(div);
-      }
+      });
     }
     wrap.appendChild(frag);
     const n = state.results.length;
@@ -1191,6 +1217,7 @@
     regexBtn.disabled = isFile || isSym;
     caseBtn.disabled = isFile || isSym;
     wordBtn.disabled = isFile || isSym;
+    groupBtn.disabled = isFile || isSym;
     replaceBtn.disabled = isFile || isSym;
     updateReplaceRowVisibility();
     queryEl.placeholder = scope === "files" ? "Search files by name..." : scope === "recent" ? "Filter recent files..." : scope === "symbols" ? "Search symbols..." : scope === "here" ? "query *.ts  \u2014 search in current dir..." : scope === "git" ? "Filter changed files..." : "query *.ts  \u2014 search in project...";
@@ -1235,6 +1262,12 @@
     if (state.query) {
       triggerSearch(render);
     }
+  }
+  function toggleGroup() {
+    state.groupResults = !state.groupResults;
+    groupBtn.classList.toggle("active", state.groupResults);
+    showToast(state.groupResults ? "Grouped by file" : "Flat list");
+    render();
   }
   function toggleReplaceMode() {
     state.replaceMode = !state.replaceMode;
@@ -1283,6 +1316,9 @@
       } else if (e.altKey && e.key === "p") {
         e.preventDefault();
         togglePin();
+      } else if (e.altKey && e.key === "g") {
+        e.preventDefault();
+        toggleGroup();
       } else if (matchKey(e, KB.navigateDown)) {
         e.preventDefault();
         navigate(1);
@@ -1339,6 +1375,9 @@
       } else if (e.altKey && e.key === "p") {
         e.preventDefault();
         togglePin();
+      } else if (e.altKey && e.key === "g") {
+        e.preventDefault();
+        toggleGroup();
       } else if (e.ctrlKey && e.key === " ") {
         e.preventDefault();
         toggleSelectResult(state.selected);
@@ -1368,6 +1407,7 @@
     regexBtn.addEventListener("click", toggleRegex);
     caseBtn.addEventListener("click", toggleCase);
     wordBtn.addEventListener("click", toggleWord);
+    groupBtn.addEventListener("click", toggleGroup);
     replaceBtn.addEventListener("click", toggleReplaceMode);
     previewBtn.addEventListener("click", togglePreview);
     replaceAllBtn.addEventListener("click", applyReplaceAll);
