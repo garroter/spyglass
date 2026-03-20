@@ -582,9 +582,12 @@ export class FinderPanel {
   <div class="shortcut-row"><span>Select all</span><div class="shortcut-keys"><kbd>Ctrl</kbd><kbd>A</kbd></div></div>
   <div class="shortcut-row"><span>Open all selected</span><div class="shortcut-keys"><kbd>Shift</kbd><kbd>Enter</kbd></div></div>
   <div class="shortcut-row"><span>Copy path</span><div class="shortcut-keys"><kbd>Alt</kbd><kbd>Y</kbd></div></div>
+  <div class="shortcut-row"><span>Pin / Unpin file</span><div class="shortcut-keys"><kbd>Alt</kbd><kbd>P</kbd></div></div>
   <div class="shortcut-row"><span>Reveal in Explorer</span><div class="shortcut-keys"><kbd>click preview header</kbd></div></div>
   <h4>View</h4>
   <div class="shortcut-row"><span>Toggle preview</span><div class="shortcut-keys"><kbd>Shift</kbd><kbd>Alt</kbd><kbd>P</kbd></div></div>
+  <h4>Git</h4>
+  <div class="shortcut-row"><span>Refresh changed files</span><div class="shortcut-keys"><kbd>F5</kbd></div></div>
 </div>
 
 <!-- Context menu -->
