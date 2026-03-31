@@ -791,16 +791,6 @@ export class FinderPanel {
   <div class="shortcut-row"><span>Refresh changed files</span><div class="shortcut-keys"><kbd>F5</kbd></div></div>
 </div>
 
-<!-- Bookmarks overlay -->
-<div class="bookmarks-overlay" id="bookmarks-overlay">
-  <div class="bookmarks-header">
-    <span>Saved searches</span>
-    <button type="button" class="icon-btn" id="bookmarks-close-btn">✕</button>
-  </div>
-  <div id="bookmarks-list" class="bookmarks-list"></div>
-  <div class="bookmarks-empty" id="bookmarks-empty">No saved searches yet.<br>Press Alt+B to save current query.</div>
-</div>
-
 <!-- Context menu -->
 <div class="ctx-menu" id="ctx-menu">
   <div class="ctx-item" id="ctx-open"><span>Open</span><span class="ctx-hint">Enter</span></div>

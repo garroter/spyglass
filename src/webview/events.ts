@@ -3,13 +3,13 @@ import {
   queryEl, regexBtn, caseBtn, wordBtn, groupBtn, replaceBtn, previewBtn,
   replaceRow, replaceAllBtn, tabs, previewHdr,
   sortBtn, includeBtn, includeRow, includeInput,
-  bookmarksBtn, bookmarksOverlay, bookmarksList, bookmarksEmpty,
+  bookmarksBtn,
 } from './dom';
 import { isFileScope, isSymbolScope, isDocScope, isGitScope, isTextScope, isRefsScope, parseQueryInput, triggerSearch, filterFilesLocally } from './search';
 import { clearPreview, togglePreview, requestPreview } from './preview';
 import { render, navigate, openResult, openResultInSplit, openAllSelected,
          toggleSelectResult, selectAll, copyCurrentPath, refreshGitScope,
-         togglePin, isPinnedFile, showToast } from './render';
+         togglePin, isPinnedFile, showToast, renderBookmarkResults } from './render';
 import { hideCtxMenu } from './contextMenu';
 import { escHtml } from './highlight';
 
@@ -189,41 +189,15 @@ export function renderReplacePreview(files: Array<{ relativePath: string; change
   overlay.addEventListener('click', e => e.stopPropagation());
 }
 
-function renderBookmarks(): void {
-  bookmarksList.innerHTML = '';
-  const searches = state.savedSearches;
-  if (searches.length === 0) {
-    bookmarksEmpty.style.display = '';
-    return;
+function toggleBookmarksMode(): void {
+  state.bookmarksMode = !state.bookmarksMode;
+  state.selected = 0;
+  bookmarksBtn.classList.toggle('active', state.bookmarksMode);
+  if (state.bookmarksMode) {
+    renderBookmarkResults();
+  } else {
+    render();
   }
-  bookmarksEmpty.style.display = 'none';
-  searches.forEach((s, idx) => {
-    const row = document.createElement('div');
-    row.className = 'bookmark-row';
-    const label = document.createElement('button');
-    label.type = 'button';
-    label.className = 'bookmark-label';
-    label.textContent = s.query + '  (' + s.scope + ')';
-    label.addEventListener('click', () => {
-      bookmarksOverlay.classList.remove('visible');
-      bookmarksBtn.classList.remove('active');
-      setScope(s.scope);
-      queryEl.value = s.query;
-      state.query = s.query;
-      triggerSearch(render);
-    });
-    const removeBtn = document.createElement('button');
-    removeBtn.type = 'button';
-    removeBtn.className = 'bookmark-remove';
-    removeBtn.textContent = '✕';
-    removeBtn.addEventListener('click', (e) => {
-      e.stopPropagation();
-      vscode.postMessage({ type: 'removeSavedSearch', index: idx });
-    });
-    row.appendChild(label);
-    row.appendChild(removeBtn);
-    bookmarksList.appendChild(row);
-  });
 }
 
 function saveCurrentSearch(): void {
@@ -234,6 +208,10 @@ function saveCurrentSearch(): void {
 
 export function initEvents(): void {
   queryEl.addEventListener('input', () => {
+    if (state.bookmarksMode) {
+      state.bookmarksMode = false;
+      bookmarksBtn.classList.remove('active');
+    }
     const { query, globFilter } = parseQueryInput(queryEl.value);
     state.query = query;
     if (globFilter !== state.globFilter) { state.globFilter = globFilter; }
@@ -288,8 +266,12 @@ export function initEvents(): void {
       e.preventDefault(); toggleSort();
     } else if (e.altKey && e.key === 'b') {
       e.preventDefault(); saveCurrentSearch();
+    } else if (matchKey(e, KB.open) && state.bookmarksMode) {
+      e.preventDefault();
+      document.dispatchEvent(new CustomEvent('spyglass:applyBookmark', { detail: { index: state.selected } }));
     } else if (matchKey(e, KB.close)) {
-      if (state.includeMode) { e.preventDefault(); toggleIncludeMode(); }
+      if (state.bookmarksMode) { e.preventDefault(); toggleBookmarksMode(); }
+      else if (state.includeMode) { e.preventDefault(); toggleIncludeMode(); }
       else if (state.replaceMode) { e.preventDefault(); toggleReplaceMode(); }
       else { vscode.postMessage({ type: 'close' }); }
     }
@@ -297,6 +279,13 @@ export function initEvents(): void {
 
   document.addEventListener('keydown', (e) => {
     if (document.activeElement === queryEl) { return; }
+    if (state.bookmarksMode) {
+      if (matchKey(e, KB.navigateDown)) { e.preventDefault(); navigate(1); }
+      else if (matchKey(e, KB.navigateUp)) { e.preventDefault(); navigate(-1); }
+      else if (matchKey(e, KB.open)) { e.preventDefault(); document.dispatchEvent(new CustomEvent('spyglass:applyBookmark', { detail: { index: state.selected } })); }
+      else if (matchKey(e, KB.close)) { e.preventDefault(); toggleBookmarksMode(); }
+      return;
+    }
     if (matchKey(e, KB.navigateDown))         { e.preventDefault(); navigate(1); }
     else if (matchKey(e, KB.navigateUp))      { e.preventDefault(); navigate(-1); }
     else if (e.altKey && e.key === 'y')        { e.preventDefault(); copyCurrentPath(); }
@@ -359,8 +348,6 @@ export function initEvents(): void {
     const helpBtn = document.getElementById('help-btn')!;
     shortcutsOverlay.classList.remove('visible');
     helpBtn.classList.remove('active');
-    bookmarksOverlay.classList.remove('visible');
-    bookmarksBtn.classList.remove('active');
     const rpOverlay = document.getElementById('replace-preview-overlay');
     if (rpOverlay) { rpOverlay.classList.remove('visible'); }
     hideCtxMenu();
@@ -375,20 +362,23 @@ export function initEvents(): void {
     (e.currentTarget as HTMLElement).classList.toggle('active', overlay.classList.contains('visible'));
   });
 
-  bookmarksOverlay.addEventListener('click', e => e.stopPropagation());
+  bookmarksBtn.addEventListener('click', () => toggleBookmarksMode());
 
-  bookmarksBtn.addEventListener('click', (e) => {
-    e.stopPropagation();
-    renderBookmarks();
-    bookmarksOverlay.classList.toggle('visible');
-    bookmarksBtn.classList.toggle('active', bookmarksOverlay.classList.contains('visible'));
-  });
-
-  document.getElementById('bookmarks-close-btn')!.addEventListener('click', (e) => {
-    e.stopPropagation();
-    bookmarksOverlay.classList.remove('visible');
+  document.addEventListener('spyglass:applyBookmark', ((e: CustomEvent) => {
+    const idx = e.detail.index as number;
+    const s = state.savedSearches[idx];
+    if (!s) { return; }
+    state.bookmarksMode = false;
     bookmarksBtn.classList.remove('active');
-  });
+    setScope(s.scope);
+    queryEl.value = s.query;
+    state.query = s.query;
+    triggerSearch(render);
+  }) as EventListener);
+
+  document.addEventListener('spyglass:removeBookmark', ((e: CustomEvent) => {
+    vscode.postMessage({ type: 'removeSavedSearch', index: e.detail.index as number });
+  }) as EventListener);
 }
 
 export function initMessages(): void {
@@ -475,7 +465,7 @@ export function initMessages(): void {
         break;
       case 'savedSearches':
         state.savedSearches = data.searches;
-        if (bookmarksOverlay.classList.contains('visible')) { renderBookmarks(); }
+        if (state.bookmarksMode) { renderBookmarkResults(); }
         break;
       case 'replacePreviewData':
         renderReplacePreview(data.files);

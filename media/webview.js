@@ -32,7 +32,8 @@
     includeFilter: "",
     includeMode: false,
     symbolKindFilter: "",
-    savedSearches: (SAVED_SEARCHES ?? []).slice()
+    savedSearches: (SAVED_SEARCHES ?? []).slice(),
+    bookmarksMode: false
   };
 
   // src/webview/dom.ts
@@ -70,9 +71,6 @@
   var includeRow = document.getElementById("include-row");
   var includeInput = document.getElementById("include-input");
   var bookmarksBtn = document.getElementById("bookmarks-btn");
-  var bookmarksOverlay = document.getElementById("bookmarks-overlay");
-  var bookmarksList = document.getElementById("bookmarks-list");
-  var bookmarksEmpty = document.getElementById("bookmarks-empty");
 
   // src/webview/vscode.ts
   var vscode = acquireVsCodeApi();
@@ -634,13 +632,50 @@
 
   // src/webview/render.ts
   function render() {
-    if (isFileScope()) {
+    if (state.bookmarksMode) {
+      renderBookmarkResults();
+    } else if (isFileScope()) {
       renderFileResults();
     } else if (isSymbolScope()) {
       renderSymbolResults();
     } else {
       renderTextResults();
     }
+  }
+  function renderBookmarkResults() {
+    wrap.querySelectorAll(".result, .bookmark-mode-header").forEach((el) => el.remove());
+    stateMsg.style.display = "none";
+    const searches = state.savedSearches;
+    if (searches.length === 0) {
+      stateMsg.textContent = "No saved searches yet \u2014 press Alt+B to save current query.";
+      stateMsg.style.display = "";
+      resultInfo.textContent = "0 bookmarks";
+      return;
+    }
+    const frag = document.createDocumentFragment();
+    searches.forEach((s, i) => {
+      const div = document.createElement("div");
+      div.className = "result" + (i === state.selected ? " selected" : "");
+      div.dataset.index = String(i);
+      div.innerHTML = '<div class="result-header" style="flex:1;min-width:0"><span class="result-file">' + escHtml(s.query) + '</span><span class="bookmark-scope-tag">' + escHtml(s.scope) + '</span></div><button class="bookmark-remove-inline" title="Remove" data-idx="' + i + '">\u2715</button>';
+      div.addEventListener("click", (e) => {
+        const removeBtn = e.target.closest(".bookmark-remove-inline");
+        if (removeBtn) {
+          e.stopPropagation();
+          document.dispatchEvent(new CustomEvent("spyglass:removeBookmark", { detail: { index: i } }));
+        } else {
+          document.dispatchEvent(new CustomEvent("spyglass:applyBookmark", { detail: { index: i } }));
+        }
+      });
+      div.addEventListener("mouseenter", () => {
+        state.selected = i;
+        updateSelection();
+      });
+      frag.appendChild(div);
+    });
+    wrap.appendChild(frag);
+    resultInfo.textContent = searches.length + " bookmark" + (searches.length !== 1 ? "s" : "");
+    scrollToSelected();
   }
   function updateSelection() {
     wrap.querySelectorAll(".result").forEach((el, i) => {
@@ -1152,6 +1187,11 @@
     triggerSearch(renderFn);
   }
   function navigate(delta) {
+    if (state.bookmarksMode) {
+      state.selected = Math.max(0, Math.min(state.selected + delta, state.savedSearches.length - 1));
+      updateSelection();
+      return;
+    }
     const rd = recentDefault();
     const len = rd ? rd.length : isFileScope() ? state.fileResults.length : isSymbolScope() ? state.symbolResults.length : state.results.length;
     state.selected = Math.max(0, Math.min(state.selected + delta, len - 1));
@@ -1424,41 +1464,15 @@
     });
     overlay.addEventListener("click", (e) => e.stopPropagation());
   }
-  function renderBookmarks() {
-    bookmarksList.innerHTML = "";
-    const searches = state.savedSearches;
-    if (searches.length === 0) {
-      bookmarksEmpty.style.display = "";
-      return;
+  function toggleBookmarksMode() {
+    state.bookmarksMode = !state.bookmarksMode;
+    state.selected = 0;
+    bookmarksBtn.classList.toggle("active", state.bookmarksMode);
+    if (state.bookmarksMode) {
+      renderBookmarkResults();
+    } else {
+      render();
     }
-    bookmarksEmpty.style.display = "none";
-    searches.forEach((s, idx) => {
-      const row = document.createElement("div");
-      row.className = "bookmark-row";
-      const label = document.createElement("button");
-      label.type = "button";
-      label.className = "bookmark-label";
-      label.textContent = s.query + "  (" + s.scope + ")";
-      label.addEventListener("click", () => {
-        bookmarksOverlay.classList.remove("visible");
-        bookmarksBtn.classList.remove("active");
-        setScope(s.scope);
-        queryEl.value = s.query;
-        state.query = s.query;
-        triggerSearch(render);
-      });
-      const removeBtn = document.createElement("button");
-      removeBtn.type = "button";
-      removeBtn.className = "bookmark-remove";
-      removeBtn.textContent = "\u2715";
-      removeBtn.addEventListener("click", (e) => {
-        e.stopPropagation();
-        vscode.postMessage({ type: "removeSavedSearch", index: idx });
-      });
-      row.appendChild(label);
-      row.appendChild(removeBtn);
-      bookmarksList.appendChild(row);
-    });
   }
   function saveCurrentSearch() {
     if (!state.query.trim()) {
@@ -1469,6 +1483,10 @@
   }
   function initEvents() {
     queryEl.addEventListener("input", () => {
+      if (state.bookmarksMode) {
+        state.bookmarksMode = false;
+        bookmarksBtn.classList.remove("active");
+      }
       const { query, globFilter } = parseQueryInput(queryEl.value);
       state.query = query;
       if (globFilter !== state.globFilter) {
@@ -1543,8 +1561,14 @@
       } else if (e.altKey && e.key === "b") {
         e.preventDefault();
         saveCurrentSearch();
+      } else if (matchKey(e, KB.open) && state.bookmarksMode) {
+        e.preventDefault();
+        document.dispatchEvent(new CustomEvent("spyglass:applyBookmark", { detail: { index: state.selected } }));
       } else if (matchKey(e, KB.close)) {
-        if (state.includeMode) {
+        if (state.bookmarksMode) {
+          e.preventDefault();
+          toggleBookmarksMode();
+        } else if (state.includeMode) {
           e.preventDefault();
           toggleIncludeMode();
         } else if (state.replaceMode) {
@@ -1557,6 +1581,22 @@
     });
     document.addEventListener("keydown", (e) => {
       if (document.activeElement === queryEl) {
+        return;
+      }
+      if (state.bookmarksMode) {
+        if (matchKey(e, KB.navigateDown)) {
+          e.preventDefault();
+          navigate(1);
+        } else if (matchKey(e, KB.navigateUp)) {
+          e.preventDefault();
+          navigate(-1);
+        } else if (matchKey(e, KB.open)) {
+          e.preventDefault();
+          document.dispatchEvent(new CustomEvent("spyglass:applyBookmark", { detail: { index: state.selected } }));
+        } else if (matchKey(e, KB.close)) {
+          e.preventDefault();
+          toggleBookmarksMode();
+        }
         return;
       }
       if (matchKey(e, KB.navigateDown)) {
@@ -1662,8 +1702,6 @@
       const helpBtn2 = document.getElementById("help-btn");
       shortcutsOverlay2.classList.remove("visible");
       helpBtn2.classList.remove("active");
-      bookmarksOverlay.classList.remove("visible");
-      bookmarksBtn.classList.remove("active");
       const rpOverlay = document.getElementById("replace-preview-overlay");
       if (rpOverlay) {
         rpOverlay.classList.remove("visible");
@@ -1677,18 +1715,23 @@
       overlay.classList.toggle("visible");
       e.currentTarget.classList.toggle("active", overlay.classList.contains("visible"));
     });
-    bookmarksOverlay.addEventListener("click", (e) => e.stopPropagation());
-    bookmarksBtn.addEventListener("click", (e) => {
-      e.stopPropagation();
-      renderBookmarks();
-      bookmarksOverlay.classList.toggle("visible");
-      bookmarksBtn.classList.toggle("active", bookmarksOverlay.classList.contains("visible"));
-    });
-    document.getElementById("bookmarks-close-btn").addEventListener("click", (e) => {
-      e.stopPropagation();
-      bookmarksOverlay.classList.remove("visible");
+    bookmarksBtn.addEventListener("click", () => toggleBookmarksMode());
+    document.addEventListener("spyglass:applyBookmark", ((e) => {
+      const idx = e.detail.index;
+      const s = state.savedSearches[idx];
+      if (!s) {
+        return;
+      }
+      state.bookmarksMode = false;
       bookmarksBtn.classList.remove("active");
-    });
+      setScope(s.scope);
+      queryEl.value = s.query;
+      state.query = s.query;
+      triggerSearch(render);
+    }));
+    document.addEventListener("spyglass:removeBookmark", ((e) => {
+      vscode.postMessage({ type: "removeSavedSearch", index: e.detail.index });
+    }));
   }
   function initMessages() {
     const searchTook2 = document.getElementById("search-took");
@@ -1782,8 +1825,8 @@
           break;
         case "savedSearches":
           state.savedSearches = data.searches;
-          if (bookmarksOverlay.classList.contains("visible")) {
-            renderBookmarks();
+          if (state.bookmarksMode) {
+            renderBookmarkResults();
           }
           break;
         case "replacePreviewData":

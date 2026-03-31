@@ -34,4 +34,5 @@ export const state: AppState = {
   includeMode: false,
   symbolKindFilter: '',
   savedSearches: (SAVED_SEARCHES ?? []).slice(),
+  bookmarksMode: false,
 };

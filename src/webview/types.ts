@@ -82,4 +82,5 @@ export interface AppState {
   includeMode: boolean;
   symbolKindFilter: string;
   savedSearches: Array<{ query: string; scope: string }>;
+  bookmarksMode: boolean;
 }

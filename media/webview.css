@@ -585,81 +585,32 @@
   .sym-chip:hover  { opacity: 1; }
   .sym-chip.active { background: color-mix(in srgb, currentColor 18%, transparent); opacity: 1; font-weight: 700; }
 
-  /* ── Bookmarks overlay ───────────────────────────────────── */
-  .bookmarks-overlay {
-    display: none;
-    position: fixed;
-    bottom: calc(7vh + 38px);
-    right: calc((100vw - min(960px, 95vw)) / 2 + 10px);
-    background: var(--f-raised);
-    border: 1px solid var(--f-border);
-    border-radius: 10px;
-    box-shadow: 0 8px 32px var(--f-shadow);
-    padding: 0;
-    z-index: 100;
-    min-width: 280px;
-    max-width: 420px;
-    max-height: 320px;
-    overflow: hidden;
-    display: none;
-    flex-direction: column;
-  }
-  .bookmarks-overlay.visible { display: flex; }
-  .bookmarks-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 8px 14px 6px;
-    border-bottom: 1px solid var(--f-border-s);
-    font-size: 11px;
-    color: var(--f-dim);
+  /* ── Bookmarks inline results ────────────────────────────── */
+  .bookmark-scope-tag {
+    font-size: 9px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--f-accent);
+    opacity: 0.8;
     flex-shrink: 0;
+    margin-left: 6px;
   }
-  .bookmarks-list {
-    overflow-y: auto;
-    flex: 1;
-    scrollbar-width: thin;
-    scrollbar-color: var(--f-scrollbar) transparent;
-  }
-  .bookmarks-empty {
-    padding: 18px 16px;
-    text-align: center;
-    color: var(--f-dim);
-    font-size: 11px;
-    line-height: 1.6;
-  }
-  .bookmark-row {
-    display: flex;
-    align-items: center;
-    border-bottom: 1px solid var(--f-border-s);
-  }
-  .bookmark-row:last-child { border-bottom: none; }
-  .bookmark-label {
-    flex: 1;
-    background: transparent;
-    border: none;
-    color: var(--f-text);
-    font-family: inherit;
-    font-size: 11px;
-    padding: 7px 14px;
-    cursor: pointer;
-    text-align: left;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-  .bookmark-label:hover { background: var(--f-hover); }
-  .bookmark-remove {
+  .bookmark-remove-inline {
     background: transparent;
     border: none;
     color: var(--f-dim);
     font-family: inherit;
     font-size: 11px;
-    padding: 7px 10px;
+    padding: 0 10px;
     cursor: pointer;
     flex-shrink: 0;
+    opacity: 0;
+    transition: opacity 0.1s;
   }
-  .bookmark-remove:hover { color: var(--f-op); }
+  .result:hover .bookmark-remove-inline,
+  .result.selected .bookmark-remove-inline { opacity: 1; }
+  .bookmark-remove-inline:hover { color: var(--f-op); }
 
   /* ── Replace preview overlay ─────────────────────────────── */
   .replace-preview-overlay {

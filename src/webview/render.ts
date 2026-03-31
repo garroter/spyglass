@@ -8,9 +8,52 @@ import { requestPreview, recentDefault } from './preview';
 import { vscode } from './vscode';
 
 export function render(): void {
-  if (isFileScope())        { renderFileResults(); }
+  if (state.bookmarksMode)  { renderBookmarkResults(); }
+  else if (isFileScope())   { renderFileResults(); }
   else if (isSymbolScope()) { renderSymbolResults(); }
   else                      { renderTextResults(); }
+}
+
+export function renderBookmarkResults(): void {
+  wrap.querySelectorAll('.result, .bookmark-mode-header').forEach(el => el.remove());
+  stateMsg.style.display = 'none';
+
+  const searches = state.savedSearches;
+
+  if (searches.length === 0) {
+    stateMsg.textContent = 'No saved searches yet — press Alt+B to save current query.';
+    stateMsg.style.display = '';
+    resultInfo.textContent = '0 bookmarks';
+    return;
+  }
+
+  const frag = document.createDocumentFragment();
+  searches.forEach((s, i) => {
+    const div = document.createElement('div');
+    div.className = 'result' + (i === state.selected ? ' selected' : '');
+    div.dataset.index = String(i);
+    div.innerHTML =
+      '<div class="result-header" style="flex:1;min-width:0">' +
+        '<span class="result-file">' + escHtml(s.query) + '</span>' +
+        '<span class="bookmark-scope-tag">' + escHtml(s.scope) + '</span>' +
+      '</div>' +
+      '<button class="bookmark-remove-inline" title="Remove" data-idx="' + i + '">✕</button>';
+    div.addEventListener('click', (e) => {
+      const removeBtn = (e.target as HTMLElement).closest('.bookmark-remove-inline');
+      if (removeBtn) {
+        e.stopPropagation();
+        document.dispatchEvent(new CustomEvent('spyglass:removeBookmark', { detail: { index: i } }));
+      } else {
+        document.dispatchEvent(new CustomEvent('spyglass:applyBookmark', { detail: { index: i } }));
+      }
+    });
+    div.addEventListener('mouseenter', () => { state.selected = i; updateSelection(); });
+    frag.appendChild(div);
+  });
+
+  wrap.appendChild(frag);
+  resultInfo.textContent = searches.length + ' bookmark' + (searches.length !== 1 ? 's' : '');
+  scrollToSelected();
 }
 
 export function updateSelection(): void {
@@ -548,6 +591,11 @@ export function refreshGitScope(renderFn: () => void): void {
 }
 
 export function navigate(delta: number): void {
+  if (state.bookmarksMode) {
+    state.selected = Math.max(0, Math.min(state.selected + delta, state.savedSearches.length - 1));
+    updateSelection();
+    return;
+  }
   const rd = recentDefault();
   const len = rd ? rd.length
             : isFileScope() ? state.fileResults.length

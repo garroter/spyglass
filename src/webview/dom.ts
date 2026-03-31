@@ -34,6 +34,3 @@ export const includeBtn       = document.getElementById('include-btn')       as 
 export const includeRow       = document.getElementById('include-row')       as HTMLElement;
 export const includeInput     = document.getElementById('include-input')     as HTMLInputElement;
 export const bookmarksBtn     = document.getElementById('bookmarks-btn')     as HTMLButtonElement;
-export const bookmarksOverlay = document.getElementById('bookmarks-overlay') as HTMLElement;
-export const bookmarksList    = document.getElementById('bookmarks-list')    as HTMLElement;
-export const bookmarksEmpty   = document.getElementById('bookmarks-empty')   as HTMLElement;
