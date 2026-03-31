@@ -1,6 +1,6 @@
 import * as vscode from 'vscode';
 import * as path from 'path';
-import { searchWithRipgrep, listFilesWithRipgrep, isRipgrepAvailable, CancellableSearch } from './ripgrep';
+import { searchWithRipgrep, listFilesWithRipgrep, CancellableSearch } from './ripgrep';
 import hljs from 'highlight.js';
 import { Scope, KeyBindings } from './types';
 import { cwdForFile, makeRelative } from './workspaceUtils';
@@ -12,16 +12,14 @@ function getNonce(): string {
   return Array.from({ length: 32 }, () => chars[Math.floor(Math.random() * chars.length)]).join('');
 }
 
+export class SpyglassSidebarProvider implements vscode.WebviewViewProvider {
+  public static readonly viewType = 'spyglass.sidebarView';
 
-export class FinderPanel {
-  public static currentPanel: FinderPanel | undefined;
-
-  private readonly _panel: vscode.WebviewPanel;
-  private readonly _disposables: vscode.Disposable[] = [];
-  private _scope: Scope;
+  private _view?: vscode.WebviewView;
+  private _scope: Scope = 'project';
   private _cwd: string = '';
   private _cwdList: string[] = [];
-  private _fileCache: Array<{file: string, rel: string}> | null = null;
+  private _fileCache: Array<{ file: string; rel: string }> | null = null;
   private _fileCacheTime = 0;
   private static readonly FILE_CACHE_TTL = 60_000;
   private _searchSeq = 0;
@@ -31,105 +29,56 @@ export class FinderPanel {
   private _searchHistory: string[] = [];
   private _activeDir: string = '';
   private _activeFile: string = '';
-  private _context: vscode.ExtensionContext | null = null;
-  private _pendingReplace: any = null;
   private _activeCursorFile: string = '';
   private _activeCursorLine: number = 0;
   private _activeCursorChar: number = 0;
+  private _pendingReplace: any = null;
 
-  public static async createOrShow(context: vscode.ExtensionContext): Promise<void> {
-    const editor = vscode.window.activeTextEditor;
-    const selectedText = editor && !editor.selection.isEmpty
-      ? editor.document.getText(editor.selection).trim().split('\n')[0].trim()
-      : '';
+  constructor(private readonly _context: vscode.ExtensionContext) {}
 
-    if (FinderPanel.currentPanel) {
-      FinderPanel.currentPanel._panel.reveal();
-      if (selectedText) {
-        FinderPanel.currentPanel._post({ type: 'setQuery', query: selectedText });
-      } else {
-        FinderPanel.currentPanel._post({ type: 'focus' });
-      }
-      return;
-    }
+  public resolveWebviewView(
+    webviewView: vscode.WebviewView,
+    _context: vscode.WebviewViewResolveContext,
+    _token: vscode.CancellationToken,
+  ): void {
+    this._view = webviewView;
 
-    const rgOk = await isRipgrepAvailable();
-    if (!rgOk) {
-      vscode.window.showErrorMessage('Spyglass: bundled ripgrep failed to start. Try reinstalling the extension.');
-      return;
-    }
+    this._cwdList = vscode.workspace.workspaceFolders?.map(f => f.uri.fsPath) ?? [];
+    this._cwd = this._cwdList[0] ?? '';
+    this._recentFiles = this._context.workspaceState.get<string[]>('spyglass.recentFiles', []);
+    this._searchHistory = this._context.workspaceState.get<string[]>('spyglass.searchHistory', []);
 
-    const recentFiles = context.workspaceState.get<string[]>('spyglass.recentFiles', []);
-    const searchHistory = context.workspaceState.get<string[]>('spyglass.searchHistory', []);
-    const activeDir = editor?.document.uri.fsPath
-      ? path.dirname(editor.document.uri.fsPath)
-      : '';
-    const activeFile = editor?.document.uri.fsPath ?? '';
-    const activeCursorLine = editor?.selection.active.line ?? 0;
-    const activeCursorChar = editor?.selection.active.character ?? 0;
+    this._refreshActiveContext();
 
     const config = vscode.workspace.getConfiguration('spyglass');
     const validScopes: Scope[] = ['project', 'openFiles', 'files', 'recent', 'here', 'symbols', 'git', 'doc', 'refs'];
-    const lastScope = context.workspaceState.get<string>('spyglass.lastScope');
+    const lastScope = this._context.workspaceState.get<string>('spyglass.lastScope');
     const rawScope = lastScope ?? config.get<string>('defaultScope', 'project');
-    const defaultScope: Scope = validScopes.includes(rawScope as Scope) ? rawScope as Scope : 'project';
+    this._scope = validScopes.includes(rawScope as Scope) ? rawScope as Scope : 'project';
+
     const kb: KeyBindings = {
-      navigateDown:   config.get<string>('keybindings.navigateDown',   'ArrowDown'),
-      navigateUp:     config.get<string>('keybindings.navigateUp',     'ArrowUp'),
-      open:           config.get<string>('keybindings.open',           'Enter'),
-      close:          config.get<string>('keybindings.close',          'Escape'),
-      toggleRegex:    config.get<string>('keybindings.toggleRegex',    'shift+alt+r'),
-      togglePreview:  config.get<string>('keybindings.togglePreview',  'shift+alt+p'),
+      navigateDown:  config.get<string>('keybindings.navigateDown',  'ArrowDown'),
+      navigateUp:    config.get<string>('keybindings.navigateUp',    'ArrowUp'),
+      open:          config.get<string>('keybindings.open',          'Enter'),
+      close:         config.get<string>('keybindings.close',         'Escape'),
+      toggleRegex:   config.get<string>('keybindings.toggleRegex',   'shift+alt+r'),
+      togglePreview: config.get<string>('keybindings.togglePreview', 'shift+alt+p'),
     };
 
-    const openOnSide = config.get<boolean>('openOnSide', false);
-    const panel = vscode.window.createWebviewPanel(
-      'spyglass',
-      'Spyglass',
-      { viewColumn: openOnSide ? vscode.ViewColumn.Beside : vscode.ViewColumn.Active, preserveFocus: false },
-      {
-        enableScripts: true,
-        localResourceRoots: [vscode.Uri.joinPath(context.extensionUri, 'media')],
-      }
-    );
+    const maxResults = config.get<number>('maxResults', 200);
+    const pinnedFiles = this._context.workspaceState.get<string[]>('spyglass.pinnedFiles', []);
+    const groupResults = this._context.workspaceState.get<boolean>('spyglass.groupResults', false);
+    const savedSearches = this._context.workspaceState.get<Array<{ query: string; scope: string }>>('spyglass.savedSearches', []);
 
-    FinderPanel.currentPanel = new FinderPanel(panel, defaultScope, kb, selectedText, recentFiles, searchHistory, activeDir, activeFile, context, activeCursorLine, activeCursorChar);
-  }
+    webviewView.webview.options = {
+      enableScripts: true,
+      localResourceRoots: [vscode.Uri.joinPath(this._context.extensionUri, 'media')],
+    };
+    webviewView.webview.html = this._buildHtml(webviewView.webview, this._scope, kb, '', this._searchHistory, this._recentFiles, maxResults, pinnedFiles, groupResults, savedSearches);
 
-  private constructor(
-    panel: vscode.WebviewPanel,
-    defaultScope: Scope,
-    kb: KeyBindings,
-    initialQuery: string,
-    recentFiles: string[],
-    searchHistory: string[],
-    activeDir: string,
-    activeFile: string,
-    context: vscode.ExtensionContext,
-    activeCursorLine: number = 0,
-    activeCursorChar: number = 0,
-  ) {
-    this._panel = panel;
-    this._scope = defaultScope;
-    this._cwdList = vscode.workspace.workspaceFolders?.map(f => f.uri.fsPath) ?? [];
-    this._cwd = this._cwdList[0] ?? '';
-    this._recentFiles = recentFiles;
-    this._searchHistory = searchHistory;
-    this._activeDir = activeDir;
-    this._activeFile = activeFile;
-    this._activeCursorFile = activeFile;
-    this._activeCursorLine = activeCursorLine;
-    this._activeCursorChar = activeCursorChar;
-    this._context = context;
-    const maxResults = vscode.workspace.getConfiguration('spyglass').get<number>('maxResults', 200);
-    const pinnedFiles = context.workspaceState.get<string[]>('spyglass.pinnedFiles', []);
-    const groupResults = context.workspaceState.get<boolean>('spyglass.groupResults', false);
-    const savedSearches = context.workspaceState.get<Array<{query: string; scope: string}>>('spyglass.savedSearches', []);
-    this._panel.webview.html = this._buildHtml(defaultScope, kb, initialQuery, this._searchHistory, this._recentFiles, maxResults, pinnedFiles, groupResults, savedSearches);
-
-    // Warm file cache in background so Files tab is instant on first use
+    // Warm file cache in background
     if (this._cwdList.length > 0) {
-      const exclude = vscode.workspace.getConfiguration('spyglass').get<string[]>('exclude');
+      const exclude = config.get<string[]>('exclude');
       Promise.all(this._cwdList.map(cwd => listFilesWithRipgrep(cwd, exclude ?? undefined))).then(lists => {
         this._fileCache = lists.flatMap(files => files.map(f => ({ file: f, rel: this._makeRelative(f) })));
         this._fileCacheTime = Date.now();
@@ -138,9 +87,13 @@ export class FinderPanel {
       this._loadGitStatus();
     }
 
-    this._panel.onDidDispose(() => this.dispose(), null, this._disposables);
+    webviewView.onDidChangeVisibility(() => {
+      if (webviewView.visible) {
+        this._refreshActiveContext();
+      }
+    });
 
-    this._panel.webview.onDidReceiveMessage(async (msg) => {
+    webviewView.webview.onDidReceiveMessage(async (msg) => {
       switch (msg.type) {
         case 'search': {
           this._scope = msg.scope as Scope;
@@ -149,7 +102,7 @@ export class FinderPanel {
           const rawGlob = (msg.globFilter as string) || '';
           const mergedGlob = [rawGlob, includeFilter].filter(Boolean).join(',');
           const opts = { caseSensitive: !!msg.caseSensitive, wholeWord: !!msg.wholeWord, globFilter: mergedGlob };
-          if (query.trim() && this._context) {
+          if (query.trim()) {
             const hist = [query, ...this._searchHistory.filter(h => h !== query)].slice(0, 50);
             this._searchHistory = hist;
             this._context.workspaceState.update('spyglass.searchHistory', hist);
@@ -181,25 +134,24 @@ export class FinderPanel {
           break;
         case 'setPinnedFiles': {
           const files = (msg.files as { file: string; rel: string }[]).map(f => f.file);
-          await this._context!.workspaceState.update('spyglass.pinnedFiles', files);
+          await this._context.workspaceState.update('spyglass.pinnedFiles', files);
           break;
         }
         case 'setGroupResults':
-          await this._context!.workspaceState.update('spyglass.groupResults', msg.value as boolean);
+          await this._context.workspaceState.update('spyglass.groupResults', msg.value as boolean);
           break;
         case 'saveSearch': {
-          const searches = this._context!.workspaceState.get<Array<{query: string; scope: string}>>('spyglass.savedSearches', []);
+          const searches = this._context.workspaceState.get<Array<{ query: string; scope: string }>>('spyglass.savedSearches', []);
           const entry = { query: msg.query as string, scope: msg.scope as string };
-          // Deduplicate
           const updated = [entry, ...searches.filter(s => !(s.query === entry.query && s.scope === entry.scope))];
-          await this._context!.workspaceState.update('spyglass.savedSearches', updated);
+          await this._context.workspaceState.update('spyglass.savedSearches', updated);
           this._post({ type: 'savedSearches', searches: updated });
           break;
         }
         case 'removeSavedSearch': {
-          const searches2 = this._context!.workspaceState.get<Array<{query: string; scope: string}>>('spyglass.savedSearches', []);
+          const searches2 = this._context.workspaceState.get<Array<{ query: string; scope: string }>>('spyglass.savedSearches', []);
           const updated2 = searches2.filter((_, idx) => idx !== (msg.index as number));
-          await this._context!.workspaceState.update('spyglass.savedSearches', updated2);
+          await this._context.workspaceState.update('spyglass.savedSearches', updated2);
           this._post({ type: 'savedSearches', searches: updated2 });
           break;
         }
@@ -228,17 +180,29 @@ export class FinderPanel {
           break;
         case 'scopeChanged':
           this._scope = msg.scope as Scope;
-          this._context?.workspaceState.update('spyglass.lastScope', this._scope);
+          this._context.workspaceState.update('spyglass.lastScope', this._scope);
           break;
         case 'close':
-          this.dispose();
+          // Sidebar stays open — do nothing on Esc
           break;
       }
-    }, null, this._disposables);
+    });
+  }
+
+  private _refreshActiveContext(): void {
+    const editor = vscode.window.activeTextEditor;
+    if (editor?.document.uri.scheme === 'file') {
+      this._activeDir = path.dirname(editor.document.uri.fsPath);
+      this._activeFile = editor.document.uri.fsPath;
+      this._activeCursorFile = editor.document.uri.fsPath;
+      this._activeCursorLine = editor.selection.active.line;
+      this._activeCursorChar = editor.selection.active.character;
+    }
+    this._post({ type: 'focus' });
   }
 
   private _post(msg: object): void {
-    this._panel.webview.postMessage(msg);
+    this._view?.webview.postMessage(msg);
   }
 
   private async _runSearch(query: string, useRegex: boolean, opts?: { caseSensitive?: boolean; wholeWord?: boolean; globFilter?: string }): Promise<void> {
@@ -271,7 +235,6 @@ export class FinderPanel {
 
     const start = Date.now();
     try {
-      // openFiles uses absolute paths — single search suffices; otherwise search all folders
       const cwds = this._scope === 'openFiles' ? [this._cwd] : this._cwdList;
       const accumulated = new Map<string, import('./types').SearchResult[]>();
 
@@ -365,6 +328,63 @@ export class FinderPanel {
     }
   }
 
+  private async _runRefsSearch(): Promise<void> {
+    const seq = ++this._searchSeq;
+    if (!this._activeCursorFile) {
+      this._post({ type: 'results', results: [], query: '', took: 0 });
+      this._post({ type: 'error', message: 'No active file — open a file first.' });
+      return;
+    }
+    try {
+      const { promises: fsp } = await import('fs');
+
+      let symbolName = '';
+      try {
+        const src = await fsp.readFile(this._activeCursorFile, 'utf-8');
+        const line = src.split('\n')[this._activeCursorLine] ?? '';
+        const ch = this._activeCursorChar;
+        const before = line.slice(0, ch + 1).match(/[\w$]+$/)?.[0] ?? '';
+        const after  = line.slice(ch + 1).match(/^[\w$]*/)?.[0] ?? '';
+        symbolName = before + after;
+      } catch { /* ignore */ }
+
+      const uri = vscode.Uri.file(this._activeCursorFile);
+      const position = new vscode.Position(this._activeCursorLine, this._activeCursorChar);
+      const locs = await vscode.commands.executeCommand<vscode.Location[]>(
+        'vscode.executeReferenceProvider', uri, position
+      );
+      if (seq !== this._searchSeq) { return; }
+
+      if (!locs || locs.length === 0) {
+        this._post({ type: 'results', results: [], query: '', took: 0, refsSymbol: symbolName });
+        return;
+      }
+      const results: import('./types').SearchResult[] = [];
+      for (const loc of locs) {
+        const filePath = loc.uri.fsPath;
+        try {
+          const content = await fsp.readFile(filePath, 'utf-8');
+          const lines = content.split('\n');
+          const lineNum = loc.range.start.line + 1;
+          const text = lines[loc.range.start.line] ?? '';
+          results.push({
+            file: filePath,
+            relativePath: this._makeRelative(filePath),
+            line: lineNum,
+            text,
+            matchStart: loc.range.start.character,
+            matchEnd: loc.range.end.character,
+          });
+        } catch { /* skip */ }
+      }
+      if (seq !== this._searchSeq) { return; }
+      this._post({ type: 'results', results, query: '', took: 0, refsSymbol: symbolName });
+    } catch {
+      if (seq !== this._searchSeq) { return; }
+      this._post({ type: 'error', message: 'Reference search failed.' });
+    }
+  }
+
   private async _buildReplacePreview(msg: { query: string; replacement: string; useRegex: boolean; caseSensitive: boolean; wholeWord: boolean; globFilter: string; scope: string }): Promise<void> {
     let files: string[] | undefined;
     if (msg.scope === 'openFiles') {
@@ -400,7 +420,6 @@ export class FinderPanel {
       ? new RegExp(msg.query, msg.caseSensitive ? 'g' : 'gi')
       : new RegExp(msg.query.replace(/[.*+?^{}()|[\]\\$]/g, '\\$&'), msg.caseSensitive ? 'g' : 'gi');
 
-    // Group by file
     const fileGroups = new Map<string, typeof results>();
     for (const r of results) {
       const arr = fileGroups.get(r.file) ?? [];
@@ -430,63 +449,6 @@ export class FinderPanel {
     }
     this._pendingReplace = msg;
     this._post({ type: 'replacePreviewData', files: previewFiles });
-  }
-
-  private async _runRefsSearch(): Promise<void> {
-    const seq = ++this._searchSeq;
-    if (!this._activeCursorFile) {
-      this._post({ type: 'results', results: [], query: '', took: 0 });
-      this._post({ type: 'error', message: 'No active file — open a file first.' });
-      return;
-    }
-    try {
-      const { promises: fsp } = await import('fs');
-
-      // Extract word at cursor to show as label
-      let symbolName = '';
-      try {
-        const src = await fsp.readFile(this._activeCursorFile, 'utf-8');
-        const line = src.split('\n')[this._activeCursorLine] ?? '';
-        const ch = this._activeCursorChar;
-        const before = line.slice(0, ch + 1).match(/[\w$]+$/)?.[0] ?? '';
-        const after  = line.slice(ch + 1).match(/^[\w$]*/)?.[0] ?? '';
-        symbolName = before + after;
-      } catch { /* ignore */ }
-
-      const uri = vscode.Uri.file(this._activeCursorFile);
-      const position = new vscode.Position(this._activeCursorLine, this._activeCursorChar);
-      const locs = await vscode.commands.executeCommand<vscode.Location[]>(
-        'vscode.executeReferenceProvider', uri, position
-      );
-      if (seq !== this._searchSeq) { return; }
-      if (!locs || locs.length === 0) {
-        this._post({ type: 'results', results: [], query: '', took: 0, refsSymbol: symbolName });
-        return;
-      }
-      const results: import('./types').SearchResult[] = [];
-      for (const loc of locs) {
-        const filePath = loc.uri.fsPath;
-        try {
-          const content = await fsp.readFile(filePath, 'utf-8');
-          const lines = content.split('\n');
-          const lineNum = loc.range.start.line + 1;
-          const text = lines[loc.range.start.line] ?? '';
-          results.push({
-            file: filePath,
-            relativePath: this._makeRelative(filePath),
-            line: lineNum,
-            text,
-            matchStart: loc.range.start.character,
-            matchEnd: loc.range.end.character,
-          });
-        } catch { /* skip */ }
-      }
-      if (seq !== this._searchSeq) { return; }
-      this._post({ type: 'results', results, query: '', took: 0, refsSymbol: symbolName });
-    } catch {
-      if (seq !== this._searchSeq) { return; }
-      this._post({ type: 'error', message: 'Reference search failed.' });
-    }
   }
 
   private async _replaceAll(msg: { query: string; replacement: string; useRegex: boolean; caseSensitive: boolean; wholeWord: boolean; globFilter: string; scope: string }): Promise<void> {
@@ -571,7 +533,7 @@ export class FinderPanel {
     }
 
     const now = Date.now();
-    if (!this._fileCache || now - this._fileCacheTime > FinderPanel.FILE_CACHE_TTL) {
+    if (!this._fileCache || now - this._fileCacheTime > SpyglassSidebarProvider.FILE_CACHE_TTL) {
       const exclude = vscode.workspace.getConfiguration('spyglass').get<string[]>('exclude');
       const lists = await Promise.all(this._cwdList.map(cwd => listFilesWithRipgrep(cwd, exclude ?? undefined)));
       this._fileCache = lists.flatMap(files => files.map(f => ({ file: f, rel: this._makeRelative(f) })));
@@ -579,6 +541,20 @@ export class FinderPanel {
     }
 
     this._post({ type: 'fileList', files: this._fileCache });
+  }
+
+  private async _openFile(filePath: string, line: number): Promise<void> {
+    try {
+      const uri = vscode.Uri.file(filePath);
+      const doc = await vscode.workspace.openTextDocument(uri);
+      const editor = await vscode.window.showTextDocument(doc, { viewColumn: vscode.ViewColumn.One, preserveFocus: false });
+      const pos = new vscode.Position(Math.max(0, line - 1), 0);
+      editor.selection = new vscode.Selection(pos, pos);
+      editor.revealRange(new vscode.Range(pos, pos), vscode.TextEditorRevealType.InCenter);
+      // Do NOT dispose — sidebar stays open
+    } catch {
+      vscode.window.showErrorMessage(`Spyglass: Could not open file ${filePath}`);
+    }
   }
 
   private async _openFileInSplit(filePath: string, line: number): Promise<void> {
@@ -589,9 +565,9 @@ export class FinderPanel {
       const pos = new vscode.Position(Math.max(0, line - 1), 0);
       editor.selection = new vscode.Selection(pos, pos);
       editor.revealRange(new vscode.Range(pos, pos), vscode.TextEditorRevealType.InCenter);
-      this.dispose();
+      // Do NOT dispose — sidebar stays open
     } catch {
-      vscode.window.showErrorMessage(`Finder: Could not open file ${filePath}`);
+      vscode.window.showErrorMessage(`Spyglass: Could not open file ${filePath}`);
     }
   }
 
@@ -609,7 +585,6 @@ export class FinderPanel {
     const ext = path.extname(filePath).slice(1).toLowerCase();
     const relativePath = this._makeRelative(filePath);
     try {
-      // Use VSCode's document API so we see in-memory edits (e.g. after WorkspaceEdit)
       const uri = vscode.Uri.file(filePath);
       const doc = await vscode.workspace.openTextDocument(uri);
 
@@ -648,31 +623,20 @@ export class FinderPanel {
     }
   }
 
-  private async _openFile(filePath: string, line: number): Promise<void> {
-    try {
-      const uri = vscode.Uri.file(filePath);
-      const doc = await vscode.workspace.openTextDocument(uri);
-      const editor = await vscode.window.showTextDocument(doc);
-      const pos = new vscode.Position(Math.max(0, line - 1), 0);
-      editor.selection = new vscode.Selection(pos, pos);
-      editor.revealRange(new vscode.Range(pos, pos), vscode.TextEditorRevealType.InCenter);
-      this.dispose();
-    } catch {
-      vscode.window.showErrorMessage(`Finder: Could not open file ${filePath}`);
-    }
-  }
-
-  public dispose(): void {
-    FinderPanel.currentPanel = undefined;
-    this._panel.dispose();
-    this._disposables.forEach(d => d.dispose());
-    this._disposables.length = 0;
-  }
-
-  private _buildHtml(defaultScope: Scope, kb: KeyBindings, initialQuery: string = '', searchHistory: string[] = [], recentFiles: string[] = [], maxResults: number = 200, pinnedFiles: string[] = [], groupResults: boolean = false, savedSearches: Array<{query: string; scope: string}> = []): string {
+  private _buildHtml(
+    webview: vscode.Webview,
+    defaultScope: Scope,
+    kb: KeyBindings,
+    initialQuery: string = '',
+    searchHistory: string[] = [],
+    recentFiles: string[] = [],
+    maxResults: number = 200,
+    pinnedFiles: string[] = [],
+    groupResults: boolean = false,
+    savedSearches: Array<{ query: string; scope: string }> = [],
+  ): string {
     const nonce = getNonce();
-    const webview = this._panel.webview;
-    const extensionUri = this._context!.extensionUri;
+    const extensionUri = this._context.extensionUri;
     const cssUri = webview.asWebviewUri(vscode.Uri.joinPath(extensionUri, 'media', 'webview.css'));
     const jsUri  = webview.asWebviewUri(vscode.Uri.joinPath(extensionUri, 'media', 'webview.js'));
 

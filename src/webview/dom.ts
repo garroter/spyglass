@@ -34,4 +34,3 @@ export const includeBtn       = document.getElementById('include-btn')       as 
 export const includeRow       = document.getElementById('include-row')       as HTMLElement;
 export const includeInput     = document.getElementById('include-input')     as HTMLInputElement;
 export const bookmarksBtn     = document.getElementById('bookmarks-btn')     as HTMLButtonElement;
-export const openSideBtn      = document.getElementById('open-side-btn')     as HTMLButtonElement;

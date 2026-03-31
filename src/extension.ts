@@ -1,5 +1,6 @@
 import * as vscode from 'vscode';
 import { FinderPanel } from './FinderPanel';
+import { SpyglassSidebarProvider } from './SpyglassSidebarProvider';
 
 const MAX_RECENT = 100;
 const RECENT_KEY = 'spyglass.recentFiles';
@@ -29,6 +30,15 @@ export function activate(context: vscode.ExtensionContext): void {
     FinderPanel.createOrShow(context);
   });
   context.subscriptions.push(cmd);
+
+  const sidebarProvider = new SpyglassSidebarProvider(context);
+  context.subscriptions.push(
+    vscode.window.registerWebviewViewProvider(
+      SpyglassSidebarProvider.viewType,
+      sidebarProvider,
+      { webviewOptions: { retainContextWhenHidden: true } }
+    )
+  );
 }
 
 export function deactivate(): void {}

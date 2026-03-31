@@ -17,3 +17,4 @@ images/*.mp4
 images/*.webm
 images/*.gif
 images/*.svg
+!images/icon.svg

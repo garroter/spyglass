@@ -41,6 +41,24 @@
   "activationEvents": [],
   "main": "./out/extension.js",
   "contributes": {
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "spyglass-sidebar",
+          "title": "Spyglass",
+          "icon": "images/icon.svg"
+        }
+      ]
+    },
+    "views": {
+      "spyglass-sidebar": [
+        {
+          "id": "spyglass.sidebarView",
+          "name": "Spyglass",
+          "type": "webview"
+        }
+      ]
+    },
     "commands": [
       {
         "command": "spyglass.open",
