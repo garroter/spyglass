@@ -72,6 +72,8 @@
   var includeRow = document.getElementById("include-row");
   var includeInput = document.getElementById("include-input");
   var bookmarksBtn = document.getElementById("bookmarks-btn");
+  var moreBtn = document.getElementById("more-btn");
+  var secondaryToolbar = document.getElementById("secondary-toolbar");
 
   // src/webview/vscode.ts
   var vscode = acquireVsCodeApi();
@@ -1474,6 +1476,11 @@
     });
     overlay.addEventListener("click", (e) => e.stopPropagation());
   }
+  function toggleSecondaryToolbar() {
+    const visible = secondaryToolbar.style.display !== "none" && secondaryToolbar.style.display !== "";
+    secondaryToolbar.style.display = visible ? "none" : "flex";
+    moreBtn.classList.toggle("active", !visible);
+  }
   function toggleBookmarksMode() {
     state.bookmarksMode = !state.bookmarksMode;
     state.selected = 0;
@@ -1726,6 +1733,10 @@
       e.currentTarget.classList.toggle("active", overlay.classList.contains("visible"));
     });
     bookmarksBtn.addEventListener("click", () => toggleBookmarksMode());
+    moreBtn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      toggleSecondaryToolbar();
+    });
     document.addEventListener("spyglass:applyBookmark", ((e) => {
       const idx = e.detail.index;
       const s = state.savedSearches[idx];

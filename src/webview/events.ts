@@ -3,7 +3,7 @@ import {
   queryEl, regexBtn, caseBtn, wordBtn, groupBtn, replaceBtn, previewBtn,
   replaceRow, replaceAllBtn, tabs, previewHdr,
   sortBtn, includeBtn, includeRow, includeInput,
-  bookmarksBtn,
+  bookmarksBtn, moreBtn, secondaryToolbar,
 } from './dom';
 import { isFileScope, isSymbolScope, isDocScope, isGitScope, isTextScope, isRefsScope, parseQueryInput, triggerSearch, filterFilesLocally } from './search';
 import { clearPreview, togglePreview, requestPreview } from './preview';
@@ -190,6 +190,12 @@ export function renderReplacePreview(files: Array<{ relativePath: string; change
   overlay.addEventListener('click', e => e.stopPropagation());
 }
 
+function toggleSecondaryToolbar(): void {
+  const visible = secondaryToolbar.style.display !== 'none' && secondaryToolbar.style.display !== '';
+  secondaryToolbar.style.display = visible ? 'none' : 'flex';
+  moreBtn.classList.toggle('active', !visible);
+}
+
 function toggleBookmarksMode(): void {
   state.bookmarksMode = !state.bookmarksMode;
   state.selected = 0;
@@ -364,6 +370,7 @@ export function initEvents(): void {
   });
 
   bookmarksBtn.addEventListener('click', () => toggleBookmarksMode());
+  moreBtn.addEventListener('click', (e) => { e.stopPropagation(); toggleSecondaryToolbar(); });
 
   document.addEventListener('spyglass:applyBookmark', ((e: CustomEvent) => {
     const idx = e.detail.index as number;

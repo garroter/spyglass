@@ -72,6 +72,16 @@
 
   .search-icon { color: var(--f-dim); font-size: 15px; flex-shrink: 0; }
 
+  /* ── Secondary toolbar (hidden by default, toggled by ⋯) ───── */
+  .secondary-toolbar {
+    display: none;
+    align-items: center;
+    gap: 2px;
+    padding: 4px 14px;
+    border-bottom: 1px solid var(--f-border-s);
+    flex-shrink: 0;
+  }
+
   #query {
     flex: 1;
     background: transparent;
