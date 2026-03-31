@@ -72,6 +72,7 @@
   var includeRow = document.getElementById("include-row");
   var includeInput = document.getElementById("include-input");
   var bookmarksBtn = document.getElementById("bookmarks-btn");
+  var openSideBtn = document.getElementById("open-side-btn");
 
   // src/webview/vscode.ts
   var vscode = acquireVsCodeApi();
@@ -1726,6 +1727,7 @@
       e.currentTarget.classList.toggle("active", overlay.classList.contains("visible"));
     });
     bookmarksBtn.addEventListener("click", () => toggleBookmarksMode());
+    openSideBtn.addEventListener("click", () => vscode.postMessage({ type: "toggleSide" }));
     document.addEventListener("spyglass:applyBookmark", ((e) => {
       const idx = e.detail.index;
       const s = state.savedSearches[idx];
@@ -1844,6 +1846,10 @@
           break;
         case "replacePreviewData":
           renderReplacePreview(data.files);
+          break;
+        case "sideState":
+          openSideBtn.classList.toggle("active", data.isSide);
+          openSideBtn.dataset.tooltip = data.isSide ? "Move to main area" : "Move to side panel";
           break;
       }
     });

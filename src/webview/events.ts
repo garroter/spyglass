@@ -3,7 +3,7 @@ import {
   queryEl, regexBtn, caseBtn, wordBtn, groupBtn, replaceBtn, previewBtn,
   replaceRow, replaceAllBtn, tabs, previewHdr,
   sortBtn, includeBtn, includeRow, includeInput,
-  bookmarksBtn,
+  bookmarksBtn, openSideBtn,
 } from './dom';
 import { isFileScope, isSymbolScope, isDocScope, isGitScope, isTextScope, isRefsScope, parseQueryInput, triggerSearch, filterFilesLocally } from './search';
 import { clearPreview, togglePreview, requestPreview } from './preview';
@@ -364,6 +364,7 @@ export function initEvents(): void {
   });
 
   bookmarksBtn.addEventListener('click', () => toggleBookmarksMode());
+  openSideBtn.addEventListener('click', () => vscode.postMessage({ type: 'toggleSide' }));
 
   document.addEventListener('spyglass:applyBookmark', ((e: CustomEvent) => {
     const idx = e.detail.index as number;
@@ -471,6 +472,10 @@ export function initMessages(): void {
         break;
       case 'replacePreviewData':
         renderReplacePreview(data.files);
+        break;
+      case 'sideState':
+        openSideBtn.classList.toggle('active', data.isSide as boolean);
+        openSideBtn.dataset.tooltip = data.isSide ? 'Move to main area' : 'Move to side panel';
         break;
     }
   });

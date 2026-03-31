@@ -230,6 +230,14 @@ export class FinderPanel {
           this._scope = msg.scope as Scope;
           this._context?.workspaceState.update('spyglass.lastScope', this._scope);
           break;
+        case 'toggleSide': {
+          const isSide = this._panel.viewColumn !== vscode.ViewColumn.One
+                      && this._panel.viewColumn !== vscode.ViewColumn.Active;
+          const target = isSide ? vscode.ViewColumn.Active : vscode.ViewColumn.Beside;
+          this._panel.reveal(target, false);
+          this._post({ type: 'sideState', isSide: !isSide });
+          break;
+        }
         case 'close':
           this.dispose();
           break;
@@ -714,6 +722,7 @@ export class FinderPanel {
   <button type="button" class="icon-btn" id="include-btn" aria-label="Include filter" data-tooltip="Include filter — Alt+I">⊂</button>
   <button type="button" class="icon-btn" id="bookmarks-btn" aria-label="Saved searches" data-tooltip="Saved searches — Alt+B">★</button>
   <button type="button" class="icon-btn active" id="preview-btn" aria-label="Toggle preview">⊡</button>
+  <button type="button" class="icon-btn" id="open-side-btn" aria-label="Move to side" data-tooltip="Move to side panel">⊞</button>
   <button type="button" class="icon-btn" id="help-btn" aria-label="Keyboard shortcuts" data-tooltip="Keyboard shortcuts">?</button>
 </div>
 
