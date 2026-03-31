@@ -395,6 +395,18 @@
     min-width: 0;
   }
   #replace-input::placeholder { color: var(--f-ph); }
+  #include-input {
+    flex: 1;
+    background: transparent;
+    border: none;
+    outline: none;
+    color: var(--f-text);
+    font-family: inherit;
+    font-size: 13px;
+    caret-color: var(--f-accent);
+    min-width: 0;
+  }
+  #include-input::placeholder { color: var(--f-ph); }
 
   /* ── Multiselect indicator (left accent stripe) ──────────── */
   .result.multi-sel {
