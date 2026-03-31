@@ -2,6 +2,7 @@ import { state } from './state';
 import { escHtml, highlightMatch, highlightPositions } from './highlight';
 import { wrap, stateMsg, resultInfo } from './dom';
 import { isFileScope, isSymbolScope, isGitScope, triggerSearch } from './search';
+import type { SearchResult } from './types';
 import { requestPreview, recentDefault } from './preview';
 
 import { vscode } from './vscode';
@@ -94,12 +95,25 @@ export function renderTextResults(): void {
 
   const frag = document.createDocumentFragment();
 
+  // Sort results
+  let sortedResults = state.results;
+  if (state.sortBy !== 'default') {
+    sortedResults = state.results.slice();
+    if (state.sortBy === 'filename') {
+      sortedResults.sort((a, b) => a.relativePath.localeCompare(b.relativePath));
+    } else if (state.sortBy === 'count') {
+      const counts = new Map<string, number>();
+      for (const r of sortedResults) { counts.set(r.relativePath, (counts.get(r.relativePath) ?? 0) + 1); }
+      sortedResults.sort((a, b) => (counts.get(b.relativePath) ?? 0) - (counts.get(a.relativePath) ?? 0));
+    }
+  }
+
   if (state.groupResults) {
     // ── Grouped by file ────────────────────────────────────────
     type Group = { relativePath: string; file: string; indices: number[] };
     const groups: Group[] = [];
     const seen = new Map<string, number>();
-    state.results.forEach((r, i) => {
+    sortedResults.forEach((r, i) => {
       let gi = seen.get(r.relativePath);
       if (gi === undefined) {
         gi = groups.length;
@@ -127,7 +141,7 @@ export function renderTextResults(): void {
       frag.appendChild(hdr);
 
       for (const i of group.indices) {
-        const r = state.results[i];
+        const r = sortedResults[i];
         const isMultiSel = state.multiSelected.has(i);
         const div = document.createElement('div');
         div.className = 'result result--grouped' +
@@ -146,7 +160,7 @@ export function renderTextResults(): void {
     }
   } else {
     // ── Flat list ──────────────────────────────────────────────
-    state.results.forEach((r, i) => {
+    sortedResults.forEach((r, i) => {
       const isMultiSel = state.multiSelected.has(i);
       const pinned = state.pinnedFiles.some(f => f.file === r.file);
       const div = document.createElement('div');
@@ -172,6 +186,10 @@ export function renderTextResults(): void {
   const n = state.results.length;
   const capped = !state.searching && n >= MAX_RESULTS;
   resultInfo.textContent = n + (state.searching ? '…' : capped ? '+' : '') + ' result' + (n !== 1 ? 's' : '');
+  if (capped) {
+    stateMsg.textContent = 'Showing first ' + MAX_RESULTS + ' results — narrow your query to see more.';
+    stateMsg.style.display = '';
+  }
   scrollToSelected();
   requestPreview();
 }

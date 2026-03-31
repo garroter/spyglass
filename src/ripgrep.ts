@@ -53,7 +53,7 @@ export function searchWithRipgrep(
   let cancelled = false;
   let cancel = () => {};
 
-  const promise = new Promise<SearchResult[]>((resolve) => {
+  const promise = new Promise<SearchResult[]>((resolve, reject) => {
     const excludes = opts?.exclude ?? DEFAULT_EXCLUDES;
     const args: string[] = [
       '--json',
@@ -133,9 +133,9 @@ export function searchWithRipgrep(
       }
     });
 
-    rg.on('error', () => {
+    rg.on('error', (err) => {
       errored = true;
-      resolve([]);
+      reject(err);
     });
 
     rg.on('close', () => {

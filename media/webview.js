@@ -27,7 +27,10 @@
     searchHistory: INITIAL_HISTORY.slice(),
     historyIndex: -1,
     historyPreQuery: "",
-    currentPreviewFile: null
+    currentPreviewFile: null,
+    sortBy: "default",
+    includeFilter: "",
+    includeMode: false
   };
 
   // src/webview/dom.ts
@@ -60,6 +63,10 @@
   var ctxCopyRel = document.getElementById("ctx-copy-rel");
   var ctxReveal = document.getElementById("ctx-reveal");
   var ctxPin = document.getElementById("ctx-pin");
+  var sortBtn = document.getElementById("sort-btn");
+  var includeBtn = document.getElementById("include-btn");
+  var includeRow = document.getElementById("include-row");
+  var includeInput = document.getElementById("include-input");
 
   // src/webview/vscode.ts
   var vscode = acquireVsCodeApi();
@@ -69,7 +76,10 @@
     return state.scope === "files" || state.scope === "recent" || state.scope === "git";
   }
   function isSymbolScope() {
-    return state.scope === "symbols";
+    return state.scope === "symbols" || state.scope === "doc";
+  }
+  function isDocScope() {
+    return state.scope === "doc";
   }
   function isGitScope() {
     return state.scope === "git";
@@ -193,7 +203,11 @@
       return;
     }
     searchTimer = setTimeout(() => {
-      if (state.scope === "symbols") {
+      if (state.scope === "doc") {
+        state.searching = true;
+        renderFn();
+        vscode.postMessage({ type: "docSearch", query: state.query });
+      } else if (state.scope === "symbols") {
         state.searching = true;
         renderFn();
         vscode.postMessage({ type: "symbolSearch", query: state.query });
@@ -205,7 +219,8 @@
           scope: state.scope,
           caseSensitive: state.caseSensitive,
           wholeWord: state.wholeWord,
-          globFilter: state.globFilter
+          globFilter: state.globFilter,
+          includeFilter: state.includeFilter
         });
       }
     }, 180);
@@ -686,10 +701,23 @@
       stateMsg.style.display = "none";
     }
     const frag = document.createDocumentFragment();
+    let sortedResults = state.results;
+    if (state.sortBy !== "default") {
+      sortedResults = state.results.slice();
+      if (state.sortBy === "filename") {
+        sortedResults.sort((a, b) => a.relativePath.localeCompare(b.relativePath));
+      } else if (state.sortBy === "count") {
+        const counts = /* @__PURE__ */ new Map();
+        for (const r of sortedResults) {
+          counts.set(r.relativePath, (counts.get(r.relativePath) ?? 0) + 1);
+        }
+        sortedResults.sort((a, b) => (counts.get(b.relativePath) ?? 0) - (counts.get(a.relativePath) ?? 0));
+      }
+    }
     if (state.groupResults) {
       const groups = [];
       const seen = /* @__PURE__ */ new Map();
-      state.results.forEach((r, i) => {
+      sortedResults.forEach((r, i) => {
         let gi = seen.get(r.relativePath);
         if (gi === void 0) {
           gi = groups.length;
@@ -709,7 +737,7 @@
         hdr.innerHTML = (pinned ? '<span class="pin-icon">\u2605</span>' : "") + '<span class="fgh-name">' + escHtml(basename) + "</span>" + (dir ? '<span class="fgh-dir">' + escHtml(dir) + "</span>" : "") + gitBadgeHtml(group.relativePath) + '<span class="fgh-count">' + cnt + "</span>";
         frag.appendChild(hdr);
         for (const i of group.indices) {
-          const r = state.results[i];
+          const r = sortedResults[i];
           const isMultiSel = state.multiSelected.has(i);
           const div = document.createElement("div");
           div.className = "result result--grouped" + (i === state.selected ? " selected" : "") + (isMultiSel ? " multi-sel" : "");
@@ -731,7 +759,7 @@
         }
       }
     } else {
-      state.results.forEach((r, i) => {
+      sortedResults.forEach((r, i) => {
         const isMultiSel = state.multiSelected.has(i);
         const pinned = state.pinnedFiles.some((f) => f.file === r.file);
         const div = document.createElement("div");
@@ -757,6 +785,10 @@
     const n = state.results.length;
     const capped = !state.searching && n >= MAX_RESULTS;
     resultInfo.textContent = n + (state.searching ? "\u2026" : capped ? "+" : "") + " result" + (n !== 1 ? "s" : "");
+    if (capped) {
+      stateMsg.textContent = "Showing first " + MAX_RESULTS + " results \u2014 narrow your query to see more.";
+      stateMsg.style.display = "";
+    }
     scrollToSelected();
     requestPreview();
   }
@@ -1197,7 +1229,7 @@
     return e.key.toLowerCase() === key && e.ctrlKey === ctrl && e.shiftKey === shift && e.altKey === alt;
   }
   var KB = window.__spyglass.KB;
-  var SCOPES = ["project", "openFiles", "files", "recent", "here", "symbols", "git"];
+  var SCOPES = ["project", "openFiles", "files", "recent", "here", "symbols", "git", "doc"];
   function updateReplaceRowVisibility() {
     replaceRow.style.display = isTextScope() && state.replaceMode ? "" : "none";
   }
@@ -1219,8 +1251,9 @@
     wordBtn.disabled = isFile || isSym;
     groupBtn.disabled = isFile || isSym;
     replaceBtn.disabled = isFile || isSym;
+    sortBtn.disabled = isFile || isSym;
     updateReplaceRowVisibility();
-    queryEl.placeholder = scope === "files" ? "Search files by name..." : scope === "recent" ? "Filter recent files..." : scope === "symbols" ? "Search symbols..." : scope === "here" ? "query *.ts  \u2014 search in current dir..." : scope === "git" ? "Filter changed files..." : "query *.ts  \u2014 search in project...";
+    queryEl.placeholder = scope === "files" ? "Search files by name..." : scope === "recent" ? "Filter recent files..." : scope === "symbols" ? "Search workspace symbols..." : scope === "doc" ? "Filter document symbols..." : scope === "here" ? "query *.ts  \u2014 search in current dir..." : scope === "git" ? "Filter changed files..." : "query *.ts  \u2014 search in project...";
     if (state.query || scope === "recent" || scope === "git") {
       triggerSearch(render);
     } else {
@@ -1276,6 +1309,31 @@
     updateReplaceRowVisibility();
     if (state.replaceMode) {
       document.getElementById("replace-input").focus();
+    }
+  }
+  var SORT_CYCLE = ["default", "filename", "count"];
+  var SORT_LABELS = { default: "Sort: default", filename: "Sort: by filename", count: "Sort: by match count" };
+  var SORT_ICONS = { default: "\u21C5", filename: "\u2193A", count: "\u2193#" };
+  function toggleSort() {
+    const next = SORT_CYCLE[(SORT_CYCLE.indexOf(state.sortBy) + 1) % SORT_CYCLE.length];
+    state.sortBy = next;
+    sortBtn.textContent = SORT_ICONS[next];
+    sortBtn.dataset.tooltip = SORT_LABELS[next];
+    sortBtn.classList.toggle("active", next !== "default");
+    render();
+  }
+  function toggleIncludeMode() {
+    state.includeMode = !state.includeMode;
+    includeBtn.classList.toggle("active", state.includeMode);
+    includeRow.style.display = state.includeMode ? "" : "none";
+    if (state.includeMode) {
+      includeInput.focus();
+    } else if (state.includeFilter) {
+      state.includeFilter = "";
+      includeInput.value = "";
+      if (state.query) {
+        triggerSearch(render);
+      }
     }
   }
   function applyReplaceAll() {
@@ -1335,8 +1393,6 @@
       } else if (matchKey(e, KB.open)) {
         e.preventDefault();
         openResult(state.selected);
-      } else if (matchKey(e, KB.close)) {
-        vscode.postMessage({ type: "close" });
       } else if (e.key === "Tab") {
         e.preventDefault();
         setScope(SCOPES[(SCOPES.indexOf(state.scope) + 1) % SCOPES.length]);
@@ -1355,6 +1411,22 @@
       } else if (e.altKey && e.key === "r") {
         e.preventDefault();
         toggleReplaceMode();
+      } else if (e.altKey && e.key === "i") {
+        e.preventDefault();
+        toggleIncludeMode();
+      } else if (e.altKey && e.key === "s") {
+        e.preventDefault();
+        toggleSort();
+      } else if (matchKey(e, KB.close)) {
+        if (state.includeMode) {
+          e.preventDefault();
+          toggleIncludeMode();
+        } else if (state.replaceMode) {
+          e.preventDefault();
+          toggleReplaceMode();
+        } else {
+          vscode.postMessage({ type: "close" });
+        }
       }
     });
     document.addEventListener("keydown", (e) => {
@@ -1379,6 +1451,12 @@
       } else if (e.altKey && e.key === "l") {
         e.preventDefault();
         toggleGroup();
+      } else if (e.altKey && e.key === "i") {
+        e.preventDefault();
+        toggleIncludeMode();
+      } else if (e.altKey && e.key === "s") {
+        e.preventDefault();
+        toggleSort();
       } else if (e.ctrlKey && e.key === " ") {
         e.preventDefault();
         toggleSelectResult(state.selected);
@@ -1398,7 +1476,13 @@
         e.preventDefault();
         togglePreview();
       } else if (matchKey(e, KB.close)) {
-        vscode.postMessage({ type: "close" });
+        if (state.includeMode) {
+          toggleIncludeMode();
+        } else if (state.replaceMode) {
+          toggleReplaceMode();
+        } else {
+          vscode.postMessage({ type: "close" });
+        }
       } else if (e.key === "Tab") {
         e.preventDefault();
         setScope(SCOPES[(SCOPES.indexOf(state.scope) + 1) % SCOPES.length]);
@@ -1409,9 +1493,17 @@
     caseBtn.addEventListener("click", toggleCase);
     wordBtn.addEventListener("click", toggleWord);
     groupBtn.addEventListener("click", toggleGroup);
+    sortBtn.addEventListener("click", toggleSort);
     replaceBtn.addEventListener("click", toggleReplaceMode);
+    includeBtn.addEventListener("click", toggleIncludeMode);
     previewBtn.addEventListener("click", togglePreview);
     replaceAllBtn.addEventListener("click", applyReplaceAll);
+    includeInput.addEventListener("input", () => {
+      state.includeFilter = includeInput.value.trim();
+      if (state.query || isDocScope()) {
+        triggerSearch(render);
+      }
+    });
     previewHdr.addEventListener("click", () => {
       if (state.currentPreviewFile) {
         let absFile = null;
@@ -1501,6 +1593,7 @@
           render();
           break;
         case "symbolResults":
+        case "docResults":
           state.searching = false;
           state.symbolResults = data.results;
           state.selected = 0;

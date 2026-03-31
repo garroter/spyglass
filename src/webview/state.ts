@@ -29,4 +29,7 @@ export const state: AppState = {
   historyIndex: -1,
   historyPreQuery: '',
   currentPreviewFile: null,
+  sortBy: 'default' as 'default' | 'filename' | 'count',
+  includeFilter: '',
+  includeMode: false,
 };

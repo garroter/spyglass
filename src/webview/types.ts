@@ -76,4 +76,7 @@ export interface AppState {
   historyIndex: number;
   historyPreQuery: string;
   currentPreviewFile: string | null;
+  sortBy: 'default' | 'filename' | 'count';
+  includeFilter: string;
+  includeMode: boolean;
 }

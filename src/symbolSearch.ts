@@ -30,6 +30,34 @@ const KIND_LABELS: Record<number, string> = {
   [vscode.SymbolKind.TypeParameter]: 'type param',
 };
 
+export async function runDocSymbolSearch(
+  filePath: string,
+  makeRelative: (filePath: string) => string
+): Promise<SymbolResult[]> {
+  const uri = vscode.Uri.file(filePath);
+  const symbols = await vscode.commands.executeCommand<vscode.DocumentSymbol[]>(
+    'vscode.executeDocumentSymbolProvider', uri
+  );
+  if (!symbols?.length) { return []; }
+  const relativePath = makeRelative(filePath);
+  const results: SymbolResult[] = [];
+  function flatten(syms: vscode.DocumentSymbol[], container?: string): void {
+    for (const s of syms) {
+      results.push({
+        name: s.name,
+        kindLabel: KIND_LABELS[s.kind] ?? 'symbol',
+        file: filePath,
+        relativePath,
+        line: s.selectionRange.start.line + 1,
+        container,
+      });
+      if (s.children?.length) { flatten(s.children, s.name); }
+    }
+  }
+  flatten(symbols);
+  return results.slice(0, 500);
+}
+
 export async function runSymbolSearch(
   query: string,
   makeRelative: (filePath: string) => string

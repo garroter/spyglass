@@ -29,3 +29,7 @@ export const ctxCopyAbs    = document.getElementById('ctx-copy-abs') as HTMLElem
 export const ctxCopyRel    = document.getElementById('ctx-copy-rel') as HTMLElement;
 export const ctxReveal     = document.getElementById('ctx-reveal')   as HTMLElement;
 export const ctxPin        = document.getElementById('ctx-pin')       as HTMLElement;
+export const sortBtn       = document.getElementById('sort-btn')      as HTMLButtonElement;
+export const includeBtn    = document.getElementById('include-btn')   as HTMLButtonElement;
+export const includeRow    = document.getElementById('include-row')   as HTMLElement;
+export const includeInput  = document.getElementById('include-input') as HTMLInputElement;

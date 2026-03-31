@@ -4,7 +4,8 @@ import type { RecentFile, FileResult } from './types';
 import { vscode } from './vscode';
 
 export function isFileScope(): boolean   { return state.scope === 'files' || state.scope === 'recent' || state.scope === 'git'; }
-export function isSymbolScope(): boolean { return state.scope === 'symbols'; }
+export function isSymbolScope(): boolean { return state.scope === 'symbols' || state.scope === 'doc'; }
+export function isDocScope(): boolean    { return state.scope === 'doc'; }
 export function isGitScope(): boolean    { return state.scope === 'git'; }
 export function isTextScope(): boolean   { return !isFileScope() && !isSymbolScope(); }
 
@@ -110,7 +111,11 @@ export function triggerSearch(renderFn: () => void): void {
     return;
   }
   searchTimer = setTimeout(() => {
-    if (state.scope === 'symbols') {
+    if (state.scope === 'doc') {
+      state.searching = true;
+      renderFn();
+      vscode.postMessage({ type: 'docSearch', query: state.query });
+    } else if (state.scope === 'symbols') {
       state.searching = true;
       renderFn();
       vscode.postMessage({ type: 'symbolSearch', query: state.query });
@@ -123,6 +128,7 @@ export function triggerSearch(renderFn: () => void): void {
         caseSensitive: state.caseSensitive,
         wholeWord: state.wholeWord,
         globFilter: state.globFilter,
+        includeFilter: state.includeFilter,
       });
     }
   }, 180);

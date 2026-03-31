@@ -2,8 +2,9 @@ import { state } from './state';
 import {
   queryEl, regexBtn, caseBtn, wordBtn, groupBtn, replaceBtn, previewBtn,
   replaceRow, replaceAllBtn, tabs, previewHdr,
+  sortBtn, includeBtn, includeRow, includeInput,
 } from './dom';
-import { isFileScope, isSymbolScope, isGitScope, isTextScope, parseQueryInput, triggerSearch, filterFilesLocally } from './search';
+import { isFileScope, isSymbolScope, isDocScope, isGitScope, isTextScope, parseQueryInput, triggerSearch, filterFilesLocally } from './search';
 import { clearPreview, togglePreview, requestPreview } from './preview';
 import { render, navigate, openResult, openResultInSplit, openAllSelected,
          toggleSelectResult, selectAll, copyCurrentPath, refreshGitScope,
@@ -26,7 +27,7 @@ function matchKey(e: KeyboardEvent, binding: string): boolean {
 }
 
 const KB = (window as any).__spyglass.KB;
-const SCOPES = ['project', 'openFiles', 'files', 'recent', 'here', 'symbols', 'git'];
+const SCOPES = ['project', 'openFiles', 'files', 'recent', 'here', 'symbols', 'git', 'doc'];
 
 export function updateReplaceRowVisibility(): void {
   replaceRow.style.display = (isTextScope() && state.replaceMode) ? '' : 'none';
@@ -48,10 +49,12 @@ export function setScope(scope: string): void {
   wordBtn.disabled    = isFile || isSym;
   groupBtn.disabled   = isFile || isSym;
   replaceBtn.disabled = isFile || isSym;
+  sortBtn.disabled    = isFile || isSym;
   updateReplaceRowVisibility();
   queryEl.placeholder = scope === 'files'   ? 'Search files by name...'
                       : scope === 'recent'  ? 'Filter recent files...'
-                      : scope === 'symbols' ? 'Search symbols...'
+                      : scope === 'symbols' ? 'Search workspace symbols...'
+                      : scope === 'doc'     ? 'Filter document symbols...'
                       : scope === 'here'    ? 'query *.ts  — search in current dir...'
                       : scope === 'git'     ? 'Filter changed files...'
                       : 'query *.ts  — search in project...';
@@ -109,6 +112,32 @@ function toggleReplaceMode(): void {
   if (state.replaceMode) { (document.getElementById('replace-input') as HTMLInputElement).focus(); }
 }
 
+const SORT_CYCLE: Array<'default' | 'filename' | 'count'> = ['default', 'filename', 'count'];
+const SORT_LABELS: Record<string, string> = { default: 'Sort: default', filename: 'Sort: by filename', count: 'Sort: by match count' };
+const SORT_ICONS:  Record<string, string> = { default: '⇅', filename: '↓A', count: '↓#' };
+
+function toggleSort(): void {
+  const next = SORT_CYCLE[(SORT_CYCLE.indexOf(state.sortBy) + 1) % SORT_CYCLE.length];
+  state.sortBy = next;
+  sortBtn.textContent = SORT_ICONS[next];
+  sortBtn.dataset.tooltip = SORT_LABELS[next];
+  sortBtn.classList.toggle('active', next !== 'default');
+  render();
+}
+
+function toggleIncludeMode(): void {
+  state.includeMode = !state.includeMode;
+  includeBtn.classList.toggle('active', state.includeMode);
+  includeRow.style.display = state.includeMode ? '' : 'none';
+  if (state.includeMode) {
+    includeInput.focus();
+  } else if (state.includeFilter) {
+    state.includeFilter = '';
+    includeInput.value = '';
+    if (state.query) { triggerSearch(render); }
+  }
+}
+
 function applyReplaceAll(): void {
   vscode.postMessage({
     type: 'replaceAll',
@@ -155,8 +184,6 @@ export function initEvents(): void {
       e.preventDefault(); openResultInSplit(state.selected);
     } else if (matchKey(e, KB.open)) {
       e.preventDefault(); openResult(state.selected);
-    } else if (matchKey(e, KB.close)) {
-      vscode.postMessage({ type: 'close' });
     } else if (e.key === 'Tab') {
       e.preventDefault();
       setScope(SCOPES[(SCOPES.indexOf(state.scope) + 1) % SCOPES.length]);
@@ -170,6 +197,14 @@ export function initEvents(): void {
       e.preventDefault(); toggleWord();
     } else if (e.altKey && e.key === 'r') {
       e.preventDefault(); toggleReplaceMode();
+    } else if (e.altKey && e.key === 'i') {
+      e.preventDefault(); toggleIncludeMode();
+    } else if (e.altKey && e.key === 's') {
+      e.preventDefault(); toggleSort();
+    } else if (matchKey(e, KB.close)) {
+      if (state.includeMode) { e.preventDefault(); toggleIncludeMode(); }
+      else if (state.replaceMode) { e.preventDefault(); toggleReplaceMode(); }
+      else { vscode.postMessage({ type: 'close' }); }
     }
   });
 
@@ -181,13 +216,19 @@ export function initEvents(): void {
     else if (e.key === 'F5' && isGitScope())   { e.preventDefault(); refreshGitScope(render); }
     else if (e.altKey && e.key === 'p')        { e.preventDefault(); togglePin(); }
     else if (e.altKey && e.key === 'l')        { e.preventDefault(); toggleGroup(); }
+    else if (e.altKey && e.key === 'i')        { e.preventDefault(); toggleIncludeMode(); }
+    else if (e.altKey && e.key === 's')        { e.preventDefault(); toggleSort(); }
     else if (e.ctrlKey && e.key === ' ')       { e.preventDefault(); toggleSelectResult(state.selected); }
     else if (e.shiftKey && e.key === 'Enter')  { e.preventDefault(); openAllSelected(); }
     else if (e.ctrlKey && e.key === 'a')       { e.preventDefault(); selectAll(); }
     else if (e.ctrlKey && e.key === 'Enter')   { e.preventDefault(); openResultInSplit(state.selected); }
     else if (matchKey(e, KB.open))             { e.preventDefault(); openResult(state.selected); }
     else if (matchKey(e, KB.togglePreview))    { e.preventDefault(); togglePreview(); }
-    else if (matchKey(e, KB.close))            { vscode.postMessage({ type: 'close' }); }
+    else if (matchKey(e, KB.close)) {
+      if (state.includeMode) { toggleIncludeMode(); }
+      else if (state.replaceMode) { toggleReplaceMode(); }
+      else { vscode.postMessage({ type: 'close' }); }
+    }
     else if (e.key === 'Tab')                  { e.preventDefault(); setScope(SCOPES[(SCOPES.indexOf(state.scope) + 1) % SCOPES.length]); }
   });
 
@@ -197,9 +238,16 @@ export function initEvents(): void {
   caseBtn.addEventListener('click', toggleCase);
   wordBtn.addEventListener('click', toggleWord);
   groupBtn.addEventListener('click', toggleGroup);
+  sortBtn.addEventListener('click', toggleSort);
   replaceBtn.addEventListener('click', toggleReplaceMode);
+  includeBtn.addEventListener('click', toggleIncludeMode);
   previewBtn.addEventListener('click', togglePreview);
   replaceAllBtn.addEventListener('click', applyReplaceAll);
+
+  includeInput.addEventListener('input', () => {
+    state.includeFilter = includeInput.value.trim();
+    if (state.query || isDocScope()) { triggerSearch(render); }
+  });
 
   previewHdr.addEventListener('click', () => {
     if (state.currentPreviewFile) {
@@ -284,6 +332,7 @@ export function initMessages(): void {
         render();
         break;
       case 'symbolResults':
+      case 'docResults':
         state.searching = false;
         state.symbolResults = data.results;
         state.selected = 0;

@@ -5,7 +5,7 @@ import hljs from 'highlight.js';
 import { Scope, KeyBindings } from './types';
 import { cwdForFile, makeRelative } from './workspaceUtils';
 import { loadGitStatus, getChangedLines, relToAbsolute } from './gitUtils';
-import { runSymbolSearch } from './symbolSearch';
+import { runSymbolSearch, runDocSymbolSearch } from './symbolSearch';
 
 function getNonce(): string {
   const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
@@ -30,6 +30,7 @@ export class FinderPanel {
   private _recentFiles: string[] = [];
   private _searchHistory: string[] = [];
   private _activeDir: string = '';
+  private _activeFile: string = '';
   private _context: vscode.ExtensionContext | null = null;
 
   public static async createOrShow(context: vscode.ExtensionContext): Promise<void> {
@@ -59,6 +60,7 @@ export class FinderPanel {
     const activeDir = editor?.document.uri.fsPath
       ? path.dirname(editor.document.uri.fsPath)
       : '';
+    const activeFile = editor?.document.uri.fsPath ?? '';
 
     const config = vscode.workspace.getConfiguration('spyglass');
     const validScopes: Scope[] = ['project', 'openFiles', 'files', 'recent', 'here', 'symbols', 'git'];
@@ -84,7 +86,7 @@ export class FinderPanel {
       }
     );
 
-    FinderPanel.currentPanel = new FinderPanel(panel, defaultScope, kb, selectedText, recentFiles, searchHistory, activeDir, context);
+    FinderPanel.currentPanel = new FinderPanel(panel, defaultScope, kb, selectedText, recentFiles, searchHistory, activeDir, activeFile, context);
   }
 
   private constructor(
@@ -95,6 +97,7 @@ export class FinderPanel {
     recentFiles: string[],
     searchHistory: string[],
     activeDir: string,
+    activeFile: string,
     context: vscode.ExtensionContext
   ) {
     this._panel = panel;
@@ -104,6 +107,7 @@ export class FinderPanel {
     this._recentFiles = recentFiles;
     this._searchHistory = searchHistory;
     this._activeDir = activeDir;
+    this._activeFile = activeFile;
     this._context = context;
     const maxResults = vscode.workspace.getConfiguration('spyglass').get<number>('maxResults', 200);
     const pinnedFiles = context.workspaceState.get<string[]>('spyglass.pinnedFiles', []);
@@ -128,7 +132,10 @@ export class FinderPanel {
         case 'search': {
           this._scope = msg.scope as Scope;
           const query = msg.query as string;
-          const opts = { caseSensitive: !!msg.caseSensitive, wholeWord: !!msg.wholeWord, globFilter: (msg.globFilter as string) || '' };
+          const includeFilter = (msg.includeFilter as string) || '';
+          const rawGlob = (msg.globFilter as string) || '';
+          const mergedGlob = [rawGlob, includeFilter].filter(Boolean).join(',');
+          const opts = { caseSensitive: !!msg.caseSensitive, wholeWord: !!msg.wholeWord, globFilter: mergedGlob };
           if (query.trim() && this._context) {
             const hist = [query, ...this._searchHistory.filter(h => h !== query)].slice(0, 50);
             this._searchHistory = hist;
@@ -149,6 +156,9 @@ export class FinderPanel {
           break;
         case 'symbolSearch':
           await this._runSymbolSearch(msg.query as string);
+          break;
+        case 'docSearch':
+          await this._runDocSearch();
           break;
         case 'copyPath':
           await vscode.env.clipboard.writeText(msg.path as string);
@@ -295,6 +305,23 @@ export class FinderPanel {
     } catch {
       if (seq !== this._searchSeq) { return; }
       this._post({ type: 'error', message: 'Symbol search failed.' });
+    }
+  }
+
+  private async _runDocSearch(): Promise<void> {
+    const seq = ++this._searchSeq;
+    if (!this._activeFile) {
+      this._post({ type: 'docResults', results: [] });
+      this._post({ type: 'error', message: 'No active file — open a file first.' });
+      return;
+    }
+    try {
+      const results = await runDocSymbolSearch(this._activeFile, fp => this._makeRelative(fp));
+      if (seq !== this._searchSeq) { return; }
+      this._post({ type: 'docResults', results });
+    } catch {
+      if (seq !== this._searchSeq) { return; }
+      this._post({ type: 'error', message: 'Document symbol search failed.' });
     }
   }
 
@@ -517,7 +544,9 @@ export class FinderPanel {
   <button type="button" class="icon-btn" id="case-btn" aria-label="Case sensitive" data-tooltip="Case sensitive — Alt+C">Aa</button>
   <button type="button" class="icon-btn" id="word-btn" aria-label="Whole word" data-tooltip="Whole word — Alt+W">\\b</button>
   <button type="button" class="icon-btn" id="group-btn" aria-label="Group by file" data-tooltip="Group by file — Alt+L">▤</button>
+  <button type="button" class="icon-btn" id="sort-btn" aria-label="Sort results" data-tooltip="Sort: default — Alt+S">⇅</button>
   <button type="button" class="icon-btn" id="replace-btn" aria-label="Replace mode" data-tooltip="Replace mode — Alt+R">⇄</button>
+  <button type="button" class="icon-btn" id="include-btn" aria-label="Include filter" data-tooltip="Include filter — Alt+I">⊂</button>
   <button type="button" class="icon-btn active" id="preview-btn" aria-label="Toggle preview">⊡</button>
   <button type="button" class="icon-btn" id="help-btn" aria-label="Keyboard shortcuts" data-tooltip="Keyboard shortcuts">?</button>
 </div>
@@ -529,6 +558,12 @@ export class FinderPanel {
   <button type="button" class="icon-btn" id="replace-all-btn">Replace all</button>
 </div>
 
+<!-- Include filter row -->
+<div class="replace-row" id="include-row" style="display:none">
+  <span class="filter-label">include:</span>
+  <input id="include-input" type="text" placeholder="*.ts, src/**" spellcheck="false" autocomplete="off">
+</div>
+
 <!-- Scope tabs -->
 <div class="tabs">
   <button type="button" class="tab" data-scope="project">Project</button>
@@ -538,6 +573,7 @@ export class FinderPanel {
   <button type="button" class="tab" data-scope="here">Dir</button>
   <button type="button" class="tab" data-scope="symbols">Symbols</button>
   <button type="button" class="tab" data-scope="git">Git</button>
+  <button type="button" class="tab" data-scope="doc">Doc</button>
 </div>
 
 <!-- Main layout -->
@@ -572,7 +608,7 @@ export class FinderPanel {
   <h4>Navigation</h4>
   <div class="shortcut-row"><span>Navigate results</span><div class="shortcut-keys"><kbd>↑</kbd><kbd>↓</kbd></div></div>
   <div class="shortcut-row"><span>Open file</span><div class="shortcut-keys"><kbd>Enter</kbd></div></div>
-  <div class="shortcut-row"><span>Open in split</span><div class="shortcut-keys"><kbd>Ctrl</kbd><kbd>Enter</kbd></div></div>
+  <div class="shortcut-row"><span>Open in split (stays open)</span><div class="shortcut-keys"><kbd>Ctrl</kbd><kbd>Enter</kbd></div></div>
   <div class="shortcut-row"><span>Switch scope</span><div class="shortcut-keys"><kbd>Tab</kbd></div></div>
   <div class="shortcut-row"><span>Close</span><div class="shortcut-keys"><kbd>Esc</kbd></div></div>
   <h4>Search</h4>
@@ -581,6 +617,8 @@ export class FinderPanel {
   <div class="shortcut-row"><span>Case sensitive</span><div class="shortcut-keys"><kbd>Alt</kbd><kbd>C</kbd></div></div>
   <div class="shortcut-row"><span>Whole word</span><div class="shortcut-keys"><kbd>Alt</kbd><kbd>W</kbd></div></div>
   <div class="shortcut-row"><span>Group results by file</span><div class="shortcut-keys"><kbd>Alt</kbd><kbd>L</kbd></div></div>
+  <div class="shortcut-row"><span>Sort results (cycle)</span><div class="shortcut-keys"><kbd>Alt</kbd><kbd>S</kbd></div></div>
+  <div class="shortcut-row"><span>Include filter</span><div class="shortcut-keys"><kbd>Alt</kbd><kbd>I</kbd></div></div>
   <div class="shortcut-row"><span>Replace mode</span><div class="shortcut-keys"><kbd>Alt</kbd><kbd>R</kbd></div></div>
   <div class="shortcut-row"><span>History prev / next</span><div class="shortcut-keys"><kbd>Ctrl</kbd><kbd>↑</kbd><kbd>↓</kbd></div></div>
   <h4>Selection</h4>
