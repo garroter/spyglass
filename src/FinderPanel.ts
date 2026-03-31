@@ -703,23 +703,21 @@ export class FinderPanel {
 
 <!-- Top bar -->
 <div class="topbar">
-  <span class="search-icon">🔍</span>
+  <span class="search-icon"><svg width="13" height="13" viewBox="0 0 13 13" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="5.5" cy="5.5" r="4" stroke="currentColor" stroke-width="1.5"/><line x1="8.8" y1="8.8" x2="12" y2="12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg></span>
   <input id="query" type="text" placeholder="Search in files..." autocomplete="off" spellcheck="false">
   <button type="button" class="icon-btn" id="regex-btn" aria-label="Toggle regex" data-tooltip="Regex — Shift+Alt+R">.*</button>
   <button type="button" class="icon-btn" id="case-btn" aria-label="Case sensitive" data-tooltip="Case sensitive — Alt+C">Aa</button>
   <button type="button" class="icon-btn" id="word-btn" aria-label="Whole word" data-tooltip="Whole word — Alt+W">\\b</button>
   <button type="button" class="icon-btn" id="replace-btn" aria-label="Replace mode" data-tooltip="Replace mode — Alt+R">⇄</button>
   <button type="button" class="icon-btn active" id="preview-btn" aria-label="Toggle preview" data-tooltip="Toggle preview — Shift+Alt+P">⊡</button>
+  <div class="secondary-btns" id="secondary-toolbar" style="display:none">
+    <button type="button" class="icon-btn" id="group-btn" aria-label="Group by file" data-tooltip="Group by file — Alt+L">▤</button>
+    <button type="button" class="icon-btn" id="sort-btn" aria-label="Sort results" data-tooltip="Sort: default — Alt+S">⇅</button>
+    <button type="button" class="icon-btn" id="include-btn" aria-label="Include filter" data-tooltip="Include filter — Alt+I">⊂</button>
+    <button type="button" class="icon-btn" id="bookmarks-btn" aria-label="Saved searches" data-tooltip="Saved searches — Alt+B">★</button>
+    <button type="button" class="icon-btn" id="help-btn" aria-label="Keyboard shortcuts" data-tooltip="Keyboard shortcuts">?</button>
+  </div>
   <button type="button" class="icon-btn" id="more-btn" aria-label="More options" data-tooltip="More options">⋯</button>
-</div>
-
-<!-- Secondary toolbar (hidden by default) -->
-<div class="secondary-toolbar" id="secondary-toolbar" style="display:none">
-  <button type="button" class="icon-btn" id="group-btn" aria-label="Group by file" data-tooltip="Group by file — Alt+L">▤</button>
-  <button type="button" class="icon-btn" id="sort-btn" aria-label="Sort results" data-tooltip="Sort: default — Alt+S">⇅</button>
-  <button type="button" class="icon-btn" id="include-btn" aria-label="Include filter" data-tooltip="Include filter — Alt+I">⊂</button>
-  <button type="button" class="icon-btn" id="bookmarks-btn" aria-label="Saved searches" data-tooltip="Saved searches — Alt+B">★</button>
-  <button type="button" class="icon-btn" id="help-btn" aria-label="Keyboard shortcuts" data-tooltip="Keyboard shortcuts">?</button>
 </div>
 
 <!-- Replace row -->
