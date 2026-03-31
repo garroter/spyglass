@@ -3,13 +3,15 @@ import {
   queryEl, regexBtn, caseBtn, wordBtn, groupBtn, replaceBtn, previewBtn,
   replaceRow, replaceAllBtn, tabs, previewHdr,
   sortBtn, includeBtn, includeRow, includeInput,
+  bookmarksBtn, bookmarksOverlay, bookmarksList, bookmarksEmpty,
 } from './dom';
-import { isFileScope, isSymbolScope, isDocScope, isGitScope, isTextScope, parseQueryInput, triggerSearch, filterFilesLocally } from './search';
+import { isFileScope, isSymbolScope, isDocScope, isGitScope, isTextScope, isRefsScope, parseQueryInput, triggerSearch, filterFilesLocally } from './search';
 import { clearPreview, togglePreview, requestPreview } from './preview';
 import { render, navigate, openResult, openResultInSplit, openAllSelected,
          toggleSelectResult, selectAll, copyCurrentPath, refreshGitScope,
          togglePin, isPinnedFile, showToast } from './render';
 import { hideCtxMenu } from './contextMenu';
+import { escHtml } from './highlight';
 
 import { vscode } from './vscode';
 
@@ -27,7 +29,7 @@ function matchKey(e: KeyboardEvent, binding: string): boolean {
 }
 
 const KB = (window as any).__spyglass.KB;
-const SCOPES = ['project', 'openFiles', 'files', 'recent', 'here', 'symbols', 'git', 'doc'];
+const SCOPES = ['project', 'openFiles', 'files', 'recent', 'here', 'symbols', 'git', 'doc', 'refs'];
 
 export function updateReplaceRowVisibility(): void {
   replaceRow.style.display = (isTextScope() && state.replaceMode) ? '' : 'none';
@@ -39,17 +41,19 @@ export function setScope(scope: string): void {
   state.selected = 0;
   state.multiSelected = new Set();
   state.historyIndex = -1;
+  state.symbolKindFilter = '';
   clearPreview();
   vscode.postMessage({ type: 'scopeChanged', scope });
   tabs.forEach(t => t.classList.toggle('active', t.dataset.scope === scope));
   const isFile = isFileScope();
   const isSym  = isSymbolScope();
-  regexBtn.disabled   = isFile || isSym;
-  caseBtn.disabled    = isFile || isSym;
-  wordBtn.disabled    = isFile || isSym;
-  groupBtn.disabled   = isFile || isSym;
-  replaceBtn.disabled = isFile || isSym;
-  sortBtn.disabled    = isFile || isSym;
+  const isRefs = isRefsScope();
+  regexBtn.disabled   = isFile || isSym || isRefs;
+  caseBtn.disabled    = isFile || isSym || isRefs;
+  wordBtn.disabled    = isFile || isSym || isRefs;
+  groupBtn.disabled   = isFile || isSym || isRefs;
+  replaceBtn.disabled = isFile || isSym || isRefs;
+  sortBtn.disabled    = isFile || isSym || isRefs;
   updateReplaceRowVisibility();
   queryEl.placeholder = scope === 'files'   ? 'Search files by name...'
                       : scope === 'recent'  ? 'Filter recent files...'
@@ -57,8 +61,9 @@ export function setScope(scope: string): void {
                       : scope === 'doc'     ? 'Filter document symbols...'
                       : scope === 'here'    ? 'query *.ts  — search in current dir...'
                       : scope === 'git'     ? 'Filter changed files...'
+                      : scope === 'refs'    ? 'References to symbol at cursor'
                       : 'query *.ts  — search in project...';
-  if (state.query || scope === 'recent' || scope === 'git') {
+  if (state.query || scope === 'recent' || scope === 'git' || scope === 'refs') {
     triggerSearch(render);
   } else {
     state.results = [];
@@ -140,7 +145,7 @@ function toggleIncludeMode(): void {
 
 function applyReplaceAll(): void {
   vscode.postMessage({
-    type: 'replaceAll',
+    type: 'replacePreview',
     query: state.query,
     replacement: (document.getElementById('replace-input') as HTMLInputElement).value,
     useRegex: state.useRegex,
@@ -149,6 +154,82 @@ function applyReplaceAll(): void {
     globFilter: state.globFilter,
     scope: state.scope,
   });
+}
+
+export function renderReplacePreview(files: Array<{ relativePath: string; changesCount: number; lines: Array<{ line: number; before: string; after: string }> }>): void {
+  let overlay = document.getElementById('replace-preview-overlay');
+  if (!overlay) {
+    overlay = document.createElement('div');
+    overlay.id = 'replace-preview-overlay';
+    overlay.className = 'replace-preview-overlay';
+    document.body.appendChild(overlay);
+  }
+  const totalChanges = files.reduce((s, f) => s + f.changesCount, 0);
+  let html = '<div class="rp-header"><span>Replace preview — ' + totalChanges + ' change' + (totalChanges !== 1 ? 's' : '') + ' in ' + files.length + ' file' + (files.length !== 1 ? 's' : '') + '</span></div>';
+  html += '<div class="rp-body">';
+  for (const f of files) {
+    html += '<div class="rp-file">' + escHtml(f.relativePath) + ' <span class="rp-count">' + f.changesCount + '</span></div>';
+    for (const l of f.lines) {
+      html += '<div class="rp-line rp-before"><span class="rp-lnum">' + l.line + '</span><span class="rp-text rp-del">- ' + escHtml(l.before.trimEnd()) + '</span></div>';
+      html += '<div class="rp-line rp-after"><span class="rp-lnum">' + l.line + '</span><span class="rp-text rp-ins">+ ' + escHtml(l.after.trimEnd()) + '</span></div>';
+    }
+  }
+  html += '</div>';
+  html += '<div class="rp-footer"><button type="button" id="rp-apply-btn" class="rp-btn rp-btn-apply">Apply</button><button type="button" id="rp-cancel-btn" class="rp-btn rp-btn-cancel">Cancel</button></div>';
+  overlay.innerHTML = html;
+  overlay.classList.add('visible');
+
+  document.getElementById('rp-apply-btn')!.addEventListener('click', () => {
+    overlay!.classList.remove('visible');
+    vscode.postMessage({ type: 'replaceAll' });
+  });
+  document.getElementById('rp-cancel-btn')!.addEventListener('click', () => {
+    overlay!.classList.remove('visible');
+  });
+  overlay.addEventListener('click', e => e.stopPropagation());
+}
+
+function renderBookmarks(): void {
+  bookmarksList.innerHTML = '';
+  const searches = state.savedSearches;
+  if (searches.length === 0) {
+    bookmarksEmpty.style.display = '';
+    return;
+  }
+  bookmarksEmpty.style.display = 'none';
+  searches.forEach((s, idx) => {
+    const row = document.createElement('div');
+    row.className = 'bookmark-row';
+    const label = document.createElement('button');
+    label.type = 'button';
+    label.className = 'bookmark-label';
+    label.textContent = s.query + '  (' + s.scope + ')';
+    label.addEventListener('click', () => {
+      bookmarksOverlay.classList.remove('visible');
+      bookmarksBtn.classList.remove('active');
+      setScope(s.scope);
+      queryEl.value = s.query;
+      state.query = s.query;
+      triggerSearch(render);
+    });
+    const removeBtn = document.createElement('button');
+    removeBtn.type = 'button';
+    removeBtn.className = 'bookmark-remove';
+    removeBtn.textContent = '✕';
+    removeBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      vscode.postMessage({ type: 'removeSavedSearch', index: idx });
+    });
+    row.appendChild(label);
+    row.appendChild(removeBtn);
+    bookmarksList.appendChild(row);
+  });
+}
+
+function saveCurrentSearch(): void {
+  if (!state.query.trim()) { return; }
+  vscode.postMessage({ type: 'saveSearch', query: state.query, scope: state.scope });
+  showToast('Bookmarked.');
 }
 
 export function initEvents(): void {
@@ -186,7 +267,11 @@ export function initEvents(): void {
       e.preventDefault(); openResult(state.selected);
     } else if (e.key === 'Tab') {
       e.preventDefault();
-      setScope(SCOPES[(SCOPES.indexOf(state.scope) + 1) % SCOPES.length]);
+      if (state.replaceMode) {
+        (document.getElementById('replace-input') as HTMLInputElement).focus();
+      } else {
+        setScope(SCOPES[(SCOPES.indexOf(state.scope) + 1) % SCOPES.length]);
+      }
     } else if (matchKey(e, KB.toggleRegex)) {
       e.preventDefault(); toggleRegex();
     } else if (matchKey(e, KB.togglePreview)) {
@@ -201,6 +286,8 @@ export function initEvents(): void {
       e.preventDefault(); toggleIncludeMode();
     } else if (e.altKey && e.key === 's') {
       e.preventDefault(); toggleSort();
+    } else if (e.altKey && e.key === 'b') {
+      e.preventDefault(); saveCurrentSearch();
     } else if (matchKey(e, KB.close)) {
       if (state.includeMode) { e.preventDefault(); toggleIncludeMode(); }
       else if (state.replaceMode) { e.preventDefault(); toggleReplaceMode(); }
@@ -218,6 +305,7 @@ export function initEvents(): void {
     else if (e.altKey && e.key === 'l')        { e.preventDefault(); toggleGroup(); }
     else if (e.altKey && e.key === 'i')        { e.preventDefault(); toggleIncludeMode(); }
     else if (e.altKey && e.key === 's')        { e.preventDefault(); toggleSort(); }
+    else if (e.altKey && e.key === 'b')        { e.preventDefault(); saveCurrentSearch(); }
     else if (e.ctrlKey && e.key === ' ')       { e.preventDefault(); toggleSelectResult(state.selected); }
     else if (e.shiftKey && e.key === 'Enter')  { e.preventDefault(); openAllSelected(); }
     else if (e.ctrlKey && e.key === 'a')       { e.preventDefault(); selectAll(); }
@@ -271,6 +359,10 @@ export function initEvents(): void {
     const helpBtn = document.getElementById('help-btn')!;
     shortcutsOverlay.classList.remove('visible');
     helpBtn.classList.remove('active');
+    bookmarksOverlay.classList.remove('visible');
+    bookmarksBtn.classList.remove('active');
+    const rpOverlay = document.getElementById('replace-preview-overlay');
+    if (rpOverlay) { rpOverlay.classList.remove('visible'); }
     hideCtxMenu();
   });
 
@@ -281,6 +373,21 @@ export function initEvents(): void {
     const overlay = document.getElementById('shortcuts-overlay')!;
     overlay.classList.toggle('visible');
     (e.currentTarget as HTMLElement).classList.toggle('active', overlay.classList.contains('visible'));
+  });
+
+  bookmarksOverlay.addEventListener('click', e => e.stopPropagation());
+
+  bookmarksBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    renderBookmarks();
+    bookmarksOverlay.classList.toggle('visible');
+    bookmarksBtn.classList.toggle('active', bookmarksOverlay.classList.contains('visible'));
+  });
+
+  document.getElementById('bookmarks-close-btn')!.addEventListener('click', (e) => {
+    e.stopPropagation();
+    bookmarksOverlay.classList.remove('visible');
+    bookmarksBtn.classList.remove('active');
   });
 }
 
@@ -365,6 +472,13 @@ export function initMessages(): void {
         state.selected = 0;
         showToast('Replaced in ' + data.fileCount + ' file' + (data.fileCount !== 1 ? 's' : ''));
         triggerSearch(render);
+        break;
+      case 'savedSearches':
+        state.savedSearches = data.searches;
+        if (bookmarksOverlay.classList.contains('visible')) { renderBookmarks(); }
+        break;
+      case 'replacePreviewData':
+        renderReplacePreview(data.files);
         break;
     }
   });

@@ -65,18 +65,21 @@ VS Code's built-in search (`Ctrl+Shift+F`) is powerful but slow to use — it op
 - **Results grouped by file** — sticky file header with match count; line numbers in a fixed column for easy scanning
 - **Fuzzy file search** — search by filename with character-level match highlighting
 - **Symbol search** — workspace symbols via LSP with color-coded kind badges (class, function, method…)
+- **Symbol kind filter** — chips above symbol results to filter by kind (fn, cls, var, enum, …); click to filter, click again to reset
+- **Find References scope** — all references to the symbol under the cursor via LSP (`Refs` tab)
 - **Regex mode** toggle for power users
 - **Case sensitive** and **whole word** toggles
 - **Inline glob filter** — append a glob to any query to narrow results: `myFunc *.ts` or `test !*.test.ts`
 - **Multi-root workspace** — searches and file listings span all workspace folders simultaneously
 
 ### 🗂️ Navigation
-- **7 search scopes** — Project, Open Files, Files, Recent, Dir, Symbols, Git
+- **9 search scopes** — Project, Open Files, Files, Recent, Dir, Symbols, Git, Doc, Refs
 - **Pinned files** — pin any file with `Alt+P`; pinned files stay at the top of the Recent tab marked with `★` and persist across sessions
 - **Recent files on open** — opens to recent files immediately, no empty screen
 - **Scope memory** — last used scope is restored when you reopen
 - **Dir scope** — search only within the directory of the active file
 - **Search history** — navigate previous queries with `Ctrl+↑` / `Ctrl+↓`
+- **Saved searches (bookmarks)** — `Alt+B` bookmarks the current query+scope; `★` button opens the bookmarks overlay; persisted across sessions
 - **Multi-select** — pick multiple results and open them all at once
 
 ### 👁️ Preview
@@ -85,7 +88,7 @@ VS Code's built-in search (`Ctrl+Shift+F`) is powerful but slow to use — it op
 - **Theme adaptive** — native look in any VS Code theme: dark, light, high contrast
 
 ### ⚡ Actions
-- **Find & Replace** — replace across all matched files instantly, saved to disk automatically (with undo)
+- **Find & Replace with preview** — `Alt+R` to enable replace mode; "Replace all" shows a diff overlay (before/after per line per file) before applying; Apply or Cancel; uses VS Code WorkspaceEdit (supports undo)
 - **Copy path** — copy the absolute path of the selected result
 - **Reveal in Explorer** — click the preview header to locate the file
 - **Open in split** — open any result beside the current editor
@@ -116,16 +119,22 @@ VS Code's built-in search (`Ctrl+Shift+F`) is powerful but slow to use — it op
 | Toggle regex | `Shift+Alt+R` |
 | Toggle case sensitive | `Alt+C` |
 | Toggle whole word | `Alt+W` |
+| Group results by file | `Alt+L` |
+| Sort results (cycle) | `Alt+S` |
+| Include filter row | `Alt+I` |
 | Toggle preview panel | `Shift+Alt+P` |
 | Toggle replace mode | `Alt+R` |
+| Focus replace input (in replace mode) | `Tab` |
 | History — previous query | `Ctrl+↑` |
 | History — next query | `Ctrl+↓` |
+| Save search (bookmark) | `Alt+B` |
 | Copy path | `Alt+Y` |
 | Pin / Unpin file | `Alt+P` |
 | Multi-select toggle | `Ctrl+Space` / `Ctrl+Click` |
 | Select all results | `Ctrl+A` |
 | Open all selected | `Shift+Enter` |
 | Reveal in Explorer | click the preview header |
+| Refresh git changed files | `F5` (in Git scope) |
 
 ---
 
@@ -140,6 +149,8 @@ VS Code's built-in search (`Ctrl+Shift+F`) is powerful but slow to use — it op
 | **Dir** | Full-text search within the directory of the active file |
 | **Symbols** | Workspace symbol search via LSP (requires a language extension) |
 | **Git** | All files with uncommitted changes — modified, added, untracked, deleted, renamed |
+| **Doc** | Document symbols for the currently active file via LSP |
+| **Refs** | All references to the symbol under the cursor at the time Spyglass was opened |
 
 Switch between scopes with `Tab` while Spyglass is open.
 
@@ -149,9 +160,12 @@ Switch between scopes with `Tab` while Spyglass is open.
 
 1. Open Spyglass and type your search query
 2. Press `Alt+R` (or click `⇄`) to enable replace mode
-3. Type the replacement text in the second field
+3. Type the replacement text in the second field (`Tab` moves focus from query to replace input)
 4. Optionally tune case-sensitive / whole-word / glob filter
-5. Click **Replace all** — all matches replaced instantly via VS Code's edit API (supports undo)
+5. Click **Replace all** — a diff preview overlay appears showing every changed line (before in red, after in green) grouped by file
+6. Click **Apply** to apply all changes, or **Cancel** to abort
+
+Changes are applied via VS Code's `WorkspaceEdit` API and are fully undoable (`Ctrl+Z`).
 
 ---
 
@@ -169,7 +183,7 @@ Lines modified since the last git commit are marked with a **blue indicator** in
 
 | Setting | Default | Description |
 |---------|---------|-------------|
-| `spyglass.defaultScope` | `project` | Scope on open: `project` `openFiles` `files` `recent` `here` `symbols` |
+| `spyglass.defaultScope` | `project` | Scope on open: `project` `openFiles` `files` `recent` `here` `symbols` `git` `doc` `refs` |
 | `spyglass.maxResults` | `200` | Maximum number of results to display |
 | `spyglass.exclude` | `[".git","node_modules","out","dist","*.lock"]` | Glob patterns excluded from search and file listing |
 | `spyglass.keybindings.navigateDown` | `ArrowDown` | Navigate down in results |

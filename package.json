@@ -14,7 +14,8 @@
     "vscode": "^1.85.0"
   },
   "categories": [
-    "Other"
+    "Other",
+    "Search"
   ],
   "keywords": [
     "search",
@@ -81,7 +82,9 @@
             "recent",
             "here",
             "symbols",
-            "git"
+            "git",
+            "doc",
+            "refs"
           ],
           "default": "project",
           "description": "Default search scope when Finder opens."

@@ -49,6 +49,7 @@ export interface SpyglassConfig {
   MAX_RESULTS: number;
   DEFAULT_SCOPE: string;
   GROUP_RESULTS: boolean;
+  SAVED_SEARCHES: Array<{ query: string; scope: string }>;
 }
 
 export interface AppState {
@@ -79,4 +80,6 @@ export interface AppState {
   sortBy: 'default' | 'filename' | 'count';
   includeFilter: string;
   includeMode: boolean;
+  symbolKindFilter: string;
+  savedSearches: Array<{ query: string; scope: string }>;
 }

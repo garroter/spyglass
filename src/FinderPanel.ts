@@ -32,6 +32,10 @@ export class FinderPanel {
   private _activeDir: string = '';
   private _activeFile: string = '';
   private _context: vscode.ExtensionContext | null = null;
+  private _pendingReplace: any = null;
+  private _activeCursorFile: string = '';
+  private _activeCursorLine: number = 0;
+  private _activeCursorChar: number = 0;
 
   public static async createOrShow(context: vscode.ExtensionContext): Promise<void> {
     const editor = vscode.window.activeTextEditor;
@@ -61,9 +65,11 @@ export class FinderPanel {
       ? path.dirname(editor.document.uri.fsPath)
       : '';
     const activeFile = editor?.document.uri.fsPath ?? '';
+    const activeCursorLine = editor?.selection.active.line ?? 0;
+    const activeCursorChar = editor?.selection.active.character ?? 0;
 
     const config = vscode.workspace.getConfiguration('spyglass');
-    const validScopes: Scope[] = ['project', 'openFiles', 'files', 'recent', 'here', 'symbols', 'git'];
+    const validScopes: Scope[] = ['project', 'openFiles', 'files', 'recent', 'here', 'symbols', 'git', 'doc', 'refs'];
     const lastScope = context.workspaceState.get<string>('spyglass.lastScope');
     const rawScope = lastScope ?? config.get<string>('defaultScope', 'project');
     const defaultScope: Scope = validScopes.includes(rawScope as Scope) ? rawScope as Scope : 'project';
@@ -86,7 +92,7 @@ export class FinderPanel {
       }
     );
 
-    FinderPanel.currentPanel = new FinderPanel(panel, defaultScope, kb, selectedText, recentFiles, searchHistory, activeDir, activeFile, context);
+    FinderPanel.currentPanel = new FinderPanel(panel, defaultScope, kb, selectedText, recentFiles, searchHistory, activeDir, activeFile, context, activeCursorLine, activeCursorChar);
   }
 
   private constructor(
@@ -98,7 +104,9 @@ export class FinderPanel {
     searchHistory: string[],
     activeDir: string,
     activeFile: string,
-    context: vscode.ExtensionContext
+    context: vscode.ExtensionContext,
+    activeCursorLine: number = 0,
+    activeCursorChar: number = 0,
   ) {
     this._panel = panel;
     this._scope = defaultScope;
@@ -108,11 +116,15 @@ export class FinderPanel {
     this._searchHistory = searchHistory;
     this._activeDir = activeDir;
     this._activeFile = activeFile;
+    this._activeCursorFile = activeFile;
+    this._activeCursorLine = activeCursorLine;
+    this._activeCursorChar = activeCursorChar;
     this._context = context;
     const maxResults = vscode.workspace.getConfiguration('spyglass').get<number>('maxResults', 200);
     const pinnedFiles = context.workspaceState.get<string[]>('spyglass.pinnedFiles', []);
     const groupResults = context.workspaceState.get<boolean>('spyglass.groupResults', false);
-    this._panel.webview.html = this._buildHtml(defaultScope, kb, initialQuery, this._searchHistory, this._recentFiles, maxResults, pinnedFiles, groupResults);
+    const savedSearches = context.workspaceState.get<Array<{query: string; scope: string}>>('spyglass.savedSearches', []);
+    this._panel.webview.html = this._buildHtml(defaultScope, kb, initialQuery, this._searchHistory, this._recentFiles, maxResults, pinnedFiles, groupResults, savedSearches);
 
     // Warm file cache in background so Files tab is instant on first use
     if (this._cwdList.length > 0) {
@@ -160,6 +172,9 @@ export class FinderPanel {
         case 'docSearch':
           await this._runDocSearch();
           break;
+        case 'refsSearch':
+          await this._runRefsSearch();
+          break;
         case 'copyPath':
           await vscode.env.clipboard.writeText(msg.path as string);
           break;
@@ -171,11 +186,35 @@ export class FinderPanel {
         case 'setGroupResults':
           await this._context!.workspaceState.update('spyglass.groupResults', msg.value as boolean);
           break;
+        case 'saveSearch': {
+          const searches = this._context!.workspaceState.get<Array<{query: string; scope: string}>>('spyglass.savedSearches', []);
+          const entry = { query: msg.query as string, scope: msg.scope as string };
+          // Deduplicate
+          const updated = [entry, ...searches.filter(s => !(s.query === entry.query && s.scope === entry.scope))];
+          await this._context!.workspaceState.update('spyglass.savedSearches', updated);
+          this._post({ type: 'savedSearches', searches: updated });
+          break;
+        }
+        case 'removeSavedSearch': {
+          const searches2 = this._context!.workspaceState.get<Array<{query: string; scope: string}>>('spyglass.savedSearches', []);
+          const updated2 = searches2.filter((_, idx) => idx !== (msg.index as number));
+          await this._context!.workspaceState.update('spyglass.savedSearches', updated2);
+          this._post({ type: 'savedSearches', searches: updated2 });
+          break;
+        }
         case 'revealFile':
           await vscode.commands.executeCommand('revealInExplorer', vscode.Uri.file(msg.file as string));
           break;
+        case 'replacePreview':
+          await this._buildReplacePreview(msg);
+          break;
         case 'replaceAll':
-          await this._replaceAll(msg);
+          if (this._pendingReplace) {
+            await this._replaceAll(this._pendingReplace);
+            this._pendingReplace = null;
+          } else {
+            await this._replaceAll(msg);
+          }
           break;
         case 'openInSplit':
           await this._openFileInSplit(msg.file as string, msg.line as number);
@@ -322,6 +361,118 @@ export class FinderPanel {
     } catch {
       if (seq !== this._searchSeq) { return; }
       this._post({ type: 'error', message: 'Document symbol search failed.' });
+    }
+  }
+
+  private async _buildReplacePreview(msg: { query: string; replacement: string; useRegex: boolean; caseSensitive: boolean; wholeWord: boolean; globFilter: string; scope: string }): Promise<void> {
+    let files: string[] | undefined;
+    if (msg.scope === 'openFiles') {
+      files = vscode.window.tabGroups.all
+        .flatMap(g => g.tabs)
+        .map(t => (t.input as { uri?: vscode.Uri })?.uri?.fsPath)
+        .filter((f): f is string => typeof f === 'string');
+    }
+    const cwds = msg.scope === 'here'
+      ? [this._activeDir || this._cwd]
+      : msg.scope === 'openFiles' ? [this._cwd] : this._cwdList;
+    const exclude = vscode.workspace.getConfiguration('spyglass').get<string[]>('exclude');
+    let results;
+    try {
+      const allResults = await Promise.all(cwds.map(cwd =>
+        searchWithRipgrep(msg.query, cwd, msg.useRegex, files, {
+          caseSensitive: msg.caseSensitive,
+          wholeWord: msg.wholeWord,
+          globFilter: msg.globFilter,
+          exclude: exclude ?? undefined,
+        }).promise
+      ));
+      results = allResults.flat();
+    } catch {
+      vscode.window.showErrorMessage('Spyglass: Replace preview failed — search error.');
+      return;
+    }
+    if (results.length === 0) {
+      vscode.window.showInformationMessage('Spyglass: No matches found to replace.');
+      return;
+    }
+    const pattern = msg.useRegex
+      ? new RegExp(msg.query, msg.caseSensitive ? 'g' : 'gi')
+      : new RegExp(msg.query.replace(/[.*+?^{}()|[\]\\$]/g, '\\$&'), msg.caseSensitive ? 'g' : 'gi');
+
+    // Group by file
+    const fileGroups = new Map<string, typeof results>();
+    for (const r of results) {
+      const arr = fileGroups.get(r.file) ?? [];
+      arr.push(r);
+      fileGroups.set(r.file, arr);
+    }
+    const { promises: fsp } = await import('fs');
+    const previewFiles: Array<{ relativePath: string; changesCount: number; lines: Array<{ line: number; before: string; after: string }> }> = [];
+    for (const [filePath, fileResults] of fileGroups) {
+      try {
+        const content = await fsp.readFile(filePath, 'utf-8');
+        const contentLines = content.split('\n');
+        const changedLineNums = new Set(fileResults.map(r => r.line));
+        const lines: Array<{ line: number; before: string; after: string }> = [];
+        for (const lineNum of changedLineNums) {
+          const idx = lineNum - 1;
+          if (idx >= 0 && idx < contentLines.length) {
+            const before = contentLines[idx];
+            const after = before.replace(pattern, msg.replacement);
+            if (before !== after) { lines.push({ line: lineNum, before, after }); }
+          }
+        }
+        if (lines.length > 0) {
+          previewFiles.push({ relativePath: this._makeRelative(filePath), changesCount: lines.length, lines });
+        }
+      } catch { /* skip */ }
+    }
+    this._pendingReplace = msg;
+    this._post({ type: 'replacePreviewData', files: previewFiles });
+  }
+
+  private async _runRefsSearch(): Promise<void> {
+    const seq = ++this._searchSeq;
+    if (!this._activeCursorFile) {
+      this._post({ type: 'results', results: [], query: '', took: 0 });
+      this._post({ type: 'error', message: 'No active file — open a file first.' });
+      return;
+    }
+    try {
+      const uri = vscode.Uri.file(this._activeCursorFile);
+      const position = new vscode.Position(this._activeCursorLine, this._activeCursorChar);
+      const locs = await vscode.commands.executeCommand<vscode.Location[]>(
+        'vscode.executeReferenceProvider', uri, position
+      );
+      if (seq !== this._searchSeq) { return; }
+      if (!locs || locs.length === 0) {
+        this._post({ type: 'results', results: [], query: '', took: 0 });
+        return;
+      }
+      const { promises: fsp } = await import('fs');
+      const results: import('./types').SearchResult[] = [];
+      for (const loc of locs) {
+        const filePath = loc.uri.fsPath;
+        try {
+          const content = await fsp.readFile(filePath, 'utf-8');
+          const lines = content.split('\n');
+          const lineNum = loc.range.start.line + 1;
+          const text = lines[loc.range.start.line] ?? '';
+          results.push({
+            file: filePath,
+            relativePath: this._makeRelative(filePath),
+            line: lineNum,
+            text,
+            matchStart: loc.range.start.character,
+            matchEnd: loc.range.end.character,
+          });
+        } catch { /* skip */ }
+      }
+      if (seq !== this._searchSeq) { return; }
+      this._post({ type: 'results', results, query: '', took: 0 });
+    } catch {
+      if (seq !== this._searchSeq) { return; }
+      this._post({ type: 'error', message: 'Reference search failed.' });
     }
   }
 
@@ -505,7 +656,7 @@ export class FinderPanel {
     this._disposables.length = 0;
   }
 
-  private _buildHtml(defaultScope: Scope, kb: KeyBindings, initialQuery: string = '', searchHistory: string[] = [], recentFiles: string[] = [], maxResults: number = 200, pinnedFiles: string[] = [], groupResults: boolean = false): string {
+  private _buildHtml(defaultScope: Scope, kb: KeyBindings, initialQuery: string = '', searchHistory: string[] = [], recentFiles: string[] = [], maxResults: number = 200, pinnedFiles: string[] = [], groupResults: boolean = false, savedSearches: Array<{query: string; scope: string}> = []): string {
     const nonce = getNonce();
     const webview = this._panel.webview;
     const extensionUri = this._context!.extensionUri;
@@ -521,6 +672,7 @@ export class FinderPanel {
       MAX_RESULTS: maxResults,
       DEFAULT_SCOPE: defaultScope,
       GROUP_RESULTS: groupResults,
+      SAVED_SEARCHES: savedSearches,
     };
 
     return /* html */`<!DOCTYPE html>
@@ -547,6 +699,7 @@ export class FinderPanel {
   <button type="button" class="icon-btn" id="sort-btn" aria-label="Sort results" data-tooltip="Sort: default — Alt+S">⇅</button>
   <button type="button" class="icon-btn" id="replace-btn" aria-label="Replace mode" data-tooltip="Replace mode — Alt+R">⇄</button>
   <button type="button" class="icon-btn" id="include-btn" aria-label="Include filter" data-tooltip="Include filter — Alt+I">⊂</button>
+  <button type="button" class="icon-btn" id="bookmarks-btn" aria-label="Saved searches" data-tooltip="Saved searches — Alt+B">★</button>
   <button type="button" class="icon-btn active" id="preview-btn" aria-label="Toggle preview">⊡</button>
   <button type="button" class="icon-btn" id="help-btn" aria-label="Keyboard shortcuts" data-tooltip="Keyboard shortcuts">?</button>
 </div>
@@ -574,6 +727,7 @@ export class FinderPanel {
   <button type="button" class="tab" data-scope="symbols">Symbols</button>
   <button type="button" class="tab" data-scope="git">Git</button>
   <button type="button" class="tab" data-scope="doc">Doc</button>
+  <button type="button" class="tab" data-scope="refs">Refs</button>
 </div>
 
 <!-- Main layout -->
@@ -620,7 +774,9 @@ export class FinderPanel {
   <div class="shortcut-row"><span>Sort results (cycle)</span><div class="shortcut-keys"><kbd>Alt</kbd><kbd>S</kbd></div></div>
   <div class="shortcut-row"><span>Include filter</span><div class="shortcut-keys"><kbd>Alt</kbd><kbd>I</kbd></div></div>
   <div class="shortcut-row"><span>Replace mode</span><div class="shortcut-keys"><kbd>Alt</kbd><kbd>R</kbd></div></div>
+  <div class="shortcut-row"><span>Focus replace input</span><div class="shortcut-keys"><kbd>Tab</kbd><span style="font-size:9px;color:var(--f-dim)"> (in replace mode)</span></div></div>
   <div class="shortcut-row"><span>History prev / next</span><div class="shortcut-keys"><kbd>Ctrl</kbd><kbd>↑</kbd><kbd>↓</kbd></div></div>
+  <div class="shortcut-row"><span>Save search (bookmark)</span><div class="shortcut-keys"><kbd>Alt</kbd><kbd>B</kbd></div></div>
   <h4>Selection</h4>
   <div class="shortcut-row"><span>Multi-select toggle</span><div class="shortcut-keys"><kbd>Ctrl</kbd><kbd>Click</kbd></div></div>
   <div class="shortcut-row"><span>Multi-select (keyboard)</span><div class="shortcut-keys"><kbd>Ctrl</kbd><kbd>Space</kbd></div></div>
@@ -633,6 +789,16 @@ export class FinderPanel {
   <div class="shortcut-row"><span>Toggle preview</span><div class="shortcut-keys"><kbd>Shift</kbd><kbd>Alt</kbd><kbd>P</kbd></div></div>
   <h4>Git</h4>
   <div class="shortcut-row"><span>Refresh changed files</span><div class="shortcut-keys"><kbd>F5</kbd></div></div>
+</div>
+
+<!-- Bookmarks overlay -->
+<div class="bookmarks-overlay" id="bookmarks-overlay">
+  <div class="bookmarks-header">
+    <span>Saved searches</span>
+    <button type="button" class="icon-btn" id="bookmarks-close-btn">✕</button>
+  </div>
+  <div id="bookmarks-list" class="bookmarks-list"></div>
+  <div class="bookmarks-empty" id="bookmarks-empty">No saved searches yet.<br>Press Alt+B to save current query.</div>
 </div>
 
 <!-- Context menu -->

@@ -7,6 +7,7 @@ export function isFileScope(): boolean   { return state.scope === 'files' || sta
 export function isSymbolScope(): boolean { return state.scope === 'symbols' || state.scope === 'doc'; }
 export function isDocScope(): boolean    { return state.scope === 'doc'; }
 export function isGitScope(): boolean    { return state.scope === 'git'; }
+export function isRefsScope(): boolean   { return state.scope === 'refs'; }
 export function isTextScope(): boolean   { return !isFileScope() && !isSymbolScope(); }
 
 export function parseQueryInput(raw: string): { query: string; globFilter: string } {
@@ -111,7 +112,11 @@ export function triggerSearch(renderFn: () => void): void {
     return;
   }
   searchTimer = setTimeout(() => {
-    if (state.scope === 'doc') {
+    if (state.scope === 'refs') {
+      state.searching = true;
+      renderFn();
+      vscode.postMessage({ type: 'refsSearch' });
+    } else if (state.scope === 'doc') {
       state.searching = true;
       renderFn();
       vscode.postMessage({ type: 'docSearch', query: state.query });

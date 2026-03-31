@@ -2,7 +2,7 @@
 "use strict";
 (() => {
   // src/webview/state.ts
-  var { INITIAL_HISTORY, RECENT_FILES, PINNED_FILES, DEFAULT_SCOPE, GROUP_RESULTS } = window.__spyglass;
+  var { INITIAL_HISTORY, RECENT_FILES, PINNED_FILES, DEFAULT_SCOPE, GROUP_RESULTS, SAVED_SEARCHES } = window.__spyglass;
   var state = {
     results: [],
     fileResults: [],
@@ -30,7 +30,9 @@
     currentPreviewFile: null,
     sortBy: "default",
     includeFilter: "",
-    includeMode: false
+    includeMode: false,
+    symbolKindFilter: "",
+    savedSearches: (SAVED_SEARCHES ?? []).slice()
   };
 
   // src/webview/dom.ts
@@ -67,6 +69,10 @@
   var includeBtn = document.getElementById("include-btn");
   var includeRow = document.getElementById("include-row");
   var includeInput = document.getElementById("include-input");
+  var bookmarksBtn = document.getElementById("bookmarks-btn");
+  var bookmarksOverlay = document.getElementById("bookmarks-overlay");
+  var bookmarksList = document.getElementById("bookmarks-list");
+  var bookmarksEmpty = document.getElementById("bookmarks-empty");
 
   // src/webview/vscode.ts
   var vscode = acquireVsCodeApi();
@@ -83,6 +89,9 @@
   }
   function isGitScope() {
     return state.scope === "git";
+  }
+  function isRefsScope() {
+    return state.scope === "refs";
   }
   function isTextScope() {
     return !isFileScope() && !isSymbolScope();
@@ -203,7 +212,11 @@
       return;
     }
     searchTimer = setTimeout(() => {
-      if (state.scope === "doc") {
+      if (state.scope === "refs") {
+        state.searching = true;
+        renderFn();
+        vscode.postMessage({ type: "refsSearch" });
+      } else if (state.scope === "doc") {
         state.searching = true;
         renderFn();
         vscode.postMessage({ type: "docSearch", query: state.query });
@@ -655,6 +668,12 @@
       return;
     }
     if (!state.searching && state.results.length === 0) {
+      if (isRefsScope()) {
+        stateMsg.textContent = "No references found.";
+        stateMsg.style.display = "";
+        resultInfo.textContent = "0 refs";
+        return;
+      }
       if (state.query) {
         stateMsg.textContent = "No results.";
         stateMsg.style.display = "";
@@ -855,7 +874,7 @@
     requestPreview();
   }
   function renderSymbolResults() {
-    wrap.querySelectorAll(".result").forEach((el) => el.remove());
+    wrap.querySelectorAll(".result, .sym-kind-chips").forEach((el) => el.remove());
     const MAX_RESULTS = window.__spyglass.MAX_RESULTS;
     if (state.searching) {
       stateMsg.innerHTML = '<span class="spinner"></span>Searching\u2026';
@@ -863,8 +882,9 @@
       resultInfo.textContent = "\u2026";
       return;
     }
+    const emptyMsg = state.scope === "doc" ? state.symbolResults.length === 0 ? "No document symbols." : "" : state.query ? "No symbols found." : "Start typing to search symbols...";
     if (state.symbolResults.length === 0) {
-      stateMsg.textContent = state.query ? "No symbols found." : "Start typing to search symbols...";
+      stateMsg.textContent = emptyMsg;
       stateMsg.style.display = "";
       resultInfo.textContent = "0 symbols";
       return;
@@ -889,8 +909,31 @@
       "operator": "op",
       "event": "op"
     };
+    const kindCounts = /* @__PURE__ */ new Map();
+    for (const r of state.symbolResults) {
+      kindCounts.set(r.kindLabel, (kindCounts.get(r.kindLabel) ?? 0) + 1);
+    }
+    if (kindCounts.size > 1) {
+      const chipsRow = document.createElement("div");
+      chipsRow.className = "sym-kind-chips";
+      kindCounts.forEach((count, label) => {
+        const chip = document.createElement("button");
+        chip.type = "button";
+        const kc = KIND_CLASS[label] ? " sym-kind--" + KIND_CLASS[label] : "";
+        chip.className = "sym-chip sym-kind" + kc + (state.symbolKindFilter === label ? " active" : "");
+        chip.textContent = label + " " + count;
+        chip.addEventListener("click", () => {
+          state.symbolKindFilter = state.symbolKindFilter === label ? "" : label;
+          renderSymbolResults();
+        });
+        chipsRow.appendChild(chip);
+      });
+      wrap.insertBefore(chipsRow, wrap.querySelector(".result"));
+      wrap.prepend(chipsRow);
+    }
+    const filtered = state.symbolKindFilter ? state.symbolResults.filter((r) => r.kindLabel === state.symbolKindFilter) : state.symbolResults;
     const frag = document.createDocumentFragment();
-    state.symbolResults.forEach((r, i) => {
+    filtered.forEach((r, i) => {
       const div = document.createElement("div");
       div.className = "result" + (i === state.selected ? " selected" : "");
       div.dataset.index = String(i);
@@ -905,8 +948,8 @@
       frag.appendChild(div);
     });
     wrap.appendChild(frag);
-    const ns = state.symbolResults.length;
-    const cappedS = ns >= MAX_RESULTS;
+    const ns = filtered.length;
+    const cappedS = !state.symbolKindFilter && ns >= MAX_RESULTS;
     resultInfo.textContent = ns + (cappedS ? "+" : "") + " symbol" + (ns !== 1 ? "s" : "");
     scrollToSelected();
     requestPreview();
@@ -1229,7 +1272,7 @@
     return e.key.toLowerCase() === key && e.ctrlKey === ctrl && e.shiftKey === shift && e.altKey === alt;
   }
   var KB = window.__spyglass.KB;
-  var SCOPES = ["project", "openFiles", "files", "recent", "here", "symbols", "git", "doc"];
+  var SCOPES = ["project", "openFiles", "files", "recent", "here", "symbols", "git", "doc", "refs"];
   function updateReplaceRowVisibility() {
     replaceRow.style.display = isTextScope() && state.replaceMode ? "" : "none";
   }
@@ -1241,20 +1284,22 @@
     state.selected = 0;
     state.multiSelected = /* @__PURE__ */ new Set();
     state.historyIndex = -1;
+    state.symbolKindFilter = "";
     clearPreview();
     vscode.postMessage({ type: "scopeChanged", scope });
     tabs.forEach((t) => t.classList.toggle("active", t.dataset.scope === scope));
     const isFile = isFileScope();
     const isSym = isSymbolScope();
-    regexBtn.disabled = isFile || isSym;
-    caseBtn.disabled = isFile || isSym;
-    wordBtn.disabled = isFile || isSym;
-    groupBtn.disabled = isFile || isSym;
-    replaceBtn.disabled = isFile || isSym;
-    sortBtn.disabled = isFile || isSym;
+    const isRefs = isRefsScope();
+    regexBtn.disabled = isFile || isSym || isRefs;
+    caseBtn.disabled = isFile || isSym || isRefs;
+    wordBtn.disabled = isFile || isSym || isRefs;
+    groupBtn.disabled = isFile || isSym || isRefs;
+    replaceBtn.disabled = isFile || isSym || isRefs;
+    sortBtn.disabled = isFile || isSym || isRefs;
     updateReplaceRowVisibility();
-    queryEl.placeholder = scope === "files" ? "Search files by name..." : scope === "recent" ? "Filter recent files..." : scope === "symbols" ? "Search workspace symbols..." : scope === "doc" ? "Filter document symbols..." : scope === "here" ? "query *.ts  \u2014 search in current dir..." : scope === "git" ? "Filter changed files..." : "query *.ts  \u2014 search in project...";
-    if (state.query || scope === "recent" || scope === "git") {
+    queryEl.placeholder = scope === "files" ? "Search files by name..." : scope === "recent" ? "Filter recent files..." : scope === "symbols" ? "Search workspace symbols..." : scope === "doc" ? "Filter document symbols..." : scope === "here" ? "query *.ts  \u2014 search in current dir..." : scope === "git" ? "Filter changed files..." : scope === "refs" ? "References to symbol at cursor" : "query *.ts  \u2014 search in project...";
+    if (state.query || scope === "recent" || scope === "git" || scope === "refs") {
       triggerSearch(render);
     } else {
       state.results = [];
@@ -1338,7 +1383,7 @@
   }
   function applyReplaceAll() {
     vscode.postMessage({
-      type: "replaceAll",
+      type: "replacePreview",
       query: state.query,
       replacement: document.getElementById("replace-input").value,
       useRegex: state.useRegex,
@@ -1347,6 +1392,80 @@
       globFilter: state.globFilter,
       scope: state.scope
     });
+  }
+  function renderReplacePreview(files) {
+    let overlay = document.getElementById("replace-preview-overlay");
+    if (!overlay) {
+      overlay = document.createElement("div");
+      overlay.id = "replace-preview-overlay";
+      overlay.className = "replace-preview-overlay";
+      document.body.appendChild(overlay);
+    }
+    const totalChanges = files.reduce((s, f) => s + f.changesCount, 0);
+    let html = '<div class="rp-header"><span>Replace preview \u2014 ' + totalChanges + " change" + (totalChanges !== 1 ? "s" : "") + " in " + files.length + " file" + (files.length !== 1 ? "s" : "") + "</span></div>";
+    html += '<div class="rp-body">';
+    for (const f of files) {
+      html += '<div class="rp-file">' + escHtml(f.relativePath) + ' <span class="rp-count">' + f.changesCount + "</span></div>";
+      for (const l of f.lines) {
+        html += '<div class="rp-line rp-before"><span class="rp-lnum">' + l.line + '</span><span class="rp-text rp-del">- ' + escHtml(l.before.trimEnd()) + "</span></div>";
+        html += '<div class="rp-line rp-after"><span class="rp-lnum">' + l.line + '</span><span class="rp-text rp-ins">+ ' + escHtml(l.after.trimEnd()) + "</span></div>";
+      }
+    }
+    html += "</div>";
+    html += '<div class="rp-footer"><button type="button" id="rp-apply-btn" class="rp-btn rp-btn-apply">Apply</button><button type="button" id="rp-cancel-btn" class="rp-btn rp-btn-cancel">Cancel</button></div>';
+    overlay.innerHTML = html;
+    overlay.classList.add("visible");
+    document.getElementById("rp-apply-btn").addEventListener("click", () => {
+      overlay.classList.remove("visible");
+      vscode.postMessage({ type: "replaceAll" });
+    });
+    document.getElementById("rp-cancel-btn").addEventListener("click", () => {
+      overlay.classList.remove("visible");
+    });
+    overlay.addEventListener("click", (e) => e.stopPropagation());
+  }
+  function renderBookmarks() {
+    bookmarksList.innerHTML = "";
+    const searches = state.savedSearches;
+    if (searches.length === 0) {
+      bookmarksEmpty.style.display = "";
+      return;
+    }
+    bookmarksEmpty.style.display = "none";
+    searches.forEach((s, idx) => {
+      const row = document.createElement("div");
+      row.className = "bookmark-row";
+      const label = document.createElement("button");
+      label.type = "button";
+      label.className = "bookmark-label";
+      label.textContent = s.query + "  (" + s.scope + ")";
+      label.addEventListener("click", () => {
+        bookmarksOverlay.classList.remove("visible");
+        bookmarksBtn.classList.remove("active");
+        setScope(s.scope);
+        queryEl.value = s.query;
+        state.query = s.query;
+        triggerSearch(render);
+      });
+      const removeBtn = document.createElement("button");
+      removeBtn.type = "button";
+      removeBtn.className = "bookmark-remove";
+      removeBtn.textContent = "\u2715";
+      removeBtn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        vscode.postMessage({ type: "removeSavedSearch", index: idx });
+      });
+      row.appendChild(label);
+      row.appendChild(removeBtn);
+      bookmarksList.appendChild(row);
+    });
+  }
+  function saveCurrentSearch() {
+    if (!state.query.trim()) {
+      return;
+    }
+    vscode.postMessage({ type: "saveSearch", query: state.query, scope: state.scope });
+    showToast("Bookmarked.");
   }
   function initEvents() {
     queryEl.addEventListener("input", () => {
@@ -1395,7 +1514,11 @@
         openResult(state.selected);
       } else if (e.key === "Tab") {
         e.preventDefault();
-        setScope(SCOPES[(SCOPES.indexOf(state.scope) + 1) % SCOPES.length]);
+        if (state.replaceMode) {
+          document.getElementById("replace-input").focus();
+        } else {
+          setScope(SCOPES[(SCOPES.indexOf(state.scope) + 1) % SCOPES.length]);
+        }
       } else if (matchKey(e, KB.toggleRegex)) {
         e.preventDefault();
         toggleRegex();
@@ -1417,6 +1540,9 @@
       } else if (e.altKey && e.key === "s") {
         e.preventDefault();
         toggleSort();
+      } else if (e.altKey && e.key === "b") {
+        e.preventDefault();
+        saveCurrentSearch();
       } else if (matchKey(e, KB.close)) {
         if (state.includeMode) {
           e.preventDefault();
@@ -1457,6 +1583,9 @@
       } else if (e.altKey && e.key === "s") {
         e.preventDefault();
         toggleSort();
+      } else if (e.altKey && e.key === "b") {
+        e.preventDefault();
+        saveCurrentSearch();
       } else if (e.ctrlKey && e.key === " ") {
         e.preventDefault();
         toggleSelectResult(state.selected);
@@ -1533,6 +1662,12 @@
       const helpBtn2 = document.getElementById("help-btn");
       shortcutsOverlay2.classList.remove("visible");
       helpBtn2.classList.remove("active");
+      bookmarksOverlay.classList.remove("visible");
+      bookmarksBtn.classList.remove("active");
+      const rpOverlay = document.getElementById("replace-preview-overlay");
+      if (rpOverlay) {
+        rpOverlay.classList.remove("visible");
+      }
       hideCtxMenu();
     });
     document.getElementById("shortcuts-overlay").addEventListener("click", (e) => e.stopPropagation());
@@ -1541,6 +1676,18 @@
       const overlay = document.getElementById("shortcuts-overlay");
       overlay.classList.toggle("visible");
       e.currentTarget.classList.toggle("active", overlay.classList.contains("visible"));
+    });
+    bookmarksOverlay.addEventListener("click", (e) => e.stopPropagation());
+    bookmarksBtn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      renderBookmarks();
+      bookmarksOverlay.classList.toggle("visible");
+      bookmarksBtn.classList.toggle("active", bookmarksOverlay.classList.contains("visible"));
+    });
+    document.getElementById("bookmarks-close-btn").addEventListener("click", (e) => {
+      e.stopPropagation();
+      bookmarksOverlay.classList.remove("visible");
+      bookmarksBtn.classList.remove("active");
     });
   }
   function initMessages() {
@@ -1632,6 +1779,15 @@
           state.selected = 0;
           showToast("Replaced in " + data.fileCount + " file" + (data.fileCount !== 1 ? "s" : ""));
           triggerSearch(render);
+          break;
+        case "savedSearches":
+          state.savedSearches = data.searches;
+          if (bookmarksOverlay.classList.contains("visible")) {
+            renderBookmarks();
+          }
+          break;
+        case "replacePreviewData":
+          renderReplacePreview(data.files);
           break;
       }
     });

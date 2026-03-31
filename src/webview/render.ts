@@ -1,7 +1,7 @@
 import { state } from './state';
 import { escHtml, highlightMatch, highlightPositions } from './highlight';
 import { wrap, stateMsg, resultInfo } from './dom';
-import { isFileScope, isSymbolScope, isGitScope, triggerSearch } from './search';
+import { isFileScope, isSymbolScope, isGitScope, isRefsScope, triggerSearch } from './search';
 import type { SearchResult } from './types';
 import { requestPreview, recentDefault } from './preview';
 
@@ -42,6 +42,12 @@ export function renderTextResults(): void {
   }
 
   if (!state.searching && state.results.length === 0) {
+    if (isRefsScope()) {
+      stateMsg.textContent = 'No references found.';
+      stateMsg.style.display = '';
+      resultInfo.textContent = '0 refs';
+      return;
+    }
     if (state.query) {
       stateMsg.textContent = 'No results.';
       stateMsg.style.display = '';
@@ -284,7 +290,7 @@ export function renderFileResults(): void {
 }
 
 export function renderSymbolResults(): void {
-  wrap.querySelectorAll('.result').forEach(el => el.remove());
+  wrap.querySelectorAll('.result, .sym-kind-chips').forEach(el => el.remove());
   const MAX_RESULTS = (window as any).__spyglass.MAX_RESULTS;
 
   if (state.searching) {
@@ -294,8 +300,12 @@ export function renderSymbolResults(): void {
     return;
   }
 
+  const emptyMsg = state.scope === 'doc'
+    ? (state.symbolResults.length === 0 ? 'No document symbols.' : '')
+    : (state.query ? 'No symbols found.' : 'Start typing to search symbols...');
+
   if (state.symbolResults.length === 0) {
-    stateMsg.textContent = state.query ? 'No symbols found.' : 'Start typing to search symbols...';
+    stateMsg.textContent = emptyMsg;
     stateMsg.style.display = '';
     resultInfo.textContent = '0 symbols';
     return;
@@ -311,8 +321,37 @@ export function renderSymbolResults(): void {
     'operator': 'op', 'event': 'op',
   };
 
+  // Collect unique kind labels and render chips
+  const kindCounts = new Map<string, number>();
+  for (const r of state.symbolResults) {
+    kindCounts.set(r.kindLabel, (kindCounts.get(r.kindLabel) ?? 0) + 1);
+  }
+  if (kindCounts.size > 1) {
+    const chipsRow = document.createElement('div');
+    chipsRow.className = 'sym-kind-chips';
+    kindCounts.forEach((count, label) => {
+      const chip = document.createElement('button');
+      chip.type = 'button';
+      const kc = KIND_CLASS[label] ? ' sym-kind--' + KIND_CLASS[label] : '';
+      chip.className = 'sym-chip sym-kind' + kc + (state.symbolKindFilter === label ? ' active' : '');
+      chip.textContent = label + ' ' + count;
+      chip.addEventListener('click', () => {
+        state.symbolKindFilter = state.symbolKindFilter === label ? '' : label;
+        renderSymbolResults();
+      });
+      chipsRow.appendChild(chip);
+    });
+    wrap.insertBefore(chipsRow, wrap.querySelector('.result'));
+    wrap.prepend(chipsRow);
+  }
+
+  // Filter by kind if active
+  const filtered = state.symbolKindFilter
+    ? state.symbolResults.filter(r => r.kindLabel === state.symbolKindFilter)
+    : state.symbolResults;
+
   const frag = document.createDocumentFragment();
-  state.symbolResults.forEach((r, i) => {
+  filtered.forEach((r, i) => {
     const div = document.createElement('div');
     div.className = 'result' + (i === state.selected ? ' selected' : '');
     div.dataset.index = String(i);
@@ -330,8 +369,8 @@ export function renderSymbolResults(): void {
   });
 
   wrap.appendChild(frag);
-  const ns = state.symbolResults.length;
-  const cappedS = ns >= MAX_RESULTS;
+  const ns = filtered.length;
+  const cappedS = !state.symbolKindFilter && ns >= MAX_RESULTS;
   resultInfo.textContent = ns + (cappedS ? '+' : '') + ' symbol' + (ns !== 1 ? 's' : '');
   scrollToSelected();
   requestPreview();

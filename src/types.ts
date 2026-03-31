@@ -16,7 +16,7 @@ export interface SearchResult {
   matchEnd: number;
 }
 
-export type Scope = 'project' | 'openFiles' | 'files' | 'recent' | 'here' | 'symbols' | 'git';
+export type Scope = 'project' | 'openFiles' | 'files' | 'recent' | 'here' | 'symbols' | 'git' | 'doc' | 'refs';
 
 export interface FileResult {
   file: string;
