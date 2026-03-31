@@ -83,4 +83,5 @@ export interface AppState {
   symbolKindFilter: string;
   savedSearches: Array<{ query: string; scope: string }>;
   bookmarksMode: boolean;
+  refsSymbol: string;
 }

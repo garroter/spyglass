@@ -33,7 +33,8 @@
     includeMode: false,
     symbolKindFilter: "",
     savedSearches: (SAVED_SEARCHES ?? []).slice(),
-    bookmarksMode: false
+    bookmarksMode: false,
+    refsSymbol: ""
   };
 
   // src/webview/dom.ts
@@ -215,9 +216,13 @@
         renderFn();
         vscode.postMessage({ type: "refsSearch" });
       } else if (state.scope === "doc") {
-        state.searching = true;
-        renderFn();
-        vscode.postMessage({ type: "docSearch", query: state.query });
+        if (state.symbolResults.length > 0) {
+          renderFn();
+        } else {
+          state.searching = true;
+          renderFn();
+          vscode.postMessage({ type: "docSearch" });
+        }
       } else if (state.scope === "symbols") {
         state.searching = true;
         renderFn();
@@ -838,7 +843,8 @@
     wrap.appendChild(frag);
     const n = state.results.length;
     const capped = !state.searching && n >= MAX_RESULTS;
-    resultInfo.textContent = n + (state.searching ? "\u2026" : capped ? "+" : "") + " result" + (n !== 1 ? "s" : "");
+    const suffix = isRefsScope() && state.refsSymbol ? " refs to: " + state.refsSymbol : " result" + (n !== 1 ? "s" : "");
+    resultInfo.textContent = n + (state.searching ? "\u2026" : capped ? "+" : "") + suffix;
     if (capped) {
       stateMsg.textContent = "Showing first " + MAX_RESULTS + " results \u2014 narrow your query to see more.";
       stateMsg.style.display = "";
@@ -966,7 +972,8 @@
       wrap.insertBefore(chipsRow, wrap.querySelector(".result"));
       wrap.prepend(chipsRow);
     }
-    const filtered = state.symbolKindFilter ? state.symbolResults.filter((r) => r.kindLabel === state.symbolKindFilter) : state.symbolResults;
+    const queryFiltered = isDocScope() && state.query ? state.symbolResults.filter((r) => r.name.toLowerCase().includes(state.query.toLowerCase())) : state.symbolResults;
+    const filtered = state.symbolKindFilter ? queryFiltered.filter((r) => r.kindLabel === state.symbolKindFilter) : queryFiltered;
     const frag = document.createDocumentFragment();
     filtered.forEach((r, i) => {
       const div = document.createElement("div");
@@ -1319,6 +1326,9 @@
   function setScope(scope) {
     if (scope === "git") {
       state.gitFiles = null;
+    }
+    if (scope === "doc") {
+      state.symbolResults = [];
     }
     state.scope = scope;
     state.selected = 0;
@@ -1751,6 +1761,9 @@
           state.searching = false;
           state.results = data.results;
           state.selected = 0;
+          if (data.refsSymbol !== void 0) {
+            state.refsSymbol = data.refsSymbol;
+          }
           if (data.took > 0) {
             searchTook2.textContent = data.took + "ms";
           }

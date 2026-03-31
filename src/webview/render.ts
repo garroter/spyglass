@@ -1,7 +1,7 @@
 import { state } from './state';
 import { escHtml, highlightMatch, highlightPositions } from './highlight';
 import { wrap, stateMsg, resultInfo } from './dom';
-import { isFileScope, isSymbolScope, isGitScope, isRefsScope, triggerSearch } from './search';
+import { isFileScope, isSymbolScope, isDocScope, isGitScope, isRefsScope, triggerSearch } from './search';
 import type { SearchResult } from './types';
 import { requestPreview, recentDefault } from './preview';
 
@@ -234,7 +234,8 @@ export function renderTextResults(): void {
   wrap.appendChild(frag);
   const n = state.results.length;
   const capped = !state.searching && n >= MAX_RESULTS;
-  resultInfo.textContent = n + (state.searching ? '…' : capped ? '+' : '') + ' result' + (n !== 1 ? 's' : '');
+  const suffix = isRefsScope() && state.refsSymbol ? ' refs to: ' + state.refsSymbol : (' result' + (n !== 1 ? 's' : ''));
+  resultInfo.textContent = n + (state.searching ? '…' : capped ? '+' : '') + suffix;
   if (capped) {
     stateMsg.textContent = 'Showing first ' + MAX_RESULTS + ' results — narrow your query to see more.';
     stateMsg.style.display = '';
@@ -388,10 +389,15 @@ export function renderSymbolResults(): void {
     wrap.prepend(chipsRow);
   }
 
+  // Filter by query (doc scope: local filter; symbols: LSP already filtered)
+  const queryFiltered = (isDocScope() && state.query)
+    ? state.symbolResults.filter(r => r.name.toLowerCase().includes(state.query.toLowerCase()))
+    : state.symbolResults;
+
   // Filter by kind if active
   const filtered = state.symbolKindFilter
-    ? state.symbolResults.filter(r => r.kindLabel === state.symbolKindFilter)
-    : state.symbolResults;
+    ? queryFiltered.filter(r => r.kindLabel === state.symbolKindFilter)
+    : queryFiltered;
 
   const frag = document.createDocumentFragment();
   filtered.forEach((r, i) => {

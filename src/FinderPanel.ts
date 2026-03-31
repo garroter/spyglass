@@ -82,10 +82,11 @@ export class FinderPanel {
       togglePreview:  config.get<string>('keybindings.togglePreview',  'shift+alt+p'),
     };
 
+    const openOnSide = config.get<boolean>('openOnSide', false);
     const panel = vscode.window.createWebviewPanel(
       'spyglass',
       'Spyglass',
-      { viewColumn: vscode.ViewColumn.Active, preserveFocus: false },
+      { viewColumn: openOnSide ? vscode.ViewColumn.Beside : vscode.ViewColumn.Active, preserveFocus: false },
       {
         enableScripts: true,
         localResourceRoots: [vscode.Uri.joinPath(context.extensionUri, 'media')],
@@ -439,6 +440,19 @@ export class FinderPanel {
       return;
     }
     try {
+      const { promises: fsp } = await import('fs');
+
+      // Extract word at cursor to show as label
+      let symbolName = '';
+      try {
+        const src = await fsp.readFile(this._activeCursorFile, 'utf-8');
+        const line = src.split('\n')[this._activeCursorLine] ?? '';
+        const ch = this._activeCursorChar;
+        const before = line.slice(0, ch + 1).match(/[\w$]+$/)?.[0] ?? '';
+        const after  = line.slice(ch + 1).match(/^[\w$]*/)?.[0] ?? '';
+        symbolName = before + after;
+      } catch { /* ignore */ }
+
       const uri = vscode.Uri.file(this._activeCursorFile);
       const position = new vscode.Position(this._activeCursorLine, this._activeCursorChar);
       const locs = await vscode.commands.executeCommand<vscode.Location[]>(
@@ -446,10 +460,9 @@ export class FinderPanel {
       );
       if (seq !== this._searchSeq) { return; }
       if (!locs || locs.length === 0) {
-        this._post({ type: 'results', results: [], query: '', took: 0 });
+        this._post({ type: 'results', results: [], query: '', took: 0, refsSymbol: symbolName });
         return;
       }
-      const { promises: fsp } = await import('fs');
       const results: import('./types').SearchResult[] = [];
       for (const loc of locs) {
         const filePath = loc.uri.fsPath;
@@ -469,7 +482,7 @@ export class FinderPanel {
         } catch { /* skip */ }
       }
       if (seq !== this._searchSeq) { return; }
-      this._post({ type: 'results', results, query: '', took: 0 });
+      this._post({ type: 'results', results, query: '', took: 0, refsSymbol: symbolName });
     } catch {
       if (seq !== this._searchSeq) { return; }
       this._post({ type: 'error', message: 'Reference search failed.' });

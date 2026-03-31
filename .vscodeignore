@@ -15,4 +15,5 @@ node_modules/**
 .claude/**
 images/*.mp4
 images/*.webm
-images/icon.svg
+images/*.gif
+images/*.svg

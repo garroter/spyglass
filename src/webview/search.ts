@@ -117,9 +117,13 @@ export function triggerSearch(renderFn: () => void): void {
       renderFn();
       vscode.postMessage({ type: 'refsSearch' });
     } else if (state.scope === 'doc') {
-      state.searching = true;
-      renderFn();
-      vscode.postMessage({ type: 'docSearch', query: state.query });
+      if (state.symbolResults.length > 0) {
+        renderFn(); // already loaded — just re-render with local filter
+      } else {
+        state.searching = true;
+        renderFn();
+        vscode.postMessage({ type: 'docSearch' });
+      }
     } else if (state.scope === 'symbols') {
       state.searching = true;
       renderFn();

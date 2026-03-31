@@ -1,5 +1,25 @@
 # Changelog
 
+## [0.2.0] - 2026-03-31
+
+### Added
+- **Find References scope** — new "Refs" tab shows all references to the symbol under the cursor at panel open; results rendered as text search results with file/line/context; shows "X refs to: symbolName" in status bar
+- **Document Symbols scope** — new "Doc" tab lists all symbols in the active file (functions, classes, variables…) using the LSP; filter by typing (local, instant); symbol kind filter chips (fn / cls / var / enum…)
+- **Replace preview** — clicking "Replace all" now shows a diff overlay with before/after lines for every affected file before applying; "Apply" and "Cancel" buttons
+- **Saved searches (bookmarks)** — `Alt+B` saves the current query + scope; `★` button (or `Alt+B` with empty query) opens bookmarks inline in the results panel; arrow keys + Enter to apply; `✕` to remove
+- **Sort results** — `Alt+S` or `⇅` button cycles sort order: default → by filename → by match count
+- **Include filter** — `Alt+I` or `⊂` button reveals an include-patterns row (`*.ts, src/**`); merged with glob filter when searching
+- **Symbol kind filter** — chips row in Symbols/Doc scope to filter results by kind (fn, cls, var, enum…)
+- **`spyglass.openOnSide`** — new setting to open the panel in a side column instead of the active editor column
+- **Toast notifications** now centered at the top instead of top-right
+
+### Fixed
+- Esc now exits replace/include mode first before closing the panel
+- ripgrep process error now surfaces a proper error message instead of silently returning empty results
+- Results capped at limit now show an explanatory message ("Narrow your query to see more")
+- Doc scope symbols fetched once per scope entry and filtered locally on subsequent keystrokes — no LSP round-trip per keystroke
+- Tabs row scrollable horizontally when too many tabs to fit (9 scopes)
+
 ## [0.1.9] - 2026-03-20
 
 ### Added

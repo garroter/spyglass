@@ -37,6 +37,7 @@ export function updateReplaceRowVisibility(): void {
 
 export function setScope(scope: string): void {
   if (scope === 'git') { state.gitFiles = null; }
+  if (scope === 'doc') { state.symbolResults = []; }
   state.scope = scope;
   state.selected = 0;
   state.multiSelected = new Set();
@@ -399,6 +400,7 @@ export function initMessages(): void {
         state.searching = false;
         state.results = data.results;
         state.selected = 0;
+        if (data.refsSymbol !== undefined) { state.refsSymbol = data.refsSymbol as string; }
         if (data.took > 0) { searchTook.textContent = data.took + 'ms'; }
         render();
         break;

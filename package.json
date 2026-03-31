@@ -2,7 +2,7 @@
   "name": "spyglass",
   "displayName": "Spyglass",
   "description": "Fast file and text search popup inspired by Neovim Telescope and JetBrains Finder",
-  "version": "0.1.9",
+  "version": "0.2.0",
   "publisher": "garroter",
   "license": "MIT",
   "icon": "images/icon.png",
@@ -118,6 +118,11 @@
           "type": "string",
           "default": "shift+alt+p",
           "description": "Key combination to toggle preview panel (e.g. 'shift+alt+p')."
+        },
+        "spyglass.openOnSide": {
+          "type": "boolean",
+          "default": false,
+          "description": "Open Spyglass in a side column instead of the active editor column."
         },
         "spyglass.exclude": {
           "type": "array",

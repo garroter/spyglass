@@ -130,7 +130,10 @@
     padding: 6px 14px 0;
     border-bottom: 1px solid var(--f-border-s);
     flex-shrink: 0;
+    overflow-x: auto;
+    scrollbar-width: none;
   }
+  .tabs::-webkit-scrollbar { display: none; }
 
   .tab {
     background: transparent;

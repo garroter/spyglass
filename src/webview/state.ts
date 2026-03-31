@@ -35,4 +35,5 @@ export const state: AppState = {
   symbolKindFilter: '',
   savedSearches: (SAVED_SEARCHES ?? []).slice(),
   bookmarksMode: false,
+  refsSymbol: '',
 };
