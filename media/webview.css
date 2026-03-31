@@ -200,7 +200,7 @@
   .pin-icon  { font-size: 10px; color: var(--f-accent); flex-shrink: 0; margin-right: 4px; opacity: 0.8; }
 
   #spyglass-toast {
-    position: fixed; top: 14px; right: 18px;
+    position: fixed; top: 14px; left: 50%; transform: translateX(-50%);
     background: var(--f-raised); border: 1px solid var(--f-border);
     color: var(--f-text); font-size: 12px; padding: 6px 14px; border-radius: 6px;
     box-shadow: 0 2px 8px var(--f-shadow); pointer-events: none;
