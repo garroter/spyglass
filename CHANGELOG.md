@@ -1,5 +1,23 @@
 # Changelog
 
+## [0.2.1] - 2026-04-01
+
+### Added
+- **Activity Bar sidebar panel** — Spyglass now lives as a persistent panel in the Activity Bar (alongside Files, Extensions, etc.), in addition to the existing floating popup
+- **`Ctrl+Alt+E` shortcut** — focuses / toggles the sidebar panel; `Ctrl+Alt+F` continues to open the popup
+- **`spyglass.focusSidebar` command** — available in Command Palette as "Spyglass: Focus Sidebar Panel"
+- **Responsive sidebar layout** — the sidebar automatically adapts to its width:
+  - `< 420 px` — results only, preview hidden
+  - `420–599 px` — preview panel stacked **below** results
+  - `≥ 600 px` — preview panel **beside** results (classic split)
+- **Pill-style scope tabs in sidebar** — active tab highlighted with accent color background, much more readable than the underline style used in the popup
+- **Compact secondary toolbar** — less-used options (group, sort, include, bookmarks, help) are collapsed behind a `⋯` button; clicking reveals them inline to the left of the button, keeping the topbar clean on narrow screens
+
+### Fixed
+- Crash on panel open: `Cannot read properties of null (reading 'classList')` — sidebar HTML was missing `more-btn` / `secondary-toolbar` elements that the shared webview bundle expected
+- Activity Bar icon displayed as a white square — the SVG had a background `<rect>` that VS Code's mask rendering filled solid; removed the background so only the spyglass shape is used
+- Search icon in topbar changed from `⌕` (dentistry symbol) to an inline SVG magnifying glass that matches the UI style
+
 ## [0.2.0] - 2026-03-31
 
 ### Added

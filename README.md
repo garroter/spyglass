@@ -25,16 +25,17 @@
 </p>
 
 <p align="center">
-  Open with <kbd>Ctrl+Alt+F</kbd> — Type — Navigate — Done.
+  Popup: <kbd>Ctrl+Alt+F</kbd> &nbsp;·&nbsp; Sidebar: <kbd>Ctrl+Alt+E</kbd> — Type — Navigate — Done.
 </p>
 
 ---
 
 ## Why Spyglass?
 
-VS Code's built-in search (`Ctrl+Shift+F`) is powerful but slow to use — it opens a sidebar panel, requires mouse clicks to navigate, and doesn't show a live preview. Spyglass is designed to keep your hands on the keyboard:
+VS Code's built-in search (`Ctrl+Shift+F`) is powerful but slow to use — it requires mouse clicks to navigate and doesn't show a live preview. Spyglass is designed to keep your hands on the keyboard:
 
 - **One shortcut** to open, type, navigate, open — no mouse needed
+- **Two modes** — floating popup (`Ctrl+Alt+F`) or persistent Activity Bar sidebar (`Ctrl+Alt+E`)
 - **Live preview** updates as you move through results
 - **Unified interface** for text search, file search, and symbols — no switching panels
 - **Instant results** streaming from ripgrep, even in large projects
@@ -87,6 +88,20 @@ VS Code's built-in search (`Ctrl+Shift+F`) is powerful but slow to use — it op
 - **Git change indicators** — modified lines highlighted in the gutter
 - **Theme adaptive** — native look in any VS Code theme: dark, light, high contrast
 
+### 🖥️ Two ways to use Spyglass
+
+| Mode | Shortcut | Description |
+|------|----------|-------------|
+| **Popup** | `Ctrl+Alt+F` | Floating modal — opens over the editor, closes with `Esc` |
+| **Sidebar** | `Ctrl+Alt+E` | Persistent panel in the Activity Bar — stays open as you work |
+
+The sidebar adapts to its width automatically:
+- **Narrow** (< 420 px) — results only, no preview
+- **Medium** (420–599 px) — preview panel stacked **below** results
+- **Wide** (≥ 600 px) — preview panel **beside** results (classic split)
+
+Both modes share the same features, keyboard shortcuts, and state.
+
 ### ⚡ Actions
 - **Find & Replace with preview** — `Alt+R` to enable replace mode; "Replace all" shows a diff overlay (before/after per line per file) before applying; Apply or Cancel; uses VS Code WorkspaceEdit (supports undo)
 - **Copy path** — copy the absolute path of the selected result
@@ -103,7 +118,8 @@ VS Code's built-in search (`Ctrl+Shift+F`) is powerful but slow to use — it op
 
 | Action | Shortcut |
 |--------|----------|
-| Open Spyglass | `Ctrl+Alt+F` |
+| Open popup (floating modal) | `Ctrl+Alt+F` |
+| Focus sidebar panel | `Ctrl+Alt+E` |
 
 > **VSCode Vim users** — bind `<Space>f` as your leader shortcut. See [Vim setup](#-vim-setup) below.
 
@@ -186,6 +202,7 @@ Lines modified since the last git commit are marked with a **blue indicator** in
 | `spyglass.defaultScope` | `project` | Scope on open: `project` `openFiles` `files` `recent` `here` `symbols` `git` `doc` `refs` |
 | `spyglass.maxResults` | `200` | Maximum number of results to display |
 | `spyglass.exclude` | `[".git","node_modules","out","dist","*.lock"]` | Glob patterns excluded from search and file listing |
+| `spyglass.openOnSide` | `false` | Open the popup in a side column instead of the active editor column |
 | `spyglass.keybindings.navigateDown` | `ArrowDown` | Navigate down in results |
 | `spyglass.keybindings.navigateUp` | `ArrowUp` | Navigate up in results |
 | `spyglass.keybindings.open` | `Enter` | Open selected result |
@@ -199,7 +216,7 @@ Lines modified since the last git commit are marked with a **blue indicator** in
 
 ### Change the open shortcut
 
-Open **Keyboard Shortcuts** (`Ctrl+K Ctrl+S`), search for `Spyglass: Open Search` and assign your preferred key.
+Open **Keyboard Shortcuts** (`Ctrl+K Ctrl+S`), search for `Spyglass: Open Search Popup` or `Spyglass: Focus Sidebar Panel` and assign your preferred keys.
 
 Or edit `keybindings.json` directly (`Ctrl+Shift+P` → *Open Keyboard Shortcuts (JSON)*):
 
@@ -209,6 +226,10 @@ Or edit `keybindings.json` directly (`Ctrl+Shift+P` → *Open Keyboard Shortcuts
     "key": "ctrl+alt+f",
     "command": "spyglass.open",
     "when": "!inputFocus || editorTextFocus"
+  },
+  {
+    "key": "ctrl+alt+e",
+    "command": "spyglass.focusSidebar"
   }
 ]
 ```
