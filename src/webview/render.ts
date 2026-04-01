@@ -8,6 +8,9 @@ import { requestPreview, recentDefault } from './preview';
 import { vscode } from './vscode';
 
 export function render(): void {
+  if (!isSymbolScope()) {
+    wrap.querySelectorAll('.sym-kind-chips').forEach(el => el.remove());
+  }
   if (state.bookmarksMode)  { renderBookmarkResults(); }
   else if (isFileScope())   { renderFileResults(); }
   else if (isSymbolScope()) { renderSymbolResults(); }

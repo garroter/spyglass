@@ -639,6 +639,9 @@
 
   // src/webview/render.ts
   function render() {
+    if (!isSymbolScope()) {
+      wrap.querySelectorAll(".sym-kind-chips").forEach((el) => el.remove());
+    }
     if (state.bookmarksMode) {
       renderBookmarkResults();
     } else if (isFileScope()) {
