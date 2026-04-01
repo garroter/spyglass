@@ -130,11 +130,11 @@
   }
   .icon-btn[data-tooltip]:hover::after { opacity: 1; }
 
-  /* ── Scope tabs ──────────────────────────────────────────── */
+  /* ── Scope tabs — pill style ─────────────────────────────── */
   .tabs {
     display: flex;
     gap: 2px;
-    padding: 6px 14px 0;
+    padding: 5px 10px;
     border-bottom: 1px solid var(--f-border-s);
     flex-shrink: 0;
     overflow-x: auto;
@@ -145,16 +145,19 @@
   .tab {
     background: transparent;
     border: none;
-    border-bottom: 2px solid transparent;
+    border-radius: 4px;
     color: var(--f-dim);
     font-family: inherit;
     font-size: 11px;
-    padding: 3px 10px 7px;
+    padding: 3px 9px;
     cursor: pointer;
-    transition: all 0.12s;
+    transition: background 0.1s, color 0.1s;
   }
-  .tab:hover  { color: var(--f-text); }
-  .tab.active { color: var(--f-accent); border-bottom-color: var(--f-accent); }
+  .tab:hover  { color: var(--f-text); background: var(--f-hover); }
+  .tab.active {
+    color: var(--f-accent);
+    background: color-mix(in srgb, var(--f-accent) 14%, transparent);
+  }
 
   /* ── Main layout: left + right ───────────────────────────── */
   .layout { display: flex; flex: 1; overflow: hidden; min-height: 0; }
@@ -764,25 +767,9 @@
   body.sidebar-mode .topbar { padding: 6px 8px; gap: 4px; }
   body.sidebar-mode .search-icon svg { width: 13px; height: 13px; }
 
-  /* ── Tabs: pill-style — much more visible than underline ──── */
-  body.sidebar-mode .tabs {
-    padding: 5px 8px;
-    gap: 2px;
-    border-bottom: 1px solid var(--f-border-s);
-  }
-  body.sidebar-mode .tab {
-    padding: 3px 9px;
-    font-size: 11px;
-    border-bottom: none;
-    border-radius: 4px;
-    color: var(--f-dim);
-  }
-  body.sidebar-mode .tab:hover  { color: var(--f-text); background: var(--f-hover); }
-  body.sidebar-mode .tab.active {
-    color: var(--f-accent);
-    background: color-mix(in srgb, var(--f-accent) 14%, transparent);
-    border-bottom-color: transparent;
-  }
+  /* Tabs: tighter padding in sidebar */
+  body.sidebar-mode .tabs { padding: 5px 8px; }
+  body.sidebar-mode .tab  { padding: 3px 8px; }
 
   /* Results: tighter rows */
   body.sidebar-mode .result            { padding: 5px 10px; }
