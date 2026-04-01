@@ -434,6 +434,14 @@ export class FinderPanel {
 
   private async _runRefsSearch(): Promise<void> {
     const seq = ++this._searchSeq;
+    // Refresh cursor position — activeTextEditor may be undefined when popup has focus,
+    // so fall back to the value captured at panel-open time only if refresh fails.
+    const editor = vscode.window.activeTextEditor;
+    if (editor?.document.uri.scheme === 'file') {
+      this._activeCursorFile = editor.document.uri.fsPath;
+      this._activeCursorLine = editor.selection.active.line;
+      this._activeCursorChar = editor.selection.active.character;
+    }
     if (!this._activeCursorFile) {
       this._post({ type: 'results', results: [], query: '', took: 0 });
       this._post({ type: 'error', message: 'No active file — open a file first.' });
@@ -459,6 +467,11 @@ export class FinderPanel {
         'vscode.executeReferenceProvider', uri, position
       );
       if (seq !== this._searchSeq) { return; }
+      if (!symbolName) {
+        this._post({ type: 'results', results: [], query: '', took: 0, refsSymbol: '' });
+        this._post({ type: 'error', message: 'Place cursor on a symbol, then switch to Refs.' });
+        return;
+      }
       if (!locs || locs.length === 0) {
         this._post({ type: 'results', results: [], query: '', took: 0, refsSymbol: symbolName });
         return;
