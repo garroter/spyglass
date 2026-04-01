@@ -1,19 +1,19 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128">
 
-  <!-- Spyglass at -45°: 3 tubes + lens ring, flat monochrome (no background — VS Code uses as mask) -->
+  <!-- Spyglass at -45°: 3 tubes + lens ring, scaled up ~15% from centre -->
   <g transform="rotate(-45, 64, 64)" fill="#89b4fa">
 
     <!-- Eyepiece (narrow) -->
-    <rect x="10" y="60" width="18" height="8" rx="3"/>
+    <rect x="2" y="59" width="21" height="9" rx="3"/>
 
     <!-- Middle tube -->
-    <rect x="31" y="56" width="28" height="16" rx="2"/>
+    <rect x="26" y="55" width="32" height="18" rx="2"/>
 
     <!-- Objective tube (wide) -->
-    <rect x="62" y="51" width="24" height="26" rx="2"/>
+    <rect x="62" y="49" width="28" height="30" rx="2"/>
 
     <!-- Objective lens ring -->
-    <circle cx="98" cy="64" r="16" fill="none" stroke="#89b4fa" stroke-width="5"/>
+    <circle cx="103" cy="64" r="18" fill="none" stroke="#89b4fa" stroke-width="6"/>
 
   </g>
 

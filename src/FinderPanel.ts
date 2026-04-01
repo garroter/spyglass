@@ -703,7 +703,7 @@ export class FinderPanel {
 
 <!-- Top bar -->
 <div class="topbar">
-  <span class="search-icon"><svg width="13" height="13" viewBox="0 0 13 13" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="5.5" cy="5.5" r="4" stroke="currentColor" stroke-width="1.5"/><line x1="8.8" y1="8.8" x2="12" y2="12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg></span>
+  <span class="search-icon"><svg width="15" height="15" viewBox="0 0 15 15" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="6.5" cy="6.5" r="4.5" stroke="currentColor" stroke-width="1.5"/><line x1="10.2" y1="10.2" x2="14" y2="14" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg></span>
   <input id="query" type="text" placeholder="Search in files..." autocomplete="off" spellcheck="false">
   <button type="button" class="icon-btn" id="regex-btn" aria-label="Toggle regex" data-tooltip="Regex — Shift+Alt+R">.*</button>
   <button type="button" class="icon-btn" id="case-btn" aria-label="Case sensitive" data-tooltip="Case sensitive — Alt+C">Aa</button>
