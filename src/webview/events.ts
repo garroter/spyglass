@@ -191,7 +191,7 @@ export function renderReplacePreview(files: Array<{ relativePath: string; change
 }
 
 function toggleSecondaryToolbar(): void {
-  const visible = secondaryToolbar.style.display !== 'none' && secondaryToolbar.style.display !== '';
+  const visible = secondaryToolbar.style.display === 'flex';
   secondaryToolbar.style.display = visible ? 'none' : 'flex';
   moreBtn.classList.toggle('active', !visible);
 }

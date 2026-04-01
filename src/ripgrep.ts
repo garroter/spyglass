@@ -42,6 +42,34 @@ export interface CancellableSearch {
 
 const DEFAULT_EXCLUDES = ['.git', 'node_modules', 'out', 'dist', '*.lock'];
 
+export function buildRgArgs(
+  query: string,
+  useRegex: boolean,
+  opts?: { caseSensitive?: boolean; wholeWord?: boolean; globFilter?: string; exclude?: string[] },
+  files?: string[],
+): string[] {
+  const excludes = opts?.exclude ?? DEFAULT_EXCLUDES;
+  const args: string[] = ['--json', '--max-count', '10', '--max-filesize', '1M'];
+  for (const e of excludes) {
+    args.push('--glob', e.startsWith('!') ? e : `!${e}`);
+  }
+  if (opts?.caseSensitive) {
+    args.push('--case-sensitive');
+  } else {
+    args.push('--smart-case');
+  }
+  if (opts?.wholeWord) { args.push('--word-regexp'); }
+  if (opts?.globFilter?.trim()) {
+    for (const g of opts.globFilter.split(',').map(s => s.trim()).filter(Boolean)) {
+      args.push('--glob', g);
+    }
+  }
+  if (!useRegex) { args.push('--fixed-strings'); }
+  args.push('--', query);
+  if (files?.length) { args.push(...files); } else { args.push('.'); }
+  return args;
+}
+
 export function searchWithRipgrep(
   query: string,
   cwd: string,
@@ -54,43 +82,7 @@ export function searchWithRipgrep(
   let cancel = () => {};
 
   const promise = new Promise<SearchResult[]>((resolve, reject) => {
-    const excludes = opts?.exclude ?? DEFAULT_EXCLUDES;
-    const args: string[] = [
-      '--json',
-      '--max-count', '10',
-      '--max-filesize', '1M',
-    ];
-    for (const e of excludes) {
-      args.push('--glob', e.startsWith('!') ? e : `!${e}`);
-    }
-
-    if (opts?.caseSensitive) {
-      args.push('--case-sensitive');
-    } else {
-      args.push('--smart-case');
-    }
-
-    if (opts?.wholeWord) {
-      args.push('--word-regexp');
-    }
-
-    if (opts?.globFilter?.trim()) {
-      for (const g of opts.globFilter.split(',').map(s => s.trim()).filter(Boolean)) {
-        args.push('--glob', g);
-      }
-    }
-
-    if (!useRegex) {
-      args.push('--fixed-strings');
-    }
-
-    args.push('--', query);
-
-    if (files?.length) {
-      args.push(...files);
-    } else {
-      args.push('.');
-    }
+    const args = buildRgArgs(query, useRegex, opts, files);
 
     const rg = spawn(resolveRgPath(), args, { cwd });
     const results: SearchResult[] = [];

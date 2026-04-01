@@ -1,47 +1,31 @@
 import * as vscode from 'vscode';
 import { SymbolResult } from './types';
 
-const KIND_LABELS: Record<number, string> = {
-  [vscode.SymbolKind.File]: 'file',
-  [vscode.SymbolKind.Module]: 'module',
-  [vscode.SymbolKind.Namespace]: 'namespace',
-  [vscode.SymbolKind.Package]: 'package',
-  [vscode.SymbolKind.Class]: 'class',
-  [vscode.SymbolKind.Method]: 'method',
-  [vscode.SymbolKind.Property]: 'property',
-  [vscode.SymbolKind.Field]: 'field',
-  [vscode.SymbolKind.Constructor]: 'constructor',
-  [vscode.SymbolKind.Enum]: 'enum',
-  [vscode.SymbolKind.Interface]: 'interface',
-  [vscode.SymbolKind.Function]: 'function',
-  [vscode.SymbolKind.Variable]: 'variable',
-  [vscode.SymbolKind.Constant]: 'constant',
-  [vscode.SymbolKind.String]: 'string',
-  [vscode.SymbolKind.Number]: 'number',
-  [vscode.SymbolKind.Boolean]: 'boolean',
-  [vscode.SymbolKind.Array]: 'array',
-  [vscode.SymbolKind.Object]: 'object',
-  [vscode.SymbolKind.Key]: 'key',
-  [vscode.SymbolKind.Null]: 'null',
-  [vscode.SymbolKind.EnumMember]: 'enum member',
-  [vscode.SymbolKind.Struct]: 'struct',
-  [vscode.SymbolKind.Event]: 'event',
-  [vscode.SymbolKind.Operator]: 'operator',
-  [vscode.SymbolKind.TypeParameter]: 'type param',
+// LSP SymbolKind numeric values (identical to vscode.SymbolKind — stable constants)
+export const KIND_LABELS: Record<number, string> = {
+  0: 'file', 1: 'module', 2: 'namespace', 3: 'package',
+  4: 'class', 5: 'method', 6: 'property', 7: 'field',
+  8: 'constructor', 9: 'enum', 10: 'interface', 11: 'function',
+  12: 'variable', 13: 'constant', 14: 'string', 15: 'number',
+  16: 'boolean', 17: 'array', 18: 'object', 19: 'key',
+  20: 'null', 21: 'enum member', 22: 'struct', 23: 'event',
+  24: 'operator', 25: 'type param',
 };
 
-export async function runDocSymbolSearch(
+export interface SymbolLike {
+  name: string;
+  kind: number;
+  selectionRange: { start: { line: number } };
+  children?: SymbolLike[];
+}
+
+export function flattenDocSymbols(
+  symbols: SymbolLike[],
   filePath: string,
-  makeRelative: (filePath: string) => string
-): Promise<SymbolResult[]> {
-  const uri = vscode.Uri.file(filePath);
-  const symbols = await vscode.commands.executeCommand<vscode.DocumentSymbol[]>(
-    'vscode.executeDocumentSymbolProvider', uri
-  );
-  if (!symbols?.length) { return []; }
-  const relativePath = makeRelative(filePath);
+  relativePath: string,
+): SymbolResult[] {
   const results: SymbolResult[] = [];
-  function flatten(syms: vscode.DocumentSymbol[], container?: string): void {
+  function flatten(syms: SymbolLike[], container?: string): void {
     for (const s of syms) {
       results.push({
         name: s.name,
@@ -55,7 +39,19 @@ export async function runDocSymbolSearch(
     }
   }
   flatten(symbols);
-  return results.slice(0, 500);
+  return results;
+}
+
+export async function runDocSymbolSearch(
+  filePath: string,
+  makeRelative: (filePath: string) => string
+): Promise<SymbolResult[]> {
+  const uri = vscode.Uri.file(filePath);
+  const symbols = await vscode.commands.executeCommand<vscode.DocumentSymbol[]>(
+    'vscode.executeDocumentSymbolProvider', uri
+  );
+  if (!symbols?.length) { return []; }
+  return flattenDocSymbols(symbols, filePath, makeRelative(filePath)).slice(0, 500);
 }
 
 export async function runSymbolSearch(
