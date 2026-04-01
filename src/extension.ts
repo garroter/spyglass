@@ -31,6 +31,11 @@ export function activate(context: vscode.ExtensionContext): void {
   });
   context.subscriptions.push(cmd);
 
+  const sidebarCmd = vscode.commands.registerCommand('spyglass.focusSidebar', () => {
+    vscode.commands.executeCommand('workbench.view.extension.spyglass-sidebar');
+  });
+  context.subscriptions.push(sidebarCmd);
+
   const sidebarProvider = new SpyglassSidebarProvider(context);
   context.subscriptions.push(
     vscode.window.registerWebviewViewProvider(

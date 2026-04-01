@@ -62,7 +62,11 @@
     "commands": [
       {
         "command": "spyglass.open",
-        "title": "Spyglass: Open Search"
+        "title": "Spyglass: Open Search Popup"
+      },
+      {
+        "command": "spyglass.focusSidebar",
+        "title": "Spyglass: Focus Sidebar Panel"
       }
     ],
     "keybindings": [
@@ -76,6 +80,11 @@
         "command": "spyglass.open",
         "key": "space f",
         "when": "editorTextFocus && neovim.mode == 'normal'"
+      },
+      {
+        "command": "spyglass.focusSidebar",
+        "key": "ctrl+alt+e",
+        "mac": "cmd+alt+e"
       }
     ],
     "configuration": {
