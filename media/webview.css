@@ -730,8 +730,12 @@
   }
 
   /* ════════════════════════════════════════════════════════════
-     SIDEBAR MODE — full-panel, no modal card, single column
+     SIDEBAR MODE — full-panel, no modal card, responsive layout
      Applied when <body class="sidebar-mode"> (SpyglassSidebarProvider)
+     Breakpoints (= sidebar width):
+       < 420px  → single column, no preview
+       420–599px → single column, preview BELOW results
+       ≥ 600px  → two columns, preview BESIDE results
      ════════════════════════════════════════════════════════════ */
   body.sidebar-mode {
     padding-top: 0;
@@ -750,35 +754,44 @@
     animation: none;
   }
 
-  /* Single-column: hide preview, stretch results to fill */
-  body.sidebar-mode .right-panel { display: none !important; }
-  body.sidebar-mode #preview-btn { display: none; }
-  body.sidebar-mode .left-panel  {
-    width: 100%;
-    max-width: none;
-    min-width: 0;
-    border-right: none;
+  /* Default (narrow): hide preview, results take all space */
+  body.sidebar-mode .right-panel   { display: none !important; }
+  body.sidebar-mode .left-panel {
+    width: 100%; max-width: none; min-width: 0; border-right: none; flex: 1;
   }
 
   /* Tighter topbar */
-  body.sidebar-mode .topbar {
-    padding: 6px 8px;
-    gap: 4px;
-  }
+  body.sidebar-mode .topbar { padding: 6px 8px; gap: 4px; }
   body.sidebar-mode .search-icon svg { width: 13px; height: 13px; }
 
-  /* Tabs: smaller padding, still scrollable */
-  body.sidebar-mode .tabs  { padding: 3px 6px 0; }
-  body.sidebar-mode .tab   { padding: 4px 8px; font-size: 11px; }
+  /* ── Tabs: pill-style — much more visible than underline ──── */
+  body.sidebar-mode .tabs {
+    padding: 5px 8px;
+    gap: 2px;
+    border-bottom: 1px solid var(--f-border-s);
+  }
+  body.sidebar-mode .tab {
+    padding: 3px 9px;
+    font-size: 11px;
+    border-bottom: none;
+    border-radius: 4px;
+    color: var(--f-dim);
+  }
+  body.sidebar-mode .tab:hover  { color: var(--f-text); background: var(--f-hover); }
+  body.sidebar-mode .tab.active {
+    color: var(--f-accent);
+    background: color-mix(in srgb, var(--f-accent) 14%, transparent);
+    border-bottom-color: transparent;
+  }
 
   /* Results: tighter rows */
-  body.sidebar-mode .result          { padding: 5px 10px; }
-  body.sidebar-mode .result--grouped { padding: 2px 10px; }
+  body.sidebar-mode .result            { padding: 5px 10px; }
+  body.sidebar-mode .result--grouped   { padding: 2px 10px; }
   body.sidebar-mode .file-group-header { padding: 4px 10px; }
   body.sidebar-mode .pin-section-sep   { padding: 4px 10px 2px; }
   body.sidebar-mode .statusbar         { padding: 2px 8px; }
 
-  /* Shortcuts overlay: anchor to viewport corner in sidebar */
+  /* Shortcuts overlay: anchor to viewport corner */
   body.sidebar-mode .shortcuts-overlay {
     right: 6px;
     bottom: 32px;
@@ -786,10 +799,36 @@
     max-width: calc(100vw - 12px);
   }
 
-  /* Ensure replace / include rows fit narrow widths */
+  /* Replace / include rows: compact */
   body.sidebar-mode .replace-row { padding: 4px 8px; gap: 4px; }
   body.sidebar-mode .filter-label { display: none; }
 
-  /* Context menu: full-width-ish on narrow panels */
+  /* Context menu */
   body.sidebar-mode .ctx-menu { min-width: min(210px, calc(100vw - 16px)); }
+
+  /* ── 420px+: preview BELOW results (stacked) ─────────────── */
+  @media (min-width: 420px) {
+    body.sidebar-mode .right-panel {
+      display: flex !important;
+      flex: 0 0 38%;
+      max-height: 240px;
+      min-height: 80px;
+      border-top: 1px solid var(--f-border-s);
+      border-left: none;
+    }
+    body.sidebar-mode .layout      { flex-direction: column; }
+    body.sidebar-mode .left-panel  { flex: 1; min-height: 0; width: 100%; border-right: none; }
+  }
+
+  /* ── 600px+: preview BESIDE results (side by side) ───────── */
+  @media (min-width: 600px) {
+    body.sidebar-mode .layout     { flex-direction: row; }
+    body.sidebar-mode .left-panel { flex: 0 0 42%; min-width: 0; border-right: 1px solid var(--f-border-s); }
+    body.sidebar-mode .right-panel {
+      flex: 1;
+      max-height: none;
+      min-height: 0;
+      border-top: none;
+    }
+  }
   .rp-btn-cancel:hover { color: var(--f-text); border-color: var(--f-text); }
