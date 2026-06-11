@@ -1,6 +1,6 @@
 # Changelog
 
-## [Unreleased]
+## [0.2.2] - 2026-06-11
 
 ### Fixed
 - ripgrep not starting on VS Code 1.124.0+ — extension now also checks `node_modules.asar.unpacked` path used in newer VS Code builds
