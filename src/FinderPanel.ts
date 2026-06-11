@@ -55,7 +55,9 @@ export class FinderPanel {
 
     const rgOk = await isRipgrepAvailable();
     if (!rgOk) {
-      vscode.window.showErrorMessage('Spyglass: bundled ripgrep failed to start. Try reinstalling the extension.');
+      vscode.window.showErrorMessage('Spyglass: ripgrep not found. Install ripgrep system-wide or set spyglass.ripgrepPath in settings.', 'Open Settings').then(sel => {
+        if (sel === 'Open Settings') { vscode.commands.executeCommand('workbench.action.openSettings', 'spyglass.ripgrepPath'); }
+      });
       return;
     }
 

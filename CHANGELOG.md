@@ -1,5 +1,13 @@
 # Changelog
 
+## [Unreleased]
+
+### Fixed
+- ripgrep not starting on VS Code 1.124.0+ — extension now also checks `node_modules.asar.unpacked` path used in newer VS Code builds
+- `spyglass.ripgrepPath` setting was defined but never read — it now takes priority over auto-detection, allowing users to point to a system `rg` binary
+- Error message when ripgrep is unavailable now shows an actionable notification with an "Open Settings" button instead of "Try reinstalling"
+- Sidebar "Search failed" message when ripgrep is not found replaced with the same actionable error shown in the popup
+
 ## [0.2.1] - 2026-04-01
 
 ### Added

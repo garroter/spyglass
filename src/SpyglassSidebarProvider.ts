@@ -1,6 +1,6 @@
 import * as vscode from 'vscode';
 import * as path from 'path';
-import { searchWithRipgrep, listFilesWithRipgrep, CancellableSearch } from './ripgrep';
+import { searchWithRipgrep, listFilesWithRipgrep, isRipgrepAvailable, CancellableSearch } from './ripgrep';
 import hljs from 'highlight.js';
 import { Scope, KeyBindings } from './types';
 import { cwdForFile, makeRelative } from './workspaceUtils';
@@ -33,8 +33,21 @@ export class SpyglassSidebarProvider implements vscode.WebviewViewProvider {
   private _activeCursorLine: number = 0;
   private _activeCursorChar: number = 0;
   private _pendingReplace: any = null;
+  private _rgAvailable: boolean | null = null;
 
   constructor(private readonly _context: vscode.ExtensionContext) {}
+
+  private async _ensureRg(): Promise<boolean> {
+    if (this._rgAvailable === null) { this._rgAvailable = await isRipgrepAvailable(); }
+    return this._rgAvailable;
+  }
+
+  private _postRgError(): void {
+    this._post({ type: 'error', message: 'ripgrep not found. Install it system-wide or set spyglass.ripgrepPath in settings.' });
+    vscode.window.showErrorMessage('Spyglass: ripgrep not found. Install ripgrep system-wide or set spyglass.ripgrepPath in settings.', 'Open Settings').then(sel => {
+      if (sel === 'Open Settings') { vscode.commands.executeCommand('workbench.action.openSettings', 'spyglass.ripgrepPath'); }
+    });
+  }
 
   public resolveWebviewView(
     webviewView: vscode.WebviewView,
@@ -213,6 +226,8 @@ export class SpyglassSidebarProvider implements vscode.WebviewViewProvider {
     const maxResults = config.get<number>('maxResults', 200);
     const exclude = config.get<string[]>('exclude');
 
+    if (!await this._ensureRg()) { this._postRgError(); return; }
+
     if (!query.trim()) {
       this._post({ type: 'results', results: [], query, took: 0 });
       return;
@@ -269,6 +284,8 @@ export class SpyglassSidebarProvider implements vscode.WebviewViewProvider {
     const config = vscode.workspace.getConfiguration('spyglass');
     const maxResults = config.get<number>('maxResults', 200);
     const exclude = config.get<string[]>('exclude');
+
+    if (!await this._ensureRg()) { this._postRgError(); return; }
 
     if (!query.trim()) {
       this._post({ type: 'results', results: [], query, took: 0 });

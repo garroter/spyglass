@@ -6,12 +6,18 @@ import { SearchResult } from './types';
 
 function resolveRgPath(): string {
   const ext = process.platform === 'win32' ? '.exe' : '';
-  // Prefer VS Code's own ripgrep — always present, correct platform
-  const vscodeRg = path.join(vscode.env.appRoot, 'node_modules', '@vscode', 'ripgrep', 'bin', `rg${ext}`);
-  if (fs.existsSync(vscodeRg)) {
-    return vscodeRg;
+
+  const configured = vscode.workspace.getConfiguration('spyglass').get<string>('ripgrepPath')?.trim();
+  if (configured) { return configured; }
+
+  const rgCandidates = [
+    path.join(vscode.env.appRoot, 'node_modules', '@vscode', 'ripgrep', 'bin', `rg${ext}`),
+    path.join(vscode.env.appRoot, 'node_modules.asar.unpacked', '@vscode', 'ripgrep', 'bin', `rg${ext}`),
+  ];
+  for (const candidate of rgCandidates) {
+    if (fs.existsSync(candidate)) { return candidate; }
   }
-  // Fallback: bundled via npm (may fail cross-platform)
+
   try {
     // eslint-disable-next-line @typescript-eslint/no-require-imports
     return (require('@vscode/ripgrep') as { rgPath: string }).rgPath;
