@@ -50,6 +50,7 @@ export interface SpyglassConfig {
   DEFAULT_SCOPE: string;
   GROUP_RESULTS: boolean;
   SAVED_SEARCHES: Array<{ query: string; scope: string }>;
+  THEME: object | null;
 }
 
 export interface AppState {

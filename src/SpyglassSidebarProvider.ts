@@ -1,11 +1,11 @@
 import * as vscode from 'vscode';
 import * as path from 'path';
 import { searchWithRipgrep, listFilesWithRipgrep, isRipgrepAvailable, CancellableSearch } from './ripgrep';
-import hljs from 'highlight.js';
 import { Scope, KeyBindings } from './types';
 import { cwdForFile, makeRelative } from './workspaceUtils';
 import { loadGitStatus, getChangedLines, relToAbsolute } from './gitUtils';
 import { runSymbolSearch, runDocSymbolSearch } from './symbolSearch';
+import { loadCurrentTheme } from './themeLoader';
 
 function getNonce(): string {
   const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
@@ -105,6 +105,10 @@ export class SpyglassSidebarProvider implements vscode.WebviewViewProvider {
         this._refreshActiveContext();
       }
     });
+
+    vscode.window.onDidChangeActiveColorTheme(() => {
+      this._post({ type: 'themeChanged', theme: loadCurrentTheme() });
+    }, null, this._context.subscriptions);
 
     webviewView.webview.onDidReceiveMessage(async (msg) => {
       switch (msg.type) {
@@ -616,38 +620,16 @@ export class SpyglassSidebarProvider implements vscode.WebviewViewProvider {
       const uri = vscode.Uri.file(filePath);
       const doc = await vscode.workspace.openTextDocument(uri);
 
-      if (doc.getText().length > 512 * 1024) {
-        this._post({ type: 'previewContent', lines: ['(file too large to preview)'], currentLine: 1, relativePath, ext, changedLines: [] });
+      const content = doc.getText();
+      if (content.length > 512 * 1024) {
+        this._post({ type: 'previewContent', content: '(file too large to preview)', currentLine: 1, relativePath, ext: '', changedLines: [] });
         return;
       }
 
-      const content = doc.getText();
       const changedLines = await getChangedLines(filePath, cwdForFile(filePath, this._cwdList, this._cwd), this._gitCache);
-
-      let highlighted: string[];
-      try {
-        const lang = hljs.getLanguage(ext) ? ext : undefined;
-        const result = lang
-          ? hljs.highlight(content, { language: lang, ignoreIllegals: true })
-          : hljs.highlightAuto(content, undefined);
-        highlighted = result.value.split('\n');
-      } catch {
-        highlighted = content.split('\n').map(l =>
-          l.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
-        );
-      }
-
-      this._post({
-        type: 'previewContent',
-        lines: highlighted,
-        currentLine: targetLine,
-        relativePath,
-        ext,
-        changedLines,
-        preHighlighted: true,
-      });
+      this._post({ type: 'previewContent', content, currentLine: targetLine, relativePath, ext, changedLines });
     } catch {
-      this._post({ type: 'previewContent', lines: ['(cannot read file)'], currentLine: 1, relativePath, ext, changedLines: [] });
+      this._post({ type: 'previewContent', content: '(cannot read file)', currentLine: 1, relativePath, ext: '', changedLines: [] });
     }
   }
 
@@ -678,13 +660,14 @@ export class SpyglassSidebarProvider implements vscode.WebviewViewProvider {
       DEFAULT_SCOPE: defaultScope,
       GROUP_RESULTS: groupResults,
       SAVED_SEARCHES: savedSearches,
+      THEME: loadCurrentTheme(),
     };
 
     return /* html */`<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src ${webview.cspSource}; script-src ${webview.cspSource} 'nonce-${nonce}';">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src ${webview.cspSource} 'unsafe-inline'; script-src ${webview.cspSource} 'nonce-${nonce}';">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Finder</title>
 <link rel="stylesheet" href="${cssUri}">

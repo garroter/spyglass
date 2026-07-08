@@ -12,6 +12,7 @@ import { renderPreview, clearPreview } from './preview';
 import { render, updateSelection } from './render';
 import { initEvents, initMessages, updateReplaceRowVisibility, setScope } from './events';
 import { initContextMenu } from './contextMenu';
+import { initHighlighter, setHasVscodeTheme } from './shiki';
 
 // Expose renderPreview for the message handler (avoids circular import in events.ts)
 (window as any).__renderPreview = renderPreview;
@@ -38,6 +39,9 @@ if (isFileScope() || isSymbolScope()) {
                       : 'Search files by name...';
 }
 
+const { THEME } = (window as any).__spyglass;
+setHasVscodeTheme(!!THEME);
+initHighlighter(THEME ?? null); // warm up Shiki with current VSCode theme
 clearPreview();
 initContextMenu();
 initEvents();

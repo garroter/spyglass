@@ -80,7 +80,8 @@ VS Code's built-in search (`Ctrl+Shift+F`) is powerful but slow to use — it re
 - **Multi-select** — pick multiple results and open them all at once
 
 ### 👁️ Preview
-- **Live preview** — file content as you navigate, with syntax highlighting
+- **Live preview** — file content as you navigate, with syntax highlighting powered by [Shiki](https://shiki.style) (same engine as VS Code)
+- **Theme-matched highlighting** — uses your active VS Code theme colors; falls back to GitHub Dark/Light
 - **Git change indicators** — modified lines highlighted in the gutter
 - **Theme adaptive** — native look in any VS Code theme: dark, light, high contrast
 
@@ -324,7 +325,7 @@ Spyglass collects **no data**. All processing happens locally on your machine:
 - No network requests are made (webview CSP is `default-src 'none'`)
 - No telemetry, analytics, or crash reporting
 - Search history is stored locally in VS Code's `workspaceState` and never leaves your machine
-- Dependencies (`@vscode/ripgrep`, `highlight.js`) are fully local with no network activity
+- Dependencies (`@vscode/ripgrep`, `shiki`) are fully local with no network activity
 
 ---
 
@@ -346,23 +347,26 @@ Press `F5` in VS Code to launch an Extension Development Host.
 
 ```
 src/
-  extension.ts       — activation, command registration
-  FinderPanel.ts     — webview panel lifecycle, message handler
-  ripgrep.ts         — ripgrep search backend
-  gitUtils.ts        — git status and diff parsing
-  symbolSearch.ts    — LSP workspace symbol search
-  workspaceUtils.ts  — path helpers (cwdForFile, makeRelative)
-  webviewUtils.ts    — pure functions shared with tests (fuzzyScore, parseQueryInput)
-  webview/           — webview UI (TypeScript, bundled with esbuild)
-    main.ts          — entry point
-    state.ts         — UI state management
-    search.ts        — search logic
-    render.ts        — results rendering
-    preview.ts       — preview panel
-    events.ts        — keyboard/mouse event handlers
-    contextMenu.ts   — right-click context menu
-    highlight.ts     — syntax highlighting helpers
-  test/              — unit tests (vitest)
+  extension.ts             — activation, command registration
+  FinderPanel.ts           — webview panel lifecycle, message handler
+  SpyglassSidebarProvider.ts — sidebar panel provider
+  ripgrep.ts               — ripgrep search backend
+  gitUtils.ts              — git status and diff parsing
+  symbolSearch.ts          — LSP workspace symbol search
+  themeLoader.ts           — loads the active VS Code theme for Shiki
+  workspaceUtils.ts        — path helpers (cwdForFile, makeRelative)
+  webviewUtils.ts          — pure functions shared with tests (fuzzyScore, parseQueryInput)
+  webview/                 — webview UI (TypeScript, bundled with esbuild)
+    main.ts                — entry point
+    state.ts               — UI state management
+    search.ts              — search logic
+    render.ts              — results rendering
+    preview.ts             — preview panel
+    events.ts              — keyboard/mouse event handlers
+    contextMenu.ts         — right-click context menu
+    highlight.ts           — HTML escaping and query match highlighting
+    shiki.ts               — Shiki syntax highlighter integration
+  test/                    — unit tests (vitest)
 ```
 
 ---

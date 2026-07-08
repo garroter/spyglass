@@ -24,6 +24,7 @@
     --f-num:   var(--vscode-symbolIcon-numberForeground,   #fab387);
     --f-fn:    var(--vscode-symbolIcon-functionForeground, #89b4fa);
     --f-op:    var(--vscode-symbolIcon-operatorForeground, #f38ba8);
+
   }
 
   * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -342,23 +343,7 @@
   .pline--cur .pnum { color: var(--vscode-editorLineNumber-activeForeground, var(--f-accent)); }
   .ptext { color: var(--f-text); font-size: 12px; }
 
-  /* ── Syntax highlighting — highlight.js class mapping ───── */
-  .hljs-keyword, .hljs-operator, .hljs-punctuation { color: var(--f-kw); }
-  .hljs-string, .hljs-template-string, .hljs-template-tag { color: var(--f-str); }
-  .hljs-comment, .hljs-quote { color: var(--f-cmt); font-style: italic; }
-  .hljs-number, .hljs-literal, .hljs-symbol { color: var(--f-num); }
-  .hljs-title, .hljs-title\.function_, .hljs-title\.class_ { color: var(--f-fn); }
-  .hljs-built_in, .hljs-class { color: var(--f-fn); }
-  .hljs-attr, .hljs-attribute, .hljs-property { color: var(--f-accent); }
-  .hljs-tag { color: var(--f-op); }
-  .hljs-name { color: var(--f-kw); }
-  .hljs-selector-class, .hljs-selector-id, .hljs-selector-pseudo { color: var(--f-fn); }
-  .hljs-selector-tag { color: var(--f-kw); }
-  .hljs-type, .hljs-variable\.language_ { color: var(--f-num); }
-  .hljs-meta { color: var(--f-dim); }
-  .hljs-regexp { color: var(--f-str); }
-  .hljs-deletion { color: var(--f-op); }
-  .hljs-addition { color: var(--f-str); }
+  /* Shiki outputs inline color styles — background handled by .pline, not Shiki */
 
   /* ── Light theme fallback overrides ─────────────────────── */
   body.vscode-light {

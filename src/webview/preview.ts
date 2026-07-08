@@ -1,5 +1,5 @@
 import { state } from './state';
-import { escHtml, highlightLine, applyQueryHighlight } from './highlight';
+import { escHtml, applyQueryHighlight } from './highlight';
 import { previewHdr, previewEmpty, previewCont, rightPanel, leftPanel, previewBtn } from './dom';
 import { isFileScope, isSymbolScope } from './search';
 
@@ -32,7 +32,6 @@ export function renderPreview(
   changedLines: number[],
   highlightQuery: string,
   useRegex: boolean,
-  preHighlighted: boolean,
 ): void {
   renderBreadcrumbs(relativePath);
   state.currentPreviewFile = relativePath;
@@ -59,8 +58,8 @@ export function renderPreview(
     div.className = 'pline'
       + (isCur     ? ' pline--cur'     : '')
       + (isChanged ? ' pline--changed' : '');
-    const rawText = preHighlighted ? line.replace(/<[^>]*>/g, '') : line;
-    let lineHtml = preHighlighted ? line : highlightLine(line, ext);
+    const rawText = line.replace(/<[^>]*>/g, '');
+    let lineHtml = line;
     if (queryRe) { lineHtml = applyQueryHighlight(lineHtml, rawText, queryRe); }
     div.innerHTML =
       '<span class="pnum">' + num + '</span>' +

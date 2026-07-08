@@ -1,4 +1,5 @@
 import { state } from './state';
+import { getHighlighter, shikiLines, reinitHighlighter } from './shiki';
 import {
   queryEl, regexBtn, caseBtn, wordBtn, groupBtn, replaceBtn, previewBtn,
   replaceRow, replaceAllBtn, tabs, previewHdr,
@@ -444,12 +445,20 @@ export function initMessages(): void {
         state.selected = 0;
         render();
         break;
-      case 'previewContent':
-        (window as any).__renderPreview(
-          data.lines, data.currentLine, data.relativePath, data.ext, data.changedLines,
-          (isFileScope() || isSymbolScope()) ? '' : state.query, state.useRegex, data.preHighlighted,
-        );
+      case 'themeChanged':
+        reinitHighlighter(data.theme).then(() => {
+          if (state.currentPreviewFile) { requestPreview(); }
+        });
         break;
+      case 'previewContent': {
+        const { content, currentLine, relativePath, ext, changedLines } = data;
+        const query = (isFileScope() || isSymbolScope()) ? '' : state.query;
+        getHighlighter().then(hl => {
+          const lines = shikiLines(hl, content, ext);
+          (window as any).__renderPreview(lines, currentLine, relativePath, ext, changedLines, query, state.useRegex);
+        });
+        break;
+      }
       case 'error':
         state.searching = false;
         document.getElementById('state-msg')!.textContent = data.message;

@@ -2,6 +2,19 @@ import * as esbuild from 'esbuild';
 
 const watch = process.argv.includes('--watch');
 
+// Shiki's "./*": "./dist/*" wildcard export omits the .mjs extension, which
+// esbuild doesn't auto-append when expanding package.json export patterns.
+// This plugin rewrites shiki/langs/* and shiki/themes/* to the actual .mjs path.
+const shikiBase = new URL('../shiki/dist/', import.meta.resolve('shiki/package.json')).pathname;
+const shikiLangsPlugin = {
+  name: 'shiki-subpath',
+  setup(build) {
+    build.onResolve({ filter: /^shiki\/(langs|themes)\// }, args => ({
+      path: shikiBase + args.path.replace('shiki/', '') + '.mjs',
+    }));
+  },
+};
+
 const ctx = await esbuild.context({
   entryPoints: ['src/webview/main.ts'],
   bundle: true,
@@ -11,11 +24,11 @@ const ctx = await esbuild.context({
   target: ['chrome108'],
   sourcemap: false,
   minify: false,
-  // acquireVsCodeApi is a global provided by the VS Code webview runtime
   external: [],
   define: {
     'acquireVsCodeApi': 'acquireVsCodeApi',
   },
+  plugins: [shikiLangsPlugin],
   banner: {
     js: '/* generated — edit src/webview/ instead */',
   },
