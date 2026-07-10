@@ -77,6 +77,11 @@
       },
       {
         "command": "spyglass.open",
+        "key": "shift shift",
+        "when": "!inputFocus || editorTextFocus"
+      },
+      {
+        "command": "spyglass.open",
         "key": "space f",
         "when": "editorTextFocus && neovim.mode == 'normal'"
       },
