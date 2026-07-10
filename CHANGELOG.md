@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.2.4] - 2026-07-10
+
+### Added
+- **shift shift keybinding** — double-tap Shift now opens Spyglass, JetBrains "Search Everywhere"-style, alongside the existing ctrl+alt+f / cmd+alt+f shortcut
+
 ## [0.2.3] - 2026-07-08
 
 ### Added
