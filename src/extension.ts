@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
 import { FinderPanel } from './FinderPanel';
 import { SpyglassSidebarProvider } from './SpyglassSidebarProvider';
+import { ensureRipgrepPath } from './ripgrep';
 
 const MAX_RECENT = 100;
 const RECENT_KEY = 'spyglass.recentFiles';
@@ -12,6 +13,10 @@ function pushRecent(context: vscode.ExtensionContext, fsPath: string): void {
 }
 
 export function activate(context: vscode.ExtensionContext): void {
+  // Kick off in the background so it's usually already resolved by the time the user
+  // opens Spyglass, instead of waiting until then to discover rg needs to be downloaded.
+  void ensureRipgrepPath(context);
+
   // Seed with the currently active file
   const active = vscode.window.activeTextEditor;
   if (active?.document.uri.scheme === 'file') {

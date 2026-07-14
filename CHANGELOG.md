@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.2.5] - 2026-07-14
+
+### Fixed
+- ripgrep bundled in the VSIX only runs on the platform/arch it was built on — extension now auto-downloads a matching `rg` binary from GitHub Releases into extension storage as a last resort when no working binary is found (VS Code's own bundled copy, our own bundled copy, or a previously downloaded one), so most users never see the "ripgrep not found" error at all
+
 ## [0.2.4] - 2026-07-10
 
 ### Added

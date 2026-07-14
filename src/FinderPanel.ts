@@ -54,9 +54,9 @@ export class FinderPanel {
       return;
     }
 
-    const rgOk = await isRipgrepAvailable();
+    const rgOk = await isRipgrepAvailable(context);
     if (!rgOk) {
-      vscode.window.showErrorMessage('Spyglass: ripgrep not found. Install ripgrep system-wide or set spyglass.ripgrepPath in settings.', 'Open Settings').then(sel => {
+      vscode.window.showErrorMessage('Spyglass: could not find or auto-install ripgrep. Install it system-wide or set spyglass.ripgrepPath in settings.', 'Open Settings').then(sel => {
         if (sel === 'Open Settings') { vscode.commands.executeCommand('workbench.action.openSettings', 'spyglass.ripgrepPath'); }
       });
       return;

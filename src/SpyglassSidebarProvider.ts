@@ -38,13 +38,13 @@ export class SpyglassSidebarProvider implements vscode.WebviewViewProvider {
   constructor(private readonly _context: vscode.ExtensionContext) {}
 
   private async _ensureRg(): Promise<boolean> {
-    if (this._rgAvailable === null) { this._rgAvailable = await isRipgrepAvailable(); }
+    if (this._rgAvailable === null) { this._rgAvailable = await isRipgrepAvailable(this._context); }
     return this._rgAvailable;
   }
 
   private _postRgError(): void {
-    this._post({ type: 'error', message: 'ripgrep not found. Install it system-wide or set spyglass.ripgrepPath in settings.' });
-    vscode.window.showErrorMessage('Spyglass: ripgrep not found. Install ripgrep system-wide or set spyglass.ripgrepPath in settings.', 'Open Settings').then(sel => {
+    this._post({ type: 'error', message: 'Could not find or auto-install ripgrep. Install it system-wide or set spyglass.ripgrepPath in settings.' });
+    vscode.window.showErrorMessage('Spyglass: could not find or auto-install ripgrep. Install it system-wide or set spyglass.ripgrepPath in settings.', 'Open Settings').then(sel => {
       if (sel === 'Open Settings') { vscode.commands.executeCommand('workbench.action.openSettings', 'spyglass.ripgrepPath'); }
     });
   }

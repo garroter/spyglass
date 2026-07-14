@@ -3,27 +3,75 @@ import * as path from 'path';
 import * as fs from 'fs';
 import * as vscode from 'vscode';
 import { SearchResult } from './types';
+import { downloadRipgrep, testRgPath } from './ripgrepInstaller';
 
-function resolveRgPath(): string {
+// Populated by ensureRipgrepPath() once a working binary is found (or downloaded), so the
+// synchronous resolveRgPath() used by every search call doesn't need to re-probe candidates.
+let resolvedRgPath: string | undefined;
+let downloadAttempted = false;
+
+function rgCandidates(): string[] {
   const ext = process.platform === 'win32' ? '.exe' : '';
-
-  const configured = vscode.workspace.getConfiguration('spyglass').get<string>('ripgrepPath')?.trim();
-  if (configured) { return configured; }
-
-  const rgCandidates = [
+  const candidates = [
     path.join(vscode.env.appRoot, 'node_modules', '@vscode', 'ripgrep', 'bin', `rg${ext}`),
     path.join(vscode.env.appRoot, 'node_modules.asar.unpacked', '@vscode', 'ripgrep', 'bin', `rg${ext}`),
   ];
-  for (const candidate of rgCandidates) {
-    if (fs.existsSync(candidate)) { return candidate; }
-  }
-
   try {
     // eslint-disable-next-line @typescript-eslint/no-require-imports
-    return (require('@vscode/ripgrep') as { rgPath: string }).rgPath;
-  } catch {
-    return `rg${ext}`;
+    candidates.push((require('@vscode/ripgrep') as { rgPath: string }).rgPath);
+  } catch { /* not bundled */ }
+  return candidates;
+}
+
+function resolveRgPath(): string {
+  if (resolvedRgPath) { return resolvedRgPath; }
+
+  const ext = process.platform === 'win32' ? '.exe' : '';
+  const configured = vscode.workspace.getConfiguration('spyglass').get<string>('ripgrepPath')?.trim();
+  if (configured) { return configured; }
+
+  for (const candidate of rgCandidates()) {
+    if (fs.existsSync(candidate)) { return candidate; }
   }
+  return `rg${ext}`;
+}
+
+/**
+ * Makes sure a working rg binary is available, downloading one (matching this machine's
+ * platform/arch) as a last resort if none of the bundled/system candidates run. Safe to call
+ * repeatedly — resolves instantly once a working path has been found or a download attempted.
+ */
+export async function ensureRipgrepPath(context: vscode.ExtensionContext): Promise<boolean> {
+  if (resolvedRgPath) { return true; }
+
+  const configured = vscode.workspace.getConfiguration('spyglass').get<string>('ripgrepPath')?.trim();
+  if (configured) {
+    resolvedRgPath = configured;
+    return testRgPath(configured);
+  }
+
+  const downloadDir = path.join(context.globalStorageUri.fsPath, 'ripgrep-bin');
+  const ext = process.platform === 'win32' ? '.exe' : '';
+  const candidates = [...rgCandidates(), path.join(downloadDir, `rg${ext}`)];
+  for (const candidate of candidates) {
+    if (fs.existsSync(candidate) && (await testRgPath(candidate))) {
+      resolvedRgPath = candidate;
+      return true;
+    }
+  }
+
+  if (downloadAttempted) { return false; }
+  downloadAttempted = true;
+
+  const downloaded = await vscode.window.withProgress(
+    { location: vscode.ProgressLocation.Notification, title: 'Spyglass: setting up ripgrep (one-time download)…' },
+    () => downloadRipgrep(downloadDir)
+  );
+  if (downloaded) {
+    resolvedRgPath = downloaded;
+    return true;
+  }
+  return false;
 }
 
 interface RgSubmatch {
@@ -182,10 +230,6 @@ export function listFilesWithRipgrep(cwd: string, exclude?: string[]): Promise<s
   });
 }
 
-export function isRipgrepAvailable(): Promise<boolean> {
-  return new Promise((resolve) => {
-    const rg = spawn(resolveRgPath(), ['--version']);
-    rg.on('error', () => resolve(false));
-    rg.on('close', (code) => resolve(code === 0));
-  });
+export function isRipgrepAvailable(context: vscode.ExtensionContext): Promise<boolean> {
+  return ensureRipgrepPath(context);
 }
