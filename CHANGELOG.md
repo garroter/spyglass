@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.2.6] - 2026-07-16
+
+### Fixed
+- Extension now also looks for ripgrep under `@vscode/ripgrep-universal`'s per-platform-arch layout (`bin/{platform}-{arch}/rg`), which newer VS Code builds ship instead of the old single-binary `@vscode/ripgrep` package — closes the root cause behind the "ripgrep not found" reports that the v0.2.5 auto-download fallback was working around
+
 ## [0.2.5] - 2026-07-14
 
 ### Fixed

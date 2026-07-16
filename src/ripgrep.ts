@@ -12,7 +12,14 @@ let downloadAttempted = false;
 
 function rgCandidates(): string[] {
   const ext = process.platform === 'win32' ? '.exe' : '';
+  // VS Code >= 1.9x ships @vscode/ripgrep-universal instead of @vscode/ripgrep, with binaries
+  // split per platform-arch (see microsoft/vscode@c4471e2). Older VS Code still uses the single-
+  // binary @vscode/ripgrep layout, so we probe both.
+  const arch = process.arch === 'arm' ? 'armhf' : process.arch;
+  const platformArch = `${process.platform}-${arch}`;
   const candidates = [
+    path.join(vscode.env.appRoot, 'node_modules', '@vscode', 'ripgrep-universal', 'bin', platformArch, `rg${ext}`),
+    path.join(vscode.env.appRoot, 'node_modules.asar.unpacked', '@vscode', 'ripgrep-universal', 'bin', platformArch, `rg${ext}`),
     path.join(vscode.env.appRoot, 'node_modules', '@vscode', 'ripgrep', 'bin', `rg${ext}`),
     path.join(vscode.env.appRoot, 'node_modules.asar.unpacked', '@vscode', 'ripgrep', 'bin', `rg${ext}`),
   ];
