@@ -1,7 +1,7 @@
 import * as vscode from 'vscode';
 import * as path from 'path';
 import { searchWithRipgrep, listFilesWithRipgrep, isRipgrepAvailable, CancellableSearch } from './ripgrep';
-import { Scope, KeyBindings } from './types';
+import { Scope, KeyBindings, ButtonPrefs } from './types';
 import { cwdForFile, makeRelative } from './workspaceUtils';
 import { loadGitStatus, getChangedLines, relToAbsolute } from './gitUtils';
 import { runSymbolSearch, runDocSymbolSearch } from './symbolSearch';
@@ -127,8 +127,12 @@ export class FinderPanel {
     const maxResults = vscode.workspace.getConfiguration('spyglass').get<number>('maxResults', 200);
     const pinnedFiles = context.workspaceState.get<string[]>('spyglass.pinnedFiles', []);
     const groupResults = context.workspaceState.get<boolean>('spyglass.groupResults', false);
+    const buttonPrefs = context.workspaceState.get<ButtonPrefs>('spyglass.buttonPrefs', {
+      useRegex: false, caseSensitive: false, wholeWord: false,
+      replaceMode: false, showPreview: true, sortBy: 'default', includeMode: false,
+    });
     const savedSearches = context.workspaceState.get<Array<{query: string; scope: string}>>('spyglass.savedSearches', []);
-    this._panel.webview.html = this._buildHtml(defaultScope, kb, initialQuery, this._searchHistory, this._recentFiles, maxResults, pinnedFiles, groupResults, savedSearches);
+    this._panel.webview.html = this._buildHtml(defaultScope, kb, initialQuery, this._searchHistory, this._recentFiles, maxResults, pinnedFiles, groupResults, buttonPrefs, savedSearches);
 
     // Warm file cache in background so Files tab is instant on first use
     if (this._cwdList.length > 0) {
@@ -193,6 +197,9 @@ export class FinderPanel {
         }
         case 'setGroupResults':
           await this._context!.workspaceState.update('spyglass.groupResults', msg.value as boolean);
+          break;
+        case 'saveButtonPrefs':
+          await this._context!.workspaceState.update('spyglass.buttonPrefs', msg.prefs as ButtonPrefs);
           break;
         case 'saveSearch': {
           const searches = this._context!.workspaceState.get<Array<{query: string; scope: string}>>('spyglass.savedSearches', []);
@@ -667,7 +674,7 @@ export class FinderPanel {
     this._disposables.length = 0;
   }
 
-  private _buildHtml(defaultScope: Scope, kb: KeyBindings, initialQuery: string = '', searchHistory: string[] = [], recentFiles: string[] = [], maxResults: number = 200, pinnedFiles: string[] = [], groupResults: boolean = false, savedSearches: Array<{query: string; scope: string}> = []): string {
+  private _buildHtml(defaultScope: Scope, kb: KeyBindings, initialQuery: string = '', searchHistory: string[] = [], recentFiles: string[] = [], maxResults: number = 200, pinnedFiles: string[] = [], groupResults: boolean = false, buttonPrefs: ButtonPrefs = { useRegex: false, caseSensitive: false, wholeWord: false, replaceMode: false, showPreview: true, sortBy: 'default', includeMode: false }, savedSearches: Array<{query: string; scope: string}> = []): string {
     const nonce = getNonce();
     const webview = this._panel.webview;
     const extensionUri = this._context!.extensionUri;
@@ -683,6 +690,7 @@ export class FinderPanel {
       MAX_RESULTS: maxResults,
       DEFAULT_SCOPE: defaultScope,
       GROUP_RESULTS: groupResults,
+      BUTTON_PREFS: buttonPrefs,
       SAVED_SEARCHES: savedSearches,
       THEME: loadCurrentTheme(),
     };

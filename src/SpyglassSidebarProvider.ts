@@ -1,7 +1,7 @@
 import * as vscode from 'vscode';
 import * as path from 'path';
 import { searchWithRipgrep, listFilesWithRipgrep, isRipgrepAvailable, CancellableSearch } from './ripgrep';
-import { Scope, KeyBindings } from './types';
+import { Scope, KeyBindings, ButtonPrefs } from './types';
 import { cwdForFile, makeRelative } from './workspaceUtils';
 import { loadGitStatus, getChangedLines, relToAbsolute } from './gitUtils';
 import { runSymbolSearch, runDocSymbolSearch } from './symbolSearch';
@@ -81,13 +81,17 @@ export class SpyglassSidebarProvider implements vscode.WebviewViewProvider {
     const maxResults = config.get<number>('maxResults', 200);
     const pinnedFiles = this._context.workspaceState.get<string[]>('spyglass.pinnedFiles', []);
     const groupResults = this._context.workspaceState.get<boolean>('spyglass.groupResults', false);
+    const buttonPrefs = this._context.workspaceState.get<ButtonPrefs>('spyglass.buttonPrefs', {
+      useRegex: false, caseSensitive: false, wholeWord: false,
+      replaceMode: false, showPreview: true, sortBy: 'default', includeMode: false,
+    });
     const savedSearches = this._context.workspaceState.get<Array<{ query: string; scope: string }>>('spyglass.savedSearches', []);
 
     webviewView.webview.options = {
       enableScripts: true,
       localResourceRoots: [vscode.Uri.joinPath(this._context.extensionUri, 'media')],
     };
-    webviewView.webview.html = this._buildHtml(webviewView.webview, this._scope, kb, '', this._searchHistory, this._recentFiles, maxResults, pinnedFiles, groupResults, savedSearches);
+    webviewView.webview.html = this._buildHtml(webviewView.webview, this._scope, kb, '', this._searchHistory, this._recentFiles, maxResults, pinnedFiles, groupResults, buttonPrefs, savedSearches);
 
     // Warm file cache in background
     if (this._cwdList.length > 0) {
@@ -156,6 +160,9 @@ export class SpyglassSidebarProvider implements vscode.WebviewViewProvider {
         }
         case 'setGroupResults':
           await this._context.workspaceState.update('spyglass.groupResults', msg.value as boolean);
+          break;
+        case 'saveButtonPrefs':
+          await this._context.workspaceState.update('spyglass.buttonPrefs', msg.prefs as ButtonPrefs);
           break;
         case 'saveSearch': {
           const searches = this._context.workspaceState.get<Array<{ query: string; scope: string }>>('spyglass.savedSearches', []);
@@ -643,6 +650,7 @@ export class SpyglassSidebarProvider implements vscode.WebviewViewProvider {
     maxResults: number = 200,
     pinnedFiles: string[] = [],
     groupResults: boolean = false,
+    buttonPrefs: ButtonPrefs = { useRegex: false, caseSensitive: false, wholeWord: false, replaceMode: false, showPreview: true, sortBy: 'default', includeMode: false },
     savedSearches: Array<{ query: string; scope: string }> = [],
   ): string {
     const nonce = getNonce();
@@ -659,6 +667,7 @@ export class SpyglassSidebarProvider implements vscode.WebviewViewProvider {
       MAX_RESULTS: maxResults,
       DEFAULT_SCOPE: defaultScope,
       GROUP_RESULTS: groupResults,
+      BUTTON_PREFS: buttonPrefs,
       SAVED_SEARCHES: savedSearches,
       THEME: loadCurrentTheme(),
     };

@@ -6,7 +6,7 @@ window.onerror = (msg, _src, line, _col, err) => {
 };
 
 import { state } from './state';
-import { queryEl, regexBtn, resultInfo, tabs } from './dom';
+import { queryEl, regexBtn, caseBtn, wordBtn, groupBtn, replaceBtn, previewBtn, resultInfo, tabs, sortBtn, includeBtn, includeRow, includeInput, secondaryToolbar } from './dom';
 import { isFileScope, isSymbolScope, triggerSearch } from './search';
 import { renderPreview, clearPreview } from './preview';
 import { render, updateSelection } from './render';
@@ -24,7 +24,30 @@ regexBtn.dataset.tooltip   = 'Regex — ' + (KB.toggleRegex   || 'Shift+Alt+R');
 document.getElementById('preview-btn')!.dataset.tooltip =
   'Toggle preview — ' + (KB.togglePreview || 'Shift+Alt+P');
 resultInfo.textContent = '0 results';
-regexBtn.classList.remove('active');
+
+// Apply button states from saved preferences
+if (state.useRegex) regexBtn.classList.add('active');
+if (state.caseSensitive) caseBtn.classList.add('active');
+if (state.wholeWord) wordBtn.classList.add('active');
+if (state.groupResults) groupBtn.classList.add('active');
+if (state.replaceMode) replaceBtn.classList.add('active');
+if (!state.showPreview) {
+  previewBtn.classList.remove('active');
+  document.getElementById('right-panel')!.classList.add('hidden');
+  document.getElementById('left-panel')!.classList.add('full');
+}
+if (state.includeMode) {
+  includeBtn.classList.add('active');
+  includeRow.style.display = '';
+}
+if (state.sortBy !== 'default') {
+  const SORT_LABELS: Record<string, string> = { default: 'Sort: default', filename: 'Sort: by filename', count: 'Sort: by match count' };
+  const SORT_ICONS:  Record<string, string> = { default: '⇅', filename: '↓A', count: '↓#' };
+  sortBtn.textContent = SORT_ICONS[state.sortBy];
+  sortBtn.dataset.tooltip = SORT_LABELS[state.sortBy];
+  sortBtn.classList.add('active');
+}
+
 updateReplaceRowVisibility();
 
 // Apply initial scope

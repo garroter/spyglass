@@ -114,6 +114,18 @@ export function togglePreview(): void {
   previewBtn.classList.toggle('active', state.showPreview);
   rightPanel.classList.toggle('hidden', !state.showPreview);
   leftPanel.classList.toggle('full', !state.showPreview);
+  vscode.postMessage({
+    type: 'saveButtonPrefs',
+    prefs: {
+      useRegex: state.useRegex,
+      caseSensitive: state.caseSensitive,
+      wholeWord: state.wholeWord,
+      replaceMode: state.replaceMode,
+      showPreview: state.showPreview,
+      sortBy: state.sortBy,
+      includeMode: state.includeMode,
+    },
+  });
   if (state.showPreview) { requestPreview(); }
 }
 

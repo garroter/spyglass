@@ -29,6 +29,21 @@ function matchKey(e: KeyboardEvent, binding: string): boolean {
     && e.altKey   === alt;
 }
 
+function saveButtonPrefs(): void {
+  vscode.postMessage({
+    type: 'saveButtonPrefs',
+    prefs: {
+      useRegex: state.useRegex,
+      caseSensitive: state.caseSensitive,
+      wholeWord: state.wholeWord,
+      replaceMode: state.replaceMode,
+      showPreview: state.showPreview,
+      sortBy: state.sortBy,
+      includeMode: state.includeMode,
+    },
+  });
+}
+
 const KB = (window as any).__spyglass.KB;
 const SCOPES = ['project', 'openFiles', 'files', 'recent', 'here', 'symbols', 'git', 'doc', 'refs'];
 
@@ -89,18 +104,21 @@ function navigateHistory(dir: number): void {
 function toggleRegex(): void {
   state.useRegex = !state.useRegex;
   regexBtn.classList.toggle('active', state.useRegex);
+  saveButtonPrefs();
   if (state.query) { triggerSearch(render); }
 }
 
 function toggleCase(): void {
   state.caseSensitive = !state.caseSensitive;
   caseBtn.classList.toggle('active', state.caseSensitive);
+  saveButtonPrefs();
   if (state.query) { triggerSearch(render); }
 }
 
 function toggleWord(): void {
   state.wholeWord = !state.wholeWord;
   wordBtn.classList.toggle('active', state.wholeWord);
+  saveButtonPrefs();
   if (state.query) { triggerSearch(render); }
 }
 
@@ -115,6 +133,7 @@ function toggleGroup(): void {
 function toggleReplaceMode(): void {
   state.replaceMode = !state.replaceMode;
   replaceBtn.classList.toggle('active', state.replaceMode);
+  saveButtonPrefs();
   updateReplaceRowVisibility();
   if (state.replaceMode) { (document.getElementById('replace-input') as HTMLInputElement).focus(); }
 }
@@ -129,12 +148,14 @@ function toggleSort(): void {
   sortBtn.textContent = SORT_ICONS[next];
   sortBtn.dataset.tooltip = SORT_LABELS[next];
   sortBtn.classList.toggle('active', next !== 'default');
+  saveButtonPrefs();
   render();
 }
 
 function toggleIncludeMode(): void {
   state.includeMode = !state.includeMode;
   includeBtn.classList.toggle('active', state.includeMode);
+  saveButtonPrefs();
   includeRow.style.display = state.includeMode ? '' : 'none';
   if (state.includeMode) {
     includeInput.focus();
