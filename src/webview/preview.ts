@@ -17,7 +17,7 @@ export function renderBreadcrumbs(relativePath: string): void {
 }
 
 export function clearPreview(): void {
-  previewHdr.innerHTML = '<span class="bc-dim">No file selected</span>';
+  previewHdr.innerHTML = '<span class="bc-dim">' + ((window as any).__spyglass.STRINGS.noFileSelected) + '</span>';
   previewEmpty.style.display = '';
   previewCont.style.display = 'none';
   previewCont.innerHTML = '';

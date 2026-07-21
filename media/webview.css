@@ -32,7 +32,7 @@
   body {
     background: var(--f-bg);
     color: var(--f-text);
-    font-family: 'SF Mono', 'Cascadia Code', 'Fira Code', Consolas, monospace;
+    font-family: var(--vscode-font-family, system-ui, 'Segoe UI', sans-serif);
     font-size: 13px;
     height: 100vh;
     width: 100vw;
@@ -330,6 +330,7 @@
     overflow: auto;
     scrollbar-width: thin;
     scrollbar-color: var(--f-scrollbar) transparent;
+    font-family: var(--vscode-editor-font-family, 'SF Mono', 'Cascadia Code', 'Fira Code', Consolas, monospace);
   }
   .preview-content::-webkit-scrollbar { width: 5px; }
   .preview-content::-webkit-scrollbar-thumb { background: var(--f-scrollbar); border-radius: 3px; }
@@ -482,8 +483,9 @@
   .shortcuts-overlay {
     display: none;
     position: fixed;
-    bottom: calc(7vh + 38px);
-    right: calc((100vw - min(960px, 95vw)) / 2 + 10px);
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
     background: var(--f-raised);
     border: 1px solid var(--f-border);
     border-radius: 10px;
@@ -491,6 +493,9 @@
     padding: 14px 18px;
     z-index: 100;
     min-width: 320px;
+    max-width: min(420px, calc(100vw - 24px));
+    max-height: 80vh;
+    overflow-y: auto;
   }
   .shortcuts-overlay.visible { display: block; }
   .shortcuts-overlay h4 {
@@ -776,10 +781,14 @@
 
   /* Shortcuts overlay: anchor to viewport corner */
   body.sidebar-mode .shortcuts-overlay {
+    top: auto;
+    left: auto;
+    transform: none;
     right: 6px;
     bottom: 32px;
     min-width: 260px;
     max-width: calc(100vw - 12px);
+    max-height: 60vh;
   }
 
   /* Replace / include rows: compact */

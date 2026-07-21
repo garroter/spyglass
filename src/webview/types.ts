@@ -52,6 +52,7 @@ export interface SpyglassConfig {
   BUTTON_PREFS: ButtonPrefs;
   SAVED_SEARCHES: Array<{ query: string; scope: string }>;
   THEME: object | null;
+  STRINGS: Record<string, string>;
 }
 
 export interface ButtonPrefs {

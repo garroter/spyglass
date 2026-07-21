@@ -1231,7 +1231,7 @@
     }).join("");
   }
   function clearPreview() {
-    previewHdr.innerHTML = '<span class="bc-dim">No file selected</span>';
+    previewHdr.innerHTML = '<span class="bc-dim">' + window.__spyglass.STRINGS.noFileSelected + "</span>";
     previewEmpty.style.display = "";
     previewCont.style.display = "none";
     previewCont.innerHTML = "";
@@ -1345,6 +1345,7 @@
   }
 
   // src/webview/render.ts
+  var S = window.__spyglass.STRINGS;
   function render() {
     if (!isSymbolScope()) {
       wrap.querySelectorAll(".sym-kind-chips").forEach((el) => el.remove());
@@ -1760,7 +1761,7 @@
     for (let i2 = 0; i2 < len; i2++) {
       state.multiSelected.add(i2);
     }
-    showToast("Selected " + len + " result" + (len !== 1 ? "s" : ""));
+    showToast(`${S.selectedResults} ${len} result${len !== 1 ? "s" : ""}`);
     render();
   }
   function openAllSelected() {
@@ -1819,7 +1820,7 @@
       }
       if (paths.length > 0) {
         vscode.postMessage({ type: "copyPath", path: paths.join("\n") });
-        showToast("Copied " + paths.length + " path" + (paths.length !== 1 ? "s" : ""));
+        showToast(`${S.copiedPaths} ${paths.length} path${paths.length !== 1 ? "s" : ""}`);
       }
       return;
     }
@@ -1843,7 +1844,7 @@
     }
     if (file) {
       vscode.postMessage({ type: "copyPath", path: file });
-      showToast("Copied: " + file.split("/").pop());
+      showToast(`${S.copied} ` + file.split("/").pop());
     }
   }
   function currentFile() {
@@ -9121,8 +9122,8 @@
     let c = 0;
     r4.filter((u2) => u2.type === "GroupOpen").forEach((u2) => {
       u2.kind === "capturing" ? u2.number = ++c : u2.raw === "(" && l3.push(u2);
-    }), c || l3.forEach((u2, S2) => {
-      u2.kind = "capturing", u2.number = S2 + 1;
+    }), c || l3.forEach((u2, S5) => {
+      u2.kind = "capturing", u2.number = S5 + 1;
     });
     const g = c || l3.length;
     return { tokens: r4.map((u2) => u2.type === "EscapedNumber" ? ee(u2, g) : u2).flat(), flags: o3 };
@@ -9706,7 +9707,7 @@
   }
 
   // node_modules/oniguruma-parser/dist/traverser/traverse.js
-  function S(a2, v2, N = null) {
+  function S2(a2, v2, N = null) {
     function b3(e, s2) {
       for (let t = 0; t < e.length; t++) {
         const r4 = n(e[t], s2, t, e);
@@ -10644,7 +10645,7 @@ XID_Start XIDS`.split(/\s/).map((p2) => [w2(p2), p2])
       spaceIsAscii: ast.flags.spaceIsAscii,
       wordIsAscii: ast.flags.wordIsAscii
     };
-    S(ast, FirstPassVisitor, firstPassState);
+    S2(ast, FirstPassVisitor, firstPassState);
     const globalFlags = {
       dotAll: ast.flags.dotAll,
       ignoreCase: ast.flags.ignoreCase
@@ -10660,14 +10661,14 @@ XID_Start XIDS`.split(/\s/).map((p2) => [w2(p2), p2])
       reffedNodesByReferencer: /* @__PURE__ */ new Map(),
       subroutineRefMap: firstPassState.subroutineRefMap
     };
-    S(ast, SecondPassVisitor, secondPassState);
+    S2(ast, SecondPassVisitor, secondPassState);
     const thirdPassState = {
       groupsByName: secondPassState.groupsByName,
       highestOrphanBackref: 0,
       numCapturesToLeft: 0,
       reffedNodesByReferencer: secondPassState.reffedNodesByReferencer
     };
-    S(ast, ThirdPassVisitor, thirdPassState);
+    S2(ast, ThirdPassVisitor, thirdPassState);
     ast._originMap = secondPassState.groupOriginByCopy;
     ast._strategy = firstPassState.strategy;
     return ast;
@@ -11150,7 +11151,7 @@ XID_Start XIDS`.split(/\s/).map((p2) => [w2(p2), p2])
     }
   };
   function addParentProperties(root2) {
-    S(root2, {
+    S2(root2, {
       "*"({ node, parent }) {
         node.parent = parent;
       }
@@ -11362,7 +11363,7 @@ XID_Start XIDS`.split(/\s/).map((p2) => [w2(p2), p2])
     let hasCaseSensitiveNode = null;
     if (!minTargetEs2025) {
       const iStack = [ast.flags.ignoreCase];
-      S(ast, FlagModifierVisitor, {
+      S2(ast, FlagModifierVisitor, {
         getCurrentModI: () => iStack.at(-1),
         popModI() {
           iStack.pop();
@@ -12455,6 +12456,7 @@ XID_Start XIDS`.split(/\s/).map((p2) => [w2(p2), p2])
   }
 
   // src/webview/events.ts
+  var S3 = window.__spyglass.STRINGS;
   function matchKey(e, binding) {
     if (!binding) {
       return false;
@@ -12510,7 +12512,7 @@ XID_Start XIDS`.split(/\s/).map((p2) => [w2(p2), p2])
     replaceBtn.disabled = isFile || isSym || isRefs;
     sortBtn.disabled = isFile || isSym || isRefs;
     updateReplaceRowVisibility();
-    queryEl.placeholder = scope === "files" ? "Search files by name..." : scope === "recent" ? "Filter recent files..." : scope === "symbols" ? "Search workspace symbols..." : scope === "doc" ? "Filter document symbols..." : scope === "here" ? "query *.ts  \u2014 search in current dir..." : scope === "git" ? "Filter changed files..." : scope === "refs" ? "References to symbol at cursor" : "query *.ts  \u2014 search in project...";
+    queryEl.placeholder = scope === "files" ? S3.searchFilesByName : scope === "recent" ? S3.filterRecentFiles : scope === "symbols" ? S3.searchWorkspaceSymbols : scope === "doc" ? S3.filterDocumentSymbols : scope === "here" ? S3.searchInCurrentDir : scope === "git" ? S3.filterChangedFiles : scope === "refs" ? S3.refsToSymbol : S3.searchInProject;
     if (state.query || scope === "recent" || scope === "git" || scope === "refs") {
       triggerSearch(render);
     } else {
@@ -12559,7 +12561,7 @@ XID_Start XIDS`.split(/\s/).map((p2) => [w2(p2), p2])
   function toggleGroup() {
     state.groupResults = !state.groupResults;
     groupBtn.classList.toggle("active", state.groupResults);
-    showToast(state.groupResults ? "Grouped by file" : "Flat list");
+    showToast(state.groupResults ? S3.groupedByFile : S3.flatList);
     vscode.postMessage({ type: "setGroupResults", value: state.groupResults });
     render();
   }
@@ -12573,7 +12575,7 @@ XID_Start XIDS`.split(/\s/).map((p2) => [w2(p2), p2])
     }
   }
   var SORT_CYCLE = ["default", "filename", "count"];
-  var SORT_LABELS = { default: "Sort: default", filename: "Sort: by filename", count: "Sort: by match count" };
+  var SORT_LABELS = { default: S3.sortDefault, filename: S3.sortFilename, count: S3.sortCount };
   var SORT_ICONS = { default: "\u21C5", filename: "\u2193A", count: "\u2193#" };
   function toggleSort() {
     const next = SORT_CYCLE[(SORT_CYCLE.indexOf(state.sortBy) + 1) % SORT_CYCLE.length];
@@ -12895,8 +12897,14 @@ XID_Start XIDS`.split(/\s/).map((p2) => [w2(p2), p2])
     document.getElementById("help-btn").addEventListener("click", (e) => {
       e.stopPropagation();
       const overlay = document.getElementById("shortcuts-overlay");
+      const btn = e.currentTarget;
+      const rect = btn.getBoundingClientRect();
+      overlay.style.top = rect.bottom + 6 + "px";
+      overlay.style.left = "auto";
+      overlay.style.right = Math.max(8, window.innerWidth - rect.right) + "px";
+      overlay.style.transform = "none";
       overlay.classList.toggle("visible");
-      e.currentTarget.classList.toggle("active", overlay.classList.contains("visible"));
+      btn.classList.toggle("active", overlay.classList.contains("visible"));
     });
     bookmarksBtn.addEventListener("click", () => toggleBookmarksMode());
     moreBtn.addEventListener("click", (e) => {
@@ -13036,8 +13044,9 @@ XID_Start XIDS`.split(/\s/).map((p2) => [w2(p2), p2])
   };
   window.__renderPreview = renderPreview;
   var { KB: KB2, INITIAL_QUERY } = window.__spyglass;
-  regexBtn.dataset.tooltip = "Regex \u2014 " + (KB2.toggleRegex || "Shift+Alt+R");
-  document.getElementById("preview-btn").dataset.tooltip = "Toggle preview \u2014 " + (KB2.togglePreview || "Shift+Alt+P");
+  var S4 = window.__spyglass.STRINGS;
+  regexBtn.dataset.tooltip = `${S4.regex} \u2014 ${KB2.toggleRegex || "Shift+Alt+R"}`;
+  document.getElementById("preview-btn").dataset.tooltip = `${S4.togglePreview} \u2014 ${KB2.togglePreview || "Shift+Alt+P"}`;
   resultInfo.textContent = "0 results";
   if (state.useRegex) regexBtn.classList.add("active");
   if (state.caseSensitive) caseBtn.classList.add("active");
@@ -13054,7 +13063,7 @@ XID_Start XIDS`.split(/\s/).map((p2) => [w2(p2), p2])
     includeRow.style.display = "";
   }
   if (state.sortBy !== "default") {
-    const SORT_LABELS2 = { default: "Sort: default", filename: "Sort: by filename", count: "Sort: by match count" };
+    const SORT_LABELS2 = { default: S4.sortDefault, filename: S4.sortFilename, count: S4.sortCount };
     const SORT_ICONS2 = { default: "\u21C5", filename: "\u2193A", count: "\u2193#" };
     sortBtn.textContent = SORT_ICONS2[state.sortBy];
     sortBtn.dataset.tooltip = SORT_LABELS2[state.sortBy];
@@ -13067,7 +13076,7 @@ XID_Start XIDS`.split(/\s/).map((p2) => [w2(p2), p2])
     document.getElementById("case-btn").setAttribute("disabled", "");
     document.getElementById("word-btn").setAttribute("disabled", "");
     document.getElementById("replace-btn").setAttribute("disabled", "");
-    queryEl.placeholder = state.scope === "recent" ? "Filter recent files..." : state.scope === "symbols" ? "Search symbols..." : "Search files by name...";
+    queryEl.placeholder = state.scope === "recent" ? S4.filterRecentFiles : state.scope === "symbols" ? S4.searchWorkspaceSymbols : S4.searchFilesByName;
   }
   var { THEME } = window.__spyglass;
   setHasVscodeTheme(!!THEME);

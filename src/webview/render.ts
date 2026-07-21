@@ -7,6 +7,8 @@ import { requestPreview, recentDefault } from './preview';
 
 import { vscode } from './vscode';
 
+const S = (window as any).__spyglass.STRINGS;
+
 export function render(): void {
   if (!isSymbolScope()) {
     wrap.querySelectorAll('.sym-kind-chips').forEach(el => el.remove());
@@ -471,7 +473,7 @@ export function selectAll(): void {
             : isSymbolScope() ? state.symbolResults.length
             : state.results.length;
   for (let i = 0; i < len; i++) { state.multiSelected.add(i); }
-  showToast('Selected ' + len + ' result' + (len !== 1 ? 's' : ''));
+  showToast(`${S.selectedResults} ${len} result${len !== 1 ? 's' : ''}`);
   render();
 }
 
@@ -517,7 +519,7 @@ export function copyCurrentPath(): void {
     }
     if (paths.length > 0) {
       vscode.postMessage({ type: 'copyPath', path: paths.join('\n') });
-      showToast('Copied ' + paths.length + ' path' + (paths.length !== 1 ? 's' : ''));
+      showToast(`${S.copiedPaths} ${paths.length} path${paths.length !== 1 ? 's' : ''}`);
     }
     return;
   }
@@ -536,7 +538,7 @@ export function copyCurrentPath(): void {
   }
   if (file) {
     vscode.postMessage({ type: 'copyPath', path: file });
-    showToast('Copied: ' + file.split('/').pop());
+    showToast(`${S.copied} ` + file.split('/').pop());
   }
 }
 

@@ -18,11 +18,12 @@ import { initHighlighter, setHasVscodeTheme } from './shiki';
 (window as any).__renderPreview = renderPreview;
 
 const { KB, INITIAL_QUERY } = (window as any).__spyglass;
+const S = (window as any).__spyglass.STRINGS;
 
 // Init UI state
-regexBtn.dataset.tooltip   = 'Regex — ' + (KB.toggleRegex   || 'Shift+Alt+R');
+regexBtn.dataset.tooltip   = `${S.regex} — ${KB.toggleRegex || 'Shift+Alt+R'}`;
 document.getElementById('preview-btn')!.dataset.tooltip =
-  'Toggle preview — ' + (KB.togglePreview || 'Shift+Alt+P');
+  `${S.togglePreview} — ${KB.togglePreview || 'Shift+Alt+P'}`;
 resultInfo.textContent = '0 results';
 
 // Apply button states from saved preferences
@@ -41,7 +42,7 @@ if (state.includeMode) {
   includeRow.style.display = '';
 }
 if (state.sortBy !== 'default') {
-  const SORT_LABELS: Record<string, string> = { default: 'Sort: default', filename: 'Sort: by filename', count: 'Sort: by match count' };
+  const SORT_LABELS: Record<string, string> = { default: S.sortDefault, filename: S.sortFilename, count: S.sortCount };
   const SORT_ICONS:  Record<string, string> = { default: '⇅', filename: '↓A', count: '↓#' };
   sortBtn.textContent = SORT_ICONS[state.sortBy];
   sortBtn.dataset.tooltip = SORT_LABELS[state.sortBy];
@@ -57,9 +58,9 @@ if (isFileScope() || isSymbolScope()) {
   document.getElementById('case-btn')!.setAttribute('disabled', '');
   document.getElementById('word-btn')!.setAttribute('disabled', '');
   document.getElementById('replace-btn')!.setAttribute('disabled', '');
-  queryEl.placeholder = state.scope === 'recent'  ? 'Filter recent files...'
-                      : state.scope === 'symbols' ? 'Search symbols...'
-                      : 'Search files by name...';
+  queryEl.placeholder = state.scope === 'recent'  ? S.filterRecentFiles
+                      : state.scope === 'symbols' ? S.searchWorkspaceSymbols
+                      : S.searchFilesByName;
 }
 
 const { THEME } = (window as any).__spyglass;

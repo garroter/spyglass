@@ -16,6 +16,8 @@ import { escHtml } from './highlight';
 
 import { vscode } from './vscode';
 
+const S = (window as any).__spyglass.STRINGS;
+
 function matchKey(e: KeyboardEvent, binding: string): boolean {
   if (!binding) { return false; }
   const parts = binding.toLowerCase().split('+');
@@ -72,14 +74,14 @@ export function setScope(scope: string): void {
   replaceBtn.disabled = isFile || isSym || isRefs;
   sortBtn.disabled    = isFile || isSym || isRefs;
   updateReplaceRowVisibility();
-  queryEl.placeholder = scope === 'files'   ? 'Search files by name...'
-                      : scope === 'recent'  ? 'Filter recent files...'
-                      : scope === 'symbols' ? 'Search workspace symbols...'
-                      : scope === 'doc'     ? 'Filter document symbols...'
-                      : scope === 'here'    ? 'query *.ts  — search in current dir...'
-                      : scope === 'git'     ? 'Filter changed files...'
-                      : scope === 'refs'    ? 'References to symbol at cursor'
-                      : 'query *.ts  — search in project...';
+  queryEl.placeholder = scope === 'files'   ? S.searchFilesByName
+                      : scope === 'recent'  ? S.filterRecentFiles
+                      : scope === 'symbols' ? S.searchWorkspaceSymbols
+                      : scope === 'doc'     ? S.filterDocumentSymbols
+                      : scope === 'here'    ? S.searchInCurrentDir
+                      : scope === 'git'     ? S.filterChangedFiles
+                      : scope === 'refs'    ? S.refsToSymbol
+                      : S.searchInProject;
   if (state.query || scope === 'recent' || scope === 'git' || scope === 'refs') {
     triggerSearch(render);
   } else {
@@ -125,7 +127,7 @@ function toggleWord(): void {
 function toggleGroup(): void {
   state.groupResults = !state.groupResults;
   groupBtn.classList.toggle('active', state.groupResults);
-  showToast(state.groupResults ? 'Grouped by file' : 'Flat list');
+  showToast(state.groupResults ? S.groupedByFile : S.flatList);
   vscode.postMessage({ type: 'setGroupResults', value: state.groupResults });
   render();
 }
@@ -139,7 +141,7 @@ function toggleReplaceMode(): void {
 }
 
 const SORT_CYCLE: Array<'default' | 'filename' | 'count'> = ['default', 'filename', 'count'];
-const SORT_LABELS: Record<string, string> = { default: 'Sort: default', filename: 'Sort: by filename', count: 'Sort: by match count' };
+const SORT_LABELS: Record<string, string> = { default: S.sortDefault, filename: S.sortFilename, count: S.sortCount };
 const SORT_ICONS:  Record<string, string> = { default: '⇅', filename: '↓A', count: '↓#' };
 
 function toggleSort(): void {
@@ -387,8 +389,14 @@ export function initEvents(): void {
   document.getElementById('help-btn')!.addEventListener('click', (e) => {
     e.stopPropagation();
     const overlay = document.getElementById('shortcuts-overlay')!;
+    const btn = e.currentTarget as HTMLElement;
+    const rect = btn.getBoundingClientRect();
+    overlay.style.top = (rect.bottom + 6) + 'px';
+    overlay.style.left = 'auto';
+    overlay.style.right = Math.max(8, window.innerWidth - rect.right) + 'px';
+    overlay.style.transform = 'none';
     overlay.classList.toggle('visible');
-    (e.currentTarget as HTMLElement).classList.toggle('active', overlay.classList.contains('visible'));
+    btn.classList.toggle('active', overlay.classList.contains('visible'));
   });
 
   bookmarksBtn.addEventListener('click', () => toggleBookmarksMode());
