@@ -918,7 +918,8 @@
   });
 
   // src/webview/state.ts
-  var { INITIAL_HISTORY, RECENT_FILES, PINNED_FILES, DEFAULT_SCOPE, GROUP_RESULTS, SAVED_SEARCHES } = window.__spyglass;
+  var { INITIAL_HISTORY, RECENT_FILES, PINNED_FILES, DEFAULT_SCOPE, GROUP_RESULTS, BUTTON_PREFS, SAVED_SEARCHES } = window.__spyglass;
+  var bp = BUTTON_PREFS || {};
   var state = {
     results: [],
     fileResults: [],
@@ -930,23 +931,23 @@
     gitStatus: {},
     selected: 0,
     scope: DEFAULT_SCOPE,
-    useRegex: false,
-    caseSensitive: false,
-    wholeWord: false,
+    useRegex: bp.useRegex ?? false,
+    caseSensitive: bp.caseSensitive ?? false,
+    wholeWord: bp.wholeWord ?? false,
     globFilter: "",
-    replaceMode: false,
+    replaceMode: bp.replaceMode ?? false,
     groupResults: GROUP_RESULTS,
     query: "",
     searching: false,
-    showPreview: true,
+    showPreview: bp.showPreview ?? true,
     multiSelected: /* @__PURE__ */ new Set(),
     searchHistory: INITIAL_HISTORY.slice(),
     historyIndex: -1,
     historyPreQuery: "",
     currentPreviewFile: null,
-    sortBy: "default",
+    sortBy: bp.sortBy ?? "default",
     includeFilter: "",
-    includeMode: false,
+    includeMode: bp.includeMode ?? false,
     symbolKindFilter: "",
     savedSearches: (SAVED_SEARCHES ?? []).slice(),
     bookmarksMode: false,
@@ -1323,6 +1324,18 @@
     previewBtn.classList.toggle("active", state.showPreview);
     rightPanel.classList.toggle("hidden", !state.showPreview);
     leftPanel.classList.toggle("full", !state.showPreview);
+    vscode.postMessage({
+      type: "saveButtonPrefs",
+      prefs: {
+        useRegex: state.useRegex,
+        caseSensitive: state.caseSensitive,
+        wholeWord: state.wholeWord,
+        replaceMode: state.replaceMode,
+        showPreview: state.showPreview,
+        sortBy: state.sortBy,
+        includeMode: state.includeMode
+      }
+    });
     if (state.showPreview) {
       requestPreview();
     }
@@ -12453,6 +12466,20 @@ XID_Start XIDS`.split(/\s/).map((p2) => [w2(p2), p2])
     const alt = parts.includes("alt");
     return e.key.toLowerCase() === key2 && e.ctrlKey === ctrl && e.shiftKey === shift && e.altKey === alt;
   }
+  function saveButtonPrefs() {
+    vscode.postMessage({
+      type: "saveButtonPrefs",
+      prefs: {
+        useRegex: state.useRegex,
+        caseSensitive: state.caseSensitive,
+        wholeWord: state.wholeWord,
+        replaceMode: state.replaceMode,
+        showPreview: state.showPreview,
+        sortBy: state.sortBy,
+        includeMode: state.includeMode
+      }
+    });
+  }
   var KB = window.__spyglass.KB;
   var SCOPES = ["project", "openFiles", "files", "recent", "here", "symbols", "git", "doc", "refs"];
   function updateReplaceRowVisibility() {
@@ -12508,6 +12535,7 @@ XID_Start XIDS`.split(/\s/).map((p2) => [w2(p2), p2])
   function toggleRegex() {
     state.useRegex = !state.useRegex;
     regexBtn.classList.toggle("active", state.useRegex);
+    saveButtonPrefs();
     if (state.query) {
       triggerSearch(render);
     }
@@ -12515,6 +12543,7 @@ XID_Start XIDS`.split(/\s/).map((p2) => [w2(p2), p2])
   function toggleCase() {
     state.caseSensitive = !state.caseSensitive;
     caseBtn.classList.toggle("active", state.caseSensitive);
+    saveButtonPrefs();
     if (state.query) {
       triggerSearch(render);
     }
@@ -12522,6 +12551,7 @@ XID_Start XIDS`.split(/\s/).map((p2) => [w2(p2), p2])
   function toggleWord() {
     state.wholeWord = !state.wholeWord;
     wordBtn.classList.toggle("active", state.wholeWord);
+    saveButtonPrefs();
     if (state.query) {
       triggerSearch(render);
     }
@@ -12536,6 +12566,7 @@ XID_Start XIDS`.split(/\s/).map((p2) => [w2(p2), p2])
   function toggleReplaceMode() {
     state.replaceMode = !state.replaceMode;
     replaceBtn.classList.toggle("active", state.replaceMode);
+    saveButtonPrefs();
     updateReplaceRowVisibility();
     if (state.replaceMode) {
       document.getElementById("replace-input").focus();
@@ -12550,11 +12581,13 @@ XID_Start XIDS`.split(/\s/).map((p2) => [w2(p2), p2])
     sortBtn.textContent = SORT_ICONS[next];
     sortBtn.dataset.tooltip = SORT_LABELS[next];
     sortBtn.classList.toggle("active", next !== "default");
+    saveButtonPrefs();
     render();
   }
   function toggleIncludeMode() {
     state.includeMode = !state.includeMode;
     includeBtn.classList.toggle("active", state.includeMode);
+    saveButtonPrefs();
     includeRow.style.display = state.includeMode ? "" : "none";
     if (state.includeMode) {
       includeInput.focus();
@@ -13006,7 +13039,27 @@ XID_Start XIDS`.split(/\s/).map((p2) => [w2(p2), p2])
   regexBtn.dataset.tooltip = "Regex \u2014 " + (KB2.toggleRegex || "Shift+Alt+R");
   document.getElementById("preview-btn").dataset.tooltip = "Toggle preview \u2014 " + (KB2.togglePreview || "Shift+Alt+P");
   resultInfo.textContent = "0 results";
-  regexBtn.classList.remove("active");
+  if (state.useRegex) regexBtn.classList.add("active");
+  if (state.caseSensitive) caseBtn.classList.add("active");
+  if (state.wholeWord) wordBtn.classList.add("active");
+  if (state.groupResults) groupBtn.classList.add("active");
+  if (state.replaceMode) replaceBtn.classList.add("active");
+  if (!state.showPreview) {
+    previewBtn.classList.remove("active");
+    document.getElementById("right-panel").classList.add("hidden");
+    document.getElementById("left-panel").classList.add("full");
+  }
+  if (state.includeMode) {
+    includeBtn.classList.add("active");
+    includeRow.style.display = "";
+  }
+  if (state.sortBy !== "default") {
+    const SORT_LABELS2 = { default: "Sort: default", filename: "Sort: by filename", count: "Sort: by match count" };
+    const SORT_ICONS2 = { default: "\u21C5", filename: "\u2193A", count: "\u2193#" };
+    sortBtn.textContent = SORT_ICONS2[state.sortBy];
+    sortBtn.dataset.tooltip = SORT_LABELS2[state.sortBy];
+    sortBtn.classList.add("active");
+  }
   updateReplaceRowVisibility();
   tabs.forEach((t) => t.classList.toggle("active", t.dataset.scope === state.scope));
   if (isFileScope() || isSymbolScope()) {
