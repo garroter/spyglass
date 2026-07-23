@@ -1,4 +1,5 @@
 import type { AppState, SpyglassConfig } from './types';
+import { vscode } from './vscode';
 
 declare const window: Window & { __spyglass: SpyglassConfig };
 
@@ -39,3 +40,18 @@ export const state: AppState = {
   bookmarksMode: false,
   refsSymbol: '',
 };
+
+export function saveButtonPrefs(): void {
+  vscode.postMessage({
+    type: 'saveButtonPrefs',
+    prefs: {
+      useRegex: state.useRegex,
+      caseSensitive: state.caseSensitive,
+      wholeWord: state.wholeWord,
+      replaceMode: state.replaceMode,
+      showPreview: state.showPreview,
+      sortBy: state.sortBy,
+      includeMode: state.includeMode,
+    },
+  });
+}

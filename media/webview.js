@@ -917,6 +917,9 @@
     }
   });
 
+  // src/webview/vscode.ts
+  var vscode = acquireVsCodeApi();
+
   // src/webview/state.ts
   var { INITIAL_HISTORY, RECENT_FILES, PINNED_FILES, DEFAULT_SCOPE, GROUP_RESULTS, BUTTON_PREFS, SAVED_SEARCHES } = window.__spyglass;
   var bp = BUTTON_PREFS || {};
@@ -953,6 +956,20 @@
     bookmarksMode: false,
     refsSymbol: ""
   };
+  function saveButtonPrefs() {
+    vscode.postMessage({
+      type: "saveButtonPrefs",
+      prefs: {
+        useRegex: state.useRegex,
+        caseSensitive: state.caseSensitive,
+        wholeWord: state.wholeWord,
+        replaceMode: state.replaceMode,
+        showPreview: state.showPreview,
+        sortBy: state.sortBy,
+        includeMode: state.includeMode
+      }
+    });
+  }
 
   // src/webview/dom.ts
   var queryEl = document.getElementById("query");
@@ -991,9 +1008,6 @@
   var bookmarksBtn = document.getElementById("bookmarks-btn");
   var moreBtn = document.getElementById("more-btn");
   var secondaryToolbar = document.getElementById("secondary-toolbar");
-
-  // src/webview/vscode.ts
-  var vscode = acquireVsCodeApi();
 
   // src/webview/search.ts
   function isFileScope() {
@@ -1324,18 +1338,7 @@
     previewBtn.classList.toggle("active", state.showPreview);
     rightPanel.classList.toggle("hidden", !state.showPreview);
     leftPanel.classList.toggle("full", !state.showPreview);
-    vscode.postMessage({
-      type: "saveButtonPrefs",
-      prefs: {
-        useRegex: state.useRegex,
-        caseSensitive: state.caseSensitive,
-        wholeWord: state.wholeWord,
-        replaceMode: state.replaceMode,
-        showPreview: state.showPreview,
-        sortBy: state.sortBy,
-        includeMode: state.includeMode
-      }
-    });
+    saveButtonPrefs();
     if (state.showPreview) {
       requestPreview();
     }
@@ -12468,20 +12471,6 @@ XID_Start XIDS`.split(/\s/).map((p2) => [w2(p2), p2])
     const alt = parts.includes("alt");
     return e.key.toLowerCase() === key2 && e.ctrlKey === ctrl && e.shiftKey === shift && e.altKey === alt;
   }
-  function saveButtonPrefs() {
-    vscode.postMessage({
-      type: "saveButtonPrefs",
-      prefs: {
-        useRegex: state.useRegex,
-        caseSensitive: state.caseSensitive,
-        wholeWord: state.wholeWord,
-        replaceMode: state.replaceMode,
-        showPreview: state.showPreview,
-        sortBy: state.sortBy,
-        includeMode: state.includeMode
-      }
-    });
-  }
   var KB = window.__spyglass.KB;
   var SCOPES = ["project", "openFiles", "files", "recent", "here", "symbols", "git", "doc", "refs"];
   function updateReplaceRowVisibility() {
@@ -12898,11 +12887,13 @@ XID_Start XIDS`.split(/\s/).map((p2) => [w2(p2), p2])
       e.stopPropagation();
       const overlay = document.getElementById("shortcuts-overlay");
       const btn = e.currentTarget;
-      const rect = btn.getBoundingClientRect();
-      overlay.style.top = rect.bottom + 6 + "px";
-      overlay.style.left = "auto";
-      overlay.style.right = Math.max(8, window.innerWidth - rect.right) + "px";
-      overlay.style.transform = "none";
+      if (!document.body.classList.contains("sidebar-mode")) {
+        const rect = btn.getBoundingClientRect();
+        overlay.style.top = rect.bottom + 6 + "px";
+        overlay.style.left = "auto";
+        overlay.style.right = Math.max(8, window.innerWidth - rect.right) + "px";
+        overlay.style.transform = "none";
+      }
       overlay.classList.toggle("visible");
       btn.classList.toggle("active", overlay.classList.contains("visible"));
     });
@@ -13048,11 +13039,21 @@ XID_Start XIDS`.split(/\s/).map((p2) => [w2(p2), p2])
   regexBtn.dataset.tooltip = `${S4.regex} \u2014 ${KB2.toggleRegex || "Shift+Alt+R"}`;
   document.getElementById("preview-btn").dataset.tooltip = `${S4.togglePreview} \u2014 ${KB2.togglePreview || "Shift+Alt+P"}`;
   resultInfo.textContent = "0 results";
-  if (state.useRegex) regexBtn.classList.add("active");
-  if (state.caseSensitive) caseBtn.classList.add("active");
-  if (state.wholeWord) wordBtn.classList.add("active");
-  if (state.groupResults) groupBtn.classList.add("active");
-  if (state.replaceMode) replaceBtn.classList.add("active");
+  if (state.useRegex) {
+    regexBtn.classList.add("active");
+  }
+  if (state.caseSensitive) {
+    caseBtn.classList.add("active");
+  }
+  if (state.wholeWord) {
+    wordBtn.classList.add("active");
+  }
+  if (state.groupResults) {
+    groupBtn.classList.add("active");
+  }
+  if (state.replaceMode) {
+    replaceBtn.classList.add("active");
+  }
   if (!state.showPreview) {
     previewBtn.classList.remove("active");
     document.getElementById("right-panel").classList.add("hidden");

@@ -1,4 +1,4 @@
-import { state } from './state';
+import { state, saveButtonPrefs } from './state';
 import { getHighlighter, shikiLines, reinitHighlighter } from './shiki';
 import {
   queryEl, regexBtn, caseBtn, wordBtn, groupBtn, replaceBtn, previewBtn,
@@ -29,21 +29,6 @@ function matchKey(e: KeyboardEvent, binding: string): boolean {
     && e.ctrlKey  === ctrl
     && e.shiftKey === shift
     && e.altKey   === alt;
-}
-
-function saveButtonPrefs(): void {
-  vscode.postMessage({
-    type: 'saveButtonPrefs',
-    prefs: {
-      useRegex: state.useRegex,
-      caseSensitive: state.caseSensitive,
-      wholeWord: state.wholeWord,
-      replaceMode: state.replaceMode,
-      showPreview: state.showPreview,
-      sortBy: state.sortBy,
-      includeMode: state.includeMode,
-    },
-  });
 }
 
 const KB = (window as any).__spyglass.KB;
@@ -390,11 +375,15 @@ export function initEvents(): void {
     e.stopPropagation();
     const overlay = document.getElementById('shortcuts-overlay')!;
     const btn = e.currentTarget as HTMLElement;
-    const rect = btn.getBoundingClientRect();
-    overlay.style.top = (rect.bottom + 6) + 'px';
-    overlay.style.left = 'auto';
-    overlay.style.right = Math.max(8, window.innerWidth - rect.right) + 'px';
-    overlay.style.transform = 'none';
+    if (!document.body.classList.contains('sidebar-mode')) {
+      // Sidebar mode has its own corner-anchored positioning in CSS
+      // (body.sidebar-mode .shortcuts-overlay); inline styles would win over it.
+      const rect = btn.getBoundingClientRect();
+      overlay.style.top = (rect.bottom + 6) + 'px';
+      overlay.style.left = 'auto';
+      overlay.style.right = Math.max(8, window.innerWidth - rect.right) + 'px';
+      overlay.style.transform = 'none';
+    }
     overlay.classList.toggle('visible');
     btn.classList.toggle('active', overlay.classList.contains('visible'));
   });

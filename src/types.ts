@@ -79,6 +79,5 @@ export type MessageFromWebview =
   | { type: 'replacePreview'; query: string; replacement: string; useRegex: boolean; caseSensitive: boolean; wholeWord: boolean; globFilter: string; scope: string }
   | { type: 'gitSearch' }
   | { type: 'docSearch' }
-  | { type: 'refsSearch' }
-  | { type: 'includeSearch'; query: string; includeFilter: string };
+  | { type: 'refsSearch' };
 

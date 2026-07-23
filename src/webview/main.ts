@@ -6,7 +6,7 @@ window.onerror = (msg, _src, line, _col, err) => {
 };
 
 import { state } from './state';
-import { queryEl, regexBtn, caseBtn, wordBtn, groupBtn, replaceBtn, previewBtn, resultInfo, tabs, sortBtn, includeBtn, includeRow, includeInput, secondaryToolbar } from './dom';
+import { queryEl, regexBtn, caseBtn, wordBtn, groupBtn, replaceBtn, previewBtn, resultInfo, tabs, sortBtn, includeBtn, includeRow } from './dom';
 import { isFileScope, isSymbolScope, triggerSearch } from './search';
 import { renderPreview, clearPreview } from './preview';
 import { render, updateSelection } from './render';
@@ -27,11 +27,11 @@ document.getElementById('preview-btn')!.dataset.tooltip =
 resultInfo.textContent = '0 results';
 
 // Apply button states from saved preferences
-if (state.useRegex) regexBtn.classList.add('active');
-if (state.caseSensitive) caseBtn.classList.add('active');
-if (state.wholeWord) wordBtn.classList.add('active');
-if (state.groupResults) groupBtn.classList.add('active');
-if (state.replaceMode) replaceBtn.classList.add('active');
+if (state.useRegex) { regexBtn.classList.add('active'); }
+if (state.caseSensitive) { caseBtn.classList.add('active'); }
+if (state.wholeWord) { wordBtn.classList.add('active'); }
+if (state.groupResults) { groupBtn.classList.add('active'); }
+if (state.replaceMode) { replaceBtn.classList.add('active'); }
 if (!state.showPreview) {
   previewBtn.classList.remove('active');
   document.getElementById('right-panel')!.classList.add('hidden');
