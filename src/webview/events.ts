@@ -1,4 +1,4 @@
-import { state } from './state';
+import { state, saveButtonPrefs } from './state';
 import { getHighlighter, shikiLines, reinitHighlighter } from './shiki';
 import {
   queryEl, regexBtn, caseBtn, wordBtn, groupBtn, replaceBtn, previewBtn,
@@ -15,6 +15,8 @@ import { hideCtxMenu } from './contextMenu';
 import { escHtml } from './highlight';
 
 import { vscode } from './vscode';
+
+const S = (window as any).__spyglass.STRINGS;
 
 function matchKey(e: KeyboardEvent, binding: string): boolean {
   if (!binding) { return false; }
@@ -57,14 +59,14 @@ export function setScope(scope: string): void {
   replaceBtn.disabled = isFile || isSym || isRefs;
   sortBtn.disabled    = isFile || isSym || isRefs;
   updateReplaceRowVisibility();
-  queryEl.placeholder = scope === 'files'   ? 'Search files by name...'
-                      : scope === 'recent'  ? 'Filter recent files...'
-                      : scope === 'symbols' ? 'Search workspace symbols...'
-                      : scope === 'doc'     ? 'Filter document symbols...'
-                      : scope === 'here'    ? 'query *.ts  — search in current dir...'
-                      : scope === 'git'     ? 'Filter changed files...'
-                      : scope === 'refs'    ? 'References to symbol at cursor'
-                      : 'query *.ts  — search in project...';
+  queryEl.placeholder = scope === 'files'   ? S.searchFilesByName
+                      : scope === 'recent'  ? S.filterRecentFiles
+                      : scope === 'symbols' ? S.searchWorkspaceSymbols
+                      : scope === 'doc'     ? S.filterDocumentSymbols
+                      : scope === 'here'    ? S.searchInCurrentDir
+                      : scope === 'git'     ? S.filterChangedFiles
+                      : scope === 'refs'    ? S.refsToSymbol
+                      : S.searchInProject;
   if (state.query || scope === 'recent' || scope === 'git' || scope === 'refs') {
     triggerSearch(render);
   } else {
@@ -89,25 +91,28 @@ function navigateHistory(dir: number): void {
 function toggleRegex(): void {
   state.useRegex = !state.useRegex;
   regexBtn.classList.toggle('active', state.useRegex);
+  saveButtonPrefs();
   if (state.query) { triggerSearch(render); }
 }
 
 function toggleCase(): void {
   state.caseSensitive = !state.caseSensitive;
   caseBtn.classList.toggle('active', state.caseSensitive);
+  saveButtonPrefs();
   if (state.query) { triggerSearch(render); }
 }
 
 function toggleWord(): void {
   state.wholeWord = !state.wholeWord;
   wordBtn.classList.toggle('active', state.wholeWord);
+  saveButtonPrefs();
   if (state.query) { triggerSearch(render); }
 }
 
 function toggleGroup(): void {
   state.groupResults = !state.groupResults;
   groupBtn.classList.toggle('active', state.groupResults);
-  showToast(state.groupResults ? 'Grouped by file' : 'Flat list');
+  showToast(state.groupResults ? S.groupedByFile : S.flatList);
   vscode.postMessage({ type: 'setGroupResults', value: state.groupResults });
   render();
 }
@@ -115,12 +120,13 @@ function toggleGroup(): void {
 function toggleReplaceMode(): void {
   state.replaceMode = !state.replaceMode;
   replaceBtn.classList.toggle('active', state.replaceMode);
+  saveButtonPrefs();
   updateReplaceRowVisibility();
   if (state.replaceMode) { (document.getElementById('replace-input') as HTMLInputElement).focus(); }
 }
 
 const SORT_CYCLE: Array<'default' | 'filename' | 'count'> = ['default', 'filename', 'count'];
-const SORT_LABELS: Record<string, string> = { default: 'Sort: default', filename: 'Sort: by filename', count: 'Sort: by match count' };
+const SORT_LABELS: Record<string, string> = { default: S.sortDefault, filename: S.sortFilename, count: S.sortCount };
 const SORT_ICONS:  Record<string, string> = { default: '⇅', filename: '↓A', count: '↓#' };
 
 function toggleSort(): void {
@@ -129,12 +135,14 @@ function toggleSort(): void {
   sortBtn.textContent = SORT_ICONS[next];
   sortBtn.dataset.tooltip = SORT_LABELS[next];
   sortBtn.classList.toggle('active', next !== 'default');
+  saveButtonPrefs();
   render();
 }
 
 function toggleIncludeMode(): void {
   state.includeMode = !state.includeMode;
   includeBtn.classList.toggle('active', state.includeMode);
+  saveButtonPrefs();
   includeRow.style.display = state.includeMode ? '' : 'none';
   if (state.includeMode) {
     includeInput.focus();
@@ -366,8 +374,18 @@ export function initEvents(): void {
   document.getElementById('help-btn')!.addEventListener('click', (e) => {
     e.stopPropagation();
     const overlay = document.getElementById('shortcuts-overlay')!;
+    const btn = e.currentTarget as HTMLElement;
+    if (!document.body.classList.contains('sidebar-mode')) {
+      // Sidebar mode has its own corner-anchored positioning in CSS
+      // (body.sidebar-mode .shortcuts-overlay); inline styles would win over it.
+      const rect = btn.getBoundingClientRect();
+      overlay.style.top = (rect.bottom + 6) + 'px';
+      overlay.style.left = 'auto';
+      overlay.style.right = Math.max(8, window.innerWidth - rect.right) + 'px';
+      overlay.style.transform = 'none';
+    }
     overlay.classList.toggle('visible');
-    (e.currentTarget as HTMLElement).classList.toggle('active', overlay.classList.contains('visible'));
+    btn.classList.toggle('active', overlay.classList.contains('visible'));
   });
 
   bookmarksBtn.addEventListener('click', () => toggleBookmarksMode());

@@ -49,8 +49,20 @@ export interface SpyglassConfig {
   MAX_RESULTS: number;
   DEFAULT_SCOPE: string;
   GROUP_RESULTS: boolean;
+  BUTTON_PREFS: ButtonPrefs;
   SAVED_SEARCHES: Array<{ query: string; scope: string }>;
   THEME: object | null;
+  STRINGS: Record<string, string>;
+}
+
+export interface ButtonPrefs {
+  useRegex: boolean;
+  caseSensitive: boolean;
+  wholeWord: boolean;
+  replaceMode: boolean;
+  showPreview: boolean;
+  sortBy: 'default' | 'filename' | 'count';
+  includeMode: boolean;
 }
 
 export interface AppState {

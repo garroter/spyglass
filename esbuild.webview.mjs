@@ -1,16 +1,19 @@
 import * as esbuild from 'esbuild';
+import * as path from 'path';
+import { fileURLToPath } from 'url';
 
 const watch = process.argv.includes('--watch');
 
 // Shiki's "./*": "./dist/*" wildcard export omits the .mjs extension, which
 // esbuild doesn't auto-append when expanding package.json export patterns.
 // This plugin rewrites shiki/langs/* and shiki/themes/* to the actual .mjs path.
-const shikiBase = new URL('../shiki/dist/', import.meta.resolve('shiki/package.json')).pathname;
+const shikiPkg = fileURLToPath(import.meta.resolve('shiki/package.json'));
+const shikiBase = path.join(path.dirname(shikiPkg), 'dist');
 const shikiLangsPlugin = {
   name: 'shiki-subpath',
   setup(build) {
     build.onResolve({ filter: /^shiki\/(langs|themes)\// }, args => ({
-      path: shikiBase + args.path.replace('shiki/', '') + '.mjs',
+      path: path.join(shikiBase, args.path.replace('shiki/', '') + '.mjs'),
     }));
   },
 };

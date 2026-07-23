@@ -1,7 +1,8 @@
 import * as vscode from 'vscode';
 import * as path from 'path';
 import { searchWithRipgrep, listFilesWithRipgrep, isRipgrepAvailable, CancellableSearch } from './ripgrep';
-import { Scope, KeyBindings } from './types';
+import { Scope, KeyBindings, ButtonPrefs } from './types';
+import { getUiStrings, UiStrings } from './i18n';
 import { cwdForFile, makeRelative } from './workspaceUtils';
 import { loadGitStatus, getChangedLines, relToAbsolute } from './gitUtils';
 import { runSymbolSearch, runDocSymbolSearch } from './symbolSearch';
@@ -38,6 +39,8 @@ export class FinderPanel {
   private _activeCursorLine: number = 0;
   private _activeCursorChar: number = 0;
 
+  private _strings(): UiStrings { return getUiStrings(); }
+
   public static async createOrShow(context: vscode.ExtensionContext): Promise<void> {
     const editor = vscode.window.activeTextEditor;
     const selectedText = editor && !editor.selection.isEmpty
@@ -56,8 +59,9 @@ export class FinderPanel {
 
     const rgOk = await isRipgrepAvailable(context);
     if (!rgOk) {
-      vscode.window.showErrorMessage('Spyglass: could not find or auto-install ripgrep. Install it system-wide or set spyglass.ripgrepPath in settings.', 'Open Settings').then(sel => {
-        if (sel === 'Open Settings') { vscode.commands.executeCommand('workbench.action.openSettings', 'spyglass.ripgrepPath'); }
+      const s = getUiStrings();
+      vscode.window.showErrorMessage(s.ripgrepNotFound, s.openSettings).then(sel => {
+        if (sel === s.openSettings) { vscode.commands.executeCommand('workbench.action.openSettings', 'spyglass.ripgrepPath'); }
       });
       return;
     }
@@ -127,8 +131,12 @@ export class FinderPanel {
     const maxResults = vscode.workspace.getConfiguration('spyglass').get<number>('maxResults', 200);
     const pinnedFiles = context.workspaceState.get<string[]>('spyglass.pinnedFiles', []);
     const groupResults = context.workspaceState.get<boolean>('spyglass.groupResults', false);
+    const buttonPrefs = context.workspaceState.get<ButtonPrefs>('spyglass.buttonPrefs', {
+      useRegex: false, caseSensitive: false, wholeWord: false,
+      replaceMode: false, showPreview: true, sortBy: 'default', includeMode: false,
+    });
     const savedSearches = context.workspaceState.get<Array<{query: string; scope: string}>>('spyglass.savedSearches', []);
-    this._panel.webview.html = this._buildHtml(defaultScope, kb, initialQuery, this._searchHistory, this._recentFiles, maxResults, pinnedFiles, groupResults, savedSearches);
+    this._panel.webview.html = this._buildHtml(defaultScope, kb, initialQuery, this._searchHistory, this._recentFiles, maxResults, pinnedFiles, groupResults, buttonPrefs, savedSearches);
 
     // Warm file cache in background so Files tab is instant on first use
     if (this._cwdList.length > 0) {
@@ -193,6 +201,9 @@ export class FinderPanel {
         }
         case 'setGroupResults':
           await this._context!.workspaceState.update('spyglass.groupResults', msg.value as boolean);
+          break;
+        case 'saveButtonPrefs':
+          await this._context!.workspaceState.update('spyglass.buttonPrefs', msg.prefs as ButtonPrefs);
           break;
         case 'saveSearch': {
           const searches = this._context!.workspaceState.get<Array<{query: string; scope: string}>>('spyglass.savedSearches', []);
@@ -262,7 +273,7 @@ export class FinderPanel {
     }
 
     if (this._cwdList.length === 0) {
-      this._post({ type: 'error', message: 'No workspace folder open.' });
+      this._post({ type: 'error', message: this._strings().noWorkspace });
       return;
     }
 
@@ -301,7 +312,7 @@ export class FinderPanel {
       this._post({ type: 'results', results: merged.slice(0, maxResults), query, took: Date.now() - start });
     } catch {
       if (seq !== this._searchSeq) { return; }
-      this._post({ type: 'error', message: 'Search failed.' });
+      this._post({ type: 'error', message: this._strings().searchFailed });
     }
   }
 
@@ -339,7 +350,7 @@ export class FinderPanel {
       this._post({ type: 'results', results: results.slice(0, maxResults), query, took: Date.now() - start });
     } catch {
       if (seq !== this._searchSeq) { return; }
-      this._post({ type: 'error', message: 'Search failed.' });
+      this._post({ type: 'error', message: this._strings().searchFailed });
     }
   }
 
@@ -351,7 +362,7 @@ export class FinderPanel {
       this._post({ type: 'symbolResults', results, query });
     } catch {
       if (seq !== this._searchSeq) { return; }
-      this._post({ type: 'error', message: 'Symbol search failed.' });
+      this._post({ type: 'error', message: this._strings().symbolSearchFailed });
     }
   }
 
@@ -368,7 +379,7 @@ export class FinderPanel {
       this._post({ type: 'docResults', results });
     } catch {
       if (seq !== this._searchSeq) { return; }
-      this._post({ type: 'error', message: 'Document symbol search failed.' });
+      this._post({ type: 'error', message: this._strings().docSymbolSearchFailed });
     }
   }
 
@@ -505,7 +516,7 @@ export class FinderPanel {
       this._post({ type: 'results', results, query: '', took: 0, refsSymbol: symbolName });
     } catch {
       if (seq !== this._searchSeq) { return; }
-      this._post({ type: 'error', message: 'Reference search failed.' });
+      this._post({ type: 'error', message: this._strings().referenceSearchFailed });
     }
   }
 
@@ -586,7 +597,7 @@ export class FinderPanel {
 
   private async _runFileSearch(): Promise<void> {
     if (this._cwdList.length === 0) {
-      this._post({ type: 'error', message: 'No workspace folder open.' });
+      this._post({ type: 'error', message: this._strings().noWorkspace });
       return;
     }
 
@@ -667,12 +678,13 @@ export class FinderPanel {
     this._disposables.length = 0;
   }
 
-  private _buildHtml(defaultScope: Scope, kb: KeyBindings, initialQuery: string = '', searchHistory: string[] = [], recentFiles: string[] = [], maxResults: number = 200, pinnedFiles: string[] = [], groupResults: boolean = false, savedSearches: Array<{query: string; scope: string}> = []): string {
+  private _buildHtml(defaultScope: Scope, kb: KeyBindings, initialQuery: string = '', searchHistory: string[] = [], recentFiles: string[] = [], maxResults: number = 200, pinnedFiles: string[] = [], groupResults: boolean = false, buttonPrefs: ButtonPrefs = { useRegex: false, caseSensitive: false, wholeWord: false, replaceMode: false, showPreview: true, sortBy: 'default', includeMode: false }, savedSearches: Array<{query: string; scope: string}> = []): string {
     const nonce = getNonce();
     const webview = this._panel.webview;
     const extensionUri = this._context!.extensionUri;
     const cssUri = webview.asWebviewUri(vscode.Uri.joinPath(extensionUri, 'media', 'webview.css'));
     const jsUri  = webview.asWebviewUri(vscode.Uri.joinPath(extensionUri, 'media', 'webview.js'));
+    const s = getUiStrings();
 
     const config = {
       KB: kb,
@@ -683,9 +695,14 @@ export class FinderPanel {
       MAX_RESULTS: maxResults,
       DEFAULT_SCOPE: defaultScope,
       GROUP_RESULTS: groupResults,
+      BUTTON_PREFS: buttonPrefs,
       SAVED_SEARCHES: savedSearches,
+      STRINGS: s,
       THEME: loadCurrentTheme(),
     };
+
+    const tipRegex = s.regex + ' — ' + (kb.toggleRegex || 'Shift+Alt+R');
+    const tipPreview = s.togglePreview + ' — ' + (kb.togglePreview || 'Shift+Alt+P');
 
     return /* html */`<!DOCTYPE html>
 <html lang="en">
@@ -693,7 +710,7 @@ export class FinderPanel {
 <meta charset="UTF-8">
 <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src ${webview.cspSource} 'unsafe-inline'; script-src ${webview.cspSource} 'nonce-${nonce}';">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Finder</title>
+<title>Spyglass</title>
 <link rel="stylesheet" href="${cssUri}">
 </head>
 <body>
@@ -703,46 +720,46 @@ export class FinderPanel {
 <!-- Top bar -->
 <div class="topbar">
   <span class="search-icon"><svg width="15" height="15" viewBox="0 0 15 15" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="6.5" cy="6.5" r="4.5" stroke="currentColor" stroke-width="1.5"/><line x1="10.2" y1="10.2" x2="14" y2="14" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg></span>
-  <input id="query" type="text" placeholder="Search in files..." autocomplete="off" spellcheck="false">
-  <button type="button" class="icon-btn" id="regex-btn" aria-label="Toggle regex" data-tooltip="Regex — Shift+Alt+R">.*</button>
-  <button type="button" class="icon-btn" id="case-btn" aria-label="Case sensitive" data-tooltip="Case sensitive — Alt+C">Aa</button>
-  <button type="button" class="icon-btn" id="word-btn" aria-label="Whole word" data-tooltip="Whole word — Alt+W">\\b</button>
-  <button type="button" class="icon-btn" id="replace-btn" aria-label="Replace mode" data-tooltip="Replace mode — Alt+R">⇄</button>
-  <button type="button" class="icon-btn active" id="preview-btn" aria-label="Toggle preview" data-tooltip="Toggle preview — Shift+Alt+P">⊡</button>
+  <input id="query" type="text" placeholder="${s.searchPlaceholder}" autocomplete="off" spellcheck="false">
+  <button type="button" class="icon-btn" id="regex-btn" aria-label="${s.regex}" data-tooltip="${tipRegex}">.*</button>
+  <button type="button" class="icon-btn" id="case-btn" aria-label="${s.caseSensitive}" data-tooltip="${s.caseSensitive} — Alt+C">Aa</button>
+  <button type="button" class="icon-btn" id="word-btn" aria-label="${s.wholeWord}" data-tooltip="${s.wholeWord} — Alt+W">\\b</button>
+  <button type="button" class="icon-btn" id="replace-btn" aria-label="${s.replaceMode}" data-tooltip="${s.replaceMode} — Alt+R">⇄</button>
+  <button type="button" class="icon-btn active" id="preview-btn" aria-label="${s.togglePreview}" data-tooltip="${tipPreview}">⊡</button>
   <div class="secondary-btns" id="secondary-toolbar" style="display:none">
-    <button type="button" class="icon-btn" id="group-btn" aria-label="Group by file" data-tooltip="Group by file — Alt+L">▤</button>
-    <button type="button" class="icon-btn" id="sort-btn" aria-label="Sort results" data-tooltip="Sort: default — Alt+S">⇅</button>
-    <button type="button" class="icon-btn" id="include-btn" aria-label="Include filter" data-tooltip="Include filter — Alt+I">⊂</button>
-    <button type="button" class="icon-btn" id="bookmarks-btn" aria-label="Saved searches" data-tooltip="Saved searches — Alt+B">★</button>
-    <button type="button" class="icon-btn" id="help-btn" aria-label="Keyboard shortcuts" data-tooltip="Keyboard shortcuts">?</button>
+    <button type="button" class="icon-btn" id="group-btn" aria-label="${s.groupByFile}" data-tooltip="${s.groupByFile} — Alt+L">▤</button>
+    <button type="button" class="icon-btn" id="sort-btn" aria-label="${s.sortDefault}" data-tooltip="${s.sortDefault} — Alt+S">⇅</button>
+    <button type="button" class="icon-btn" id="include-btn" aria-label="${s.includeFilter}" data-tooltip="${s.includeFilter} — Alt+I">⊂</button>
+    <button type="button" class="icon-btn" id="bookmarks-btn" aria-label="${s.savedSearches}" data-tooltip="${s.savedSearches} — Alt+B">★</button>
+    <button type="button" class="icon-btn" id="help-btn" aria-label="${s.keyboardShortcuts}" data-tooltip="${s.keyboardShortcuts}">?</button>
   </div>
-  <button type="button" class="icon-btn" id="more-btn" aria-label="More options" data-tooltip="More options">⋯</button>
+  <button type="button" class="icon-btn" id="more-btn" aria-label="${s.moreOptions}" data-tooltip="${s.moreOptions}">⋯</button>
 </div>
 
 <!-- Replace row -->
 <div class="replace-row" id="replace-row" style="display:none">
-  <span class="filter-label">replace:</span>
-  <input id="replace-input" type="text" placeholder="replacement text" spellcheck="false" autocomplete="off">
-  <button type="button" class="icon-btn" id="replace-all-btn">Replace all</button>
+  <span class="filter-label">${s.replaceLabel}</span>
+  <input id="replace-input" type="text" placeholder="${s.replacePlaceholder}" spellcheck="false" autocomplete="off">
+  <button type="button" class="icon-btn" id="replace-all-btn">${s.replaceAll}</button>
 </div>
 
 <!-- Include filter row -->
 <div class="replace-row" id="include-row" style="display:none">
-  <span class="filter-label">include:</span>
-  <input id="include-input" type="text" placeholder="*.ts, src/**" spellcheck="false" autocomplete="off">
+  <span class="filter-label">${s.includeLabel}</span>
+  <input id="include-input" type="text" placeholder="${s.includePlaceholder}" spellcheck="false" autocomplete="off">
 </div>
 
 <!-- Scope tabs -->
 <div class="tabs">
-  <button type="button" class="tab" data-scope="project">Project</button>
-  <button type="button" class="tab" data-scope="openFiles">Open Files</button>
-  <button type="button" class="tab" data-scope="files">Files</button>
-  <button type="button" class="tab" data-scope="recent">Recent</button>
-  <button type="button" class="tab" data-scope="here">Dir</button>
-  <button type="button" class="tab" data-scope="symbols">Symbols</button>
-  <button type="button" class="tab" data-scope="git">Git</button>
-  <button type="button" class="tab" data-scope="doc">Doc</button>
-  <button type="button" class="tab" data-scope="refs">Refs</button>
+  <button type="button" class="tab" data-scope="project">${s.project}</button>
+  <button type="button" class="tab" data-scope="openFiles">${s.openFiles}</button>
+  <button type="button" class="tab" data-scope="files">${s.files}</button>
+  <button type="button" class="tab" data-scope="recent">${s.recent}</button>
+  <button type="button" class="tab" data-scope="here">${s.dir}</button>
+  <button type="button" class="tab" data-scope="symbols">${s.symbols}</button>
+  <button type="button" class="tab" data-scope="git">${s.git}</button>
+  <button type="button" class="tab" data-scope="doc">${s.doc}</button>
+  <button type="button" class="tab" data-scope="refs">${s.refs}</button>
 </div>
 
 <!-- Main layout -->
@@ -757,7 +774,7 @@ export class FinderPanel {
 
   <!-- Right: file preview -->
   <div class="right-panel" id="right-panel">
-    <button type="button" class="preview-header-btn" id="preview-header" title="Reveal in Explorer">No file selected</button>
+    <button type="button" class="preview-header-btn" id="preview-header" title="Reveal in Explorer">${s.noFileSelected}</button>
     <div class="preview-empty" id="preview-empty">Navigate results to preview</div>
     <div class="preview-content" id="preview-content"></div>
   </div>
@@ -773,38 +790,7 @@ export class FinderPanel {
 </div><!-- .finder -->
 
 <!-- Shortcuts overlay (outside .finder to avoid overflow:hidden clipping) -->
-<div class="shortcuts-overlay" id="shortcuts-overlay">
-  <h4>Navigation</h4>
-  <div class="shortcut-row"><span>Navigate results</span><div class="shortcut-keys"><kbd>↑</kbd><kbd>↓</kbd></div></div>
-  <div class="shortcut-row"><span>Open file</span><div class="shortcut-keys"><kbd>Enter</kbd></div></div>
-  <div class="shortcut-row"><span>Open in split (stays open)</span><div class="shortcut-keys"><kbd>Ctrl</kbd><kbd>Enter</kbd></div></div>
-  <div class="shortcut-row"><span>Switch scope</span><div class="shortcut-keys"><kbd>Tab</kbd></div></div>
-  <div class="shortcut-row"><span>Close</span><div class="shortcut-keys"><kbd>Esc</kbd></div></div>
-  <h4>Search</h4>
-  <div class="shortcut-row"><span>Glob filter inline</span><div class="shortcut-keys"><kbd>query *.ts</kbd></div></div>
-  <div class="shortcut-row"><span>Toggle regex</span><div class="shortcut-keys"><kbd>Shift</kbd><kbd>Alt</kbd><kbd>R</kbd></div></div>
-  <div class="shortcut-row"><span>Case sensitive</span><div class="shortcut-keys"><kbd>Alt</kbd><kbd>C</kbd></div></div>
-  <div class="shortcut-row"><span>Whole word</span><div class="shortcut-keys"><kbd>Alt</kbd><kbd>W</kbd></div></div>
-  <div class="shortcut-row"><span>Group results by file</span><div class="shortcut-keys"><kbd>Alt</kbd><kbd>L</kbd></div></div>
-  <div class="shortcut-row"><span>Sort results (cycle)</span><div class="shortcut-keys"><kbd>Alt</kbd><kbd>S</kbd></div></div>
-  <div class="shortcut-row"><span>Include filter</span><div class="shortcut-keys"><kbd>Alt</kbd><kbd>I</kbd></div></div>
-  <div class="shortcut-row"><span>Replace mode</span><div class="shortcut-keys"><kbd>Alt</kbd><kbd>R</kbd></div></div>
-  <div class="shortcut-row"><span>Focus replace input</span><div class="shortcut-keys"><kbd>Tab</kbd><span style="font-size:9px;color:var(--f-dim)"> (in replace mode)</span></div></div>
-  <div class="shortcut-row"><span>History prev / next</span><div class="shortcut-keys"><kbd>Ctrl</kbd><kbd>↑</kbd><kbd>↓</kbd></div></div>
-  <div class="shortcut-row"><span>Save search (bookmark)</span><div class="shortcut-keys"><kbd>Alt</kbd><kbd>B</kbd></div></div>
-  <h4>Selection</h4>
-  <div class="shortcut-row"><span>Multi-select toggle</span><div class="shortcut-keys"><kbd>Ctrl</kbd><kbd>Click</kbd></div></div>
-  <div class="shortcut-row"><span>Multi-select (keyboard)</span><div class="shortcut-keys"><kbd>Ctrl</kbd><kbd>Space</kbd></div></div>
-  <div class="shortcut-row"><span>Select all</span><div class="shortcut-keys"><kbd>Ctrl</kbd><kbd>A</kbd></div></div>
-  <div class="shortcut-row"><span>Open all selected</span><div class="shortcut-keys"><kbd>Shift</kbd><kbd>Enter</kbd></div></div>
-  <div class="shortcut-row"><span>Copy path</span><div class="shortcut-keys"><kbd>Alt</kbd><kbd>Y</kbd></div></div>
-  <div class="shortcut-row"><span>Pin / Unpin file</span><div class="shortcut-keys"><kbd>Alt</kbd><kbd>P</kbd></div></div>
-  <div class="shortcut-row"><span>Reveal in Explorer</span><div class="shortcut-keys"><kbd>click preview header</kbd></div></div>
-  <h4>View</h4>
-  <div class="shortcut-row"><span>Toggle preview</span><div class="shortcut-keys"><kbd>Shift</kbd><kbd>Alt</kbd><kbd>P</kbd></div></div>
-  <h4>Git</h4>
-  <div class="shortcut-row"><span>Refresh changed files</span><div class="shortcut-keys"><kbd>F5</kbd></div></div>
-</div>
+<div class="shortcuts-overlay" id="shortcuts-overlay">${s.shortcutsContent}</div>
 
 <!-- Context menu -->
 <div class="ctx-menu" id="ctx-menu">

@@ -1,4 +1,4 @@
-import { state } from './state';
+import { state, saveButtonPrefs } from './state';
 import { escHtml, applyQueryHighlight } from './highlight';
 import { previewHdr, previewEmpty, previewCont, rightPanel, leftPanel, previewBtn } from './dom';
 import { isFileScope, isSymbolScope } from './search';
@@ -17,7 +17,7 @@ export function renderBreadcrumbs(relativePath: string): void {
 }
 
 export function clearPreview(): void {
-  previewHdr.innerHTML = '<span class="bc-dim">No file selected</span>';
+  previewHdr.innerHTML = '<span class="bc-dim">' + ((window as any).__spyglass.STRINGS.noFileSelected) + '</span>';
   previewEmpty.style.display = '';
   previewCont.style.display = 'none';
   previewCont.innerHTML = '';
@@ -114,6 +114,7 @@ export function togglePreview(): void {
   previewBtn.classList.toggle('active', state.showPreview);
   rightPanel.classList.toggle('hidden', !state.showPreview);
   leftPanel.classList.toggle('full', !state.showPreview);
+  saveButtonPrefs();
   if (state.showPreview) { requestPreview(); }
 }
 

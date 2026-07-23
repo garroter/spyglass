@@ -32,14 +32,19 @@
   body {
     background: var(--f-bg);
     color: var(--f-text);
-    font-family: 'SF Mono', 'Cascadia Code', 'Fira Code', Consolas, monospace;
+    font-family: var(--vscode-font-family, system-ui, 'Segoe UI', sans-serif);
     font-size: 13px;
     height: 100vh;
+    width: 100vw;
     display: flex;
-    align-items: flex-start;
-    justify-content: center;
-    padding-top: 7vh;
+    align-items: stretch;
+    justify-content: stretch;
     overflow: hidden;
+  }
+
+  /* Popup-only margin — sidebar sits flush in the Activity Bar container */
+  body:not(.sidebar-mode) {
+    padding: 8px;
   }
 
   @keyframes finder-in {
@@ -48,11 +53,11 @@
   }
 
   .finder {
-    width: min(960px, 95vw);
-    height: min(600px, 82vh);
+    width: 100%;
+    height: 100%;
     background: var(--f-raised);
     border: 1px solid var(--f-border);
-    border-radius: 12px;
+    border-radius: 8px;
     box-shadow: 0 24px 72px var(--f-shadow);
     display: flex;
     flex-direction: column;
@@ -82,7 +87,7 @@
 
   #query {
     flex: 1;
-    background: transparent;
+    background: var(--vscode-input-background, var(--f-raised));
     border: none;
     outline: none;
     color: var(--f-text);
@@ -90,6 +95,8 @@
     font-size: 14px;
     caret-color: var(--f-accent);
     min-width: 0;
+    padding: 4px 8px;
+    border-radius: 4px;
   }
   #query::placeholder { color: var(--f-ph); }
 
@@ -156,8 +163,8 @@
   }
   .tab:hover  { color: var(--f-text); background: var(--f-hover); }
   .tab.active {
-    color: var(--f-accent);
-    background: color-mix(in srgb, var(--f-accent) 14%, transparent);
+    color: var(--f-btn-fg);
+    background: var(--f-accent);
   }
 
   /* ── Main layout: left + right ───────────────────────────── */
@@ -168,8 +175,8 @@
     display: flex;
     flex-direction: column;
     width: 38%;
-    min-width: 240px;
-    max-width: 420px;
+    min-width: 200px;
+    max-width: 45%;
     border-right: 1px solid var(--f-border-s);
     overflow: hidden;
     flex-shrink: 0;
@@ -323,6 +330,7 @@
     overflow: auto;
     scrollbar-width: thin;
     scrollbar-color: var(--f-scrollbar) transparent;
+    font-family: var(--vscode-editor-font-family, 'SF Mono', 'Cascadia Code', 'Fira Code', Consolas, monospace);
   }
   .preview-content::-webkit-scrollbar { width: 5px; }
   .preview-content::-webkit-scrollbar-thumb { background: var(--f-scrollbar); border-radius: 3px; }
@@ -383,7 +391,7 @@
   }
   #replace-input {
     flex: 1;
-    background: transparent;
+    background: var(--vscode-input-background, var(--f-raised));
     border: none;
     outline: none;
     color: var(--f-text);
@@ -391,11 +399,13 @@
     font-size: 13px;
     caret-color: var(--f-accent);
     min-width: 0;
+    padding: 4px 8px;
+    border-radius: 4px;
   }
   #replace-input::placeholder { color: var(--f-ph); }
   #include-input {
     flex: 1;
-    background: transparent;
+    background: var(--vscode-input-background, var(--f-raised));
     border: none;
     outline: none;
     color: var(--f-text);
@@ -403,6 +413,8 @@
     font-size: 13px;
     caret-color: var(--f-accent);
     min-width: 0;
+    padding: 4px 8px;
+    border-radius: 4px;
   }
   #include-input::placeholder { color: var(--f-ph); }
 
@@ -471,8 +483,9 @@
   .shortcuts-overlay {
     display: none;
     position: fixed;
-    bottom: calc(7vh + 38px);
-    right: calc((100vw - min(960px, 95vw)) / 2 + 10px);
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
     background: var(--f-raised);
     border: 1px solid var(--f-border);
     border-radius: 10px;
@@ -480,6 +493,9 @@
     padding: 14px 18px;
     z-index: 100;
     min-width: 320px;
+    max-width: min(420px, calc(100vw - 24px));
+    max-height: 80vh;
+    overflow-y: auto;
   }
   .shortcuts-overlay.visible { display: block; }
   .shortcuts-overlay h4 {
@@ -765,10 +781,14 @@
 
   /* Shortcuts overlay: anchor to viewport corner */
   body.sidebar-mode .shortcuts-overlay {
+    top: auto;
+    left: auto;
+    transform: none;
     right: 6px;
     bottom: 32px;
     min-width: 260px;
     max-width: calc(100vw - 12px);
+    max-height: 60vh;
   }
 
   /* Replace / include rows: compact */
