@@ -116,6 +116,7 @@ Both modes share the same features, keyboard shortcuts, and state.
 | Action | Shortcut |
 |--------|----------|
 | Open popup (floating modal) | `Ctrl+Alt+F` |
+| Open popup (double-tap Shift, JetBrains-style) | `Shift Shift` |
 | Focus sidebar panel | `Ctrl+Alt+E` |
 
 > **VSCode Vim users** — bind `<Space>f` as your leader shortcut. See [Vim setup](#-vim-setup) below.
