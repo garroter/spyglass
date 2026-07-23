@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.2.7] - 2026-07-23
+
+### Added
+- **Localized UI** — interface strings switch to Chinese when VS Code's display language is Chinese, English otherwise
+- **Persisted toolbar preferences** — regex / case-sensitive / whole-word / replace mode / preview / sort / include-filter toggles are now remembered across sessions
+- Documented the `shift shift` keybinding in the README
+
+### Changed
+- Popup and sidebar layout now fill the available window/panel space instead of a fixed-size centered card; scope tabs use a solid accent background for better contrast
+
+### Fixed
+- Keyboard shortcuts overlay no longer loses its sidebar-anchored positioning when opened from the help button
+
 ## [0.2.6] - 2026-07-16
 
 ### Fixed
