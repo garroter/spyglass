@@ -89,8 +89,10 @@ VS Code's built-in search (`Ctrl+Shift+F`) is powerful but slow to use — it re
 
 | Mode | Shortcut | Description |
 |------|----------|-------------|
-| **Popup** | `Ctrl+Alt+F` | Floating modal — opens over the editor, closes with `Esc` |
+| **Popup** | `Ctrl+Alt+F` / `Shift Shift` | Floating modal — opens over the editor, closes with `Esc` (keeps open after selection when `spyglass.closeOnSelect` is `false`) |
 | **Sidebar** | `Ctrl+Alt+E` | Persistent panel in the Activity Bar — stays open as you work |
+
+**Keep Spyglass always visible** — set `spyglass.openExternalWindow: true` so the popup opens detached in a side editor group and stays open after selecting a result, then drag the panel's tab out of the VS Code window onto a second monitor to get a standalone window.
 
 The sidebar adapts to its width automatically:
 - **Narrow** (< 420 px) — results only, no preview
@@ -201,6 +203,8 @@ Lines modified since the last git commit are marked with a **blue indicator** in
 | `spyglass.maxResults` | `200` | Maximum number of results to display |
 | `spyglass.exclude` | `[".git","node_modules","out","dist","*.lock"]` | Glob patterns excluded from search and file listing |
 | `spyglass.openOnSide` | `false` | Open the popup in a side column instead of the active editor column |
+| `spyglass.closeOnSelect` | `true` | Close the popup after opening a result. Disable to keep it open and open multiple results from one search |
+| `spyglass.openExternalWindow` | `false` | Like "openOnSide", but also keeps the popup open after selecting a result — ideal for keeping Spyglass on a second monitor (drag the panel's tab out of the window to make it a standalone window) |
 | `spyglass.keybindings.navigateDown` | `ArrowDown` | Navigate down in results |
 | `spyglass.keybindings.navigateUp` | `ArrowUp` | Navigate up in results |
 | `spyglass.keybindings.open` | `Enter` | Open selected result |

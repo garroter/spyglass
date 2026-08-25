@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.2.8] - 2026-08-25
+
+### Added
+- **`spyglass.closeOnSelect`** — when disabled, the popup stays open after opening a result so you can open multiple files from one search
+- **`spyglass.openExternalWindow`** — opens the popup detached in a side editor group and keeps it open after selection; drag the panel's tab to a second monitor for a standalone window
+
+### Fixed
+- In persistent mode (`closeOnSelect` disabled or `openExternalWindow` enabled) opening a result no longer closes the popup — the file now opens in a separate editor group instead of replacing the webview
+
 ## [0.2.7] - 2026-07-23
 
 ### Added

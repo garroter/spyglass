@@ -2,7 +2,7 @@
   "name": "spyglass",
   "displayName": "Spyglass",
   "description": "Fast file and text search popup inspired by Neovim Telescope and JetBrains Finder",
-  "version": "0.2.7",
+  "version": "0.2.8",
   "publisher": "garroter",
   "license": "MIT",
   "icon": "images/icon.png",
@@ -154,6 +154,16 @@
           "type": "boolean",
           "default": false,
           "description": "Open Spyglass in a side column instead of the active editor column."
+        },
+        "spyglass.closeOnSelect": {
+          "type": "boolean",
+          "default": true,
+          "description": "Close the Spyglass popup after opening a result. Disable to keep it open so you can open multiple results from one search."
+        },
+        "spyglass.openExternalWindow": {
+          "type": "boolean",
+          "default": false,
+          "description": "Open the Spyglass popup in a side editor group (detached from the active editor) and keep it open after selecting a result — ideal for keeping Spyglass visible on a second monitor. Tip: drag the panel's tab out of the window to make it a standalone window."
         },
         "spyglass.exclude": {
           "type": "array",

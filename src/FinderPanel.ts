@@ -7,6 +7,7 @@ import { cwdForFile, makeRelative } from './workspaceUtils';
 import { loadGitStatus, getChangedLines, relToAbsolute } from './gitUtils';
 import { runSymbolSearch, runDocSymbolSearch } from './symbolSearch';
 import { loadCurrentTheme } from './themeLoader';
+import { planFileOpen } from './viewColumns';
 
 function getNonce(): string {
   const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
@@ -38,6 +39,8 @@ export class FinderPanel {
   private _activeCursorFile: string = '';
   private _activeCursorLine: number = 0;
   private _activeCursorChar: number = 0;
+  private _persistent: boolean = false;
+  private _originColumn: vscode.ViewColumn = vscode.ViewColumn.One;
 
   private _strings(): UiStrings { return getUiStrings(); }
 
@@ -90,17 +93,20 @@ export class FinderPanel {
     };
 
     const openOnSide = config.get<boolean>('openOnSide', false);
+    const openExternal = config.get<boolean>('openExternalWindow', false);
+    const closeOnSelect = config.get<boolean>('closeOnSelect', true);
+    const originColumn = editor?.viewColumn ?? vscode.ViewColumn.One;
     const panel = vscode.window.createWebviewPanel(
       'spyglass',
       'Spyglass',
-      { viewColumn: openOnSide ? vscode.ViewColumn.Beside : vscode.ViewColumn.Active, preserveFocus: false },
+      { viewColumn: openOnSide || openExternal ? vscode.ViewColumn.Beside : vscode.ViewColumn.Active, preserveFocus: false },
       {
         enableScripts: true,
         localResourceRoots: [vscode.Uri.joinPath(context.extensionUri, 'media')],
       }
     );
 
-    FinderPanel.currentPanel = new FinderPanel(panel, defaultScope, kb, selectedText, recentFiles, searchHistory, activeDir, activeFile, context, activeCursorLine, activeCursorChar);
+    FinderPanel.currentPanel = new FinderPanel(panel, defaultScope, kb, selectedText, recentFiles, searchHistory, activeDir, activeFile, context, activeCursorLine, activeCursorChar, openExternal || !closeOnSelect, originColumn);
   }
 
   private constructor(
@@ -115,8 +121,12 @@ export class FinderPanel {
     context: vscode.ExtensionContext,
     activeCursorLine: number = 0,
     activeCursorChar: number = 0,
+    persistent: boolean = false,
+    originColumn: vscode.ViewColumn = vscode.ViewColumn.One,
   ) {
     this._panel = panel;
+    this._persistent = persistent;
+    this._originColumn = originColumn;
     this._scope = defaultScope;
     this._cwdList = vscode.workspace.workspaceFolders?.map(f => f.uri.fsPath) ?? [];
     this._cwd = this._cwdList[0] ?? '';
@@ -620,7 +630,7 @@ export class FinderPanel {
       const pos = new vscode.Position(Math.max(0, line - 1), 0);
       editor.selection = new vscode.Selection(pos, pos);
       editor.revealRange(new vscode.Range(pos, pos), vscode.TextEditorRevealType.InCenter);
-      this.dispose();
+      if (!this._persistent) { this.dispose(); }
     } catch {
       vscode.window.showErrorMessage(`Finder: Could not open file ${filePath}`);
     }
@@ -661,14 +671,27 @@ export class FinderPanel {
     try {
       const uri = vscode.Uri.file(filePath);
       const doc = await vscode.workspace.openTextDocument(uri);
-      const editor = await vscode.window.showTextDocument(doc);
+      const editor = this._persistent
+        ? await this._showDocumentAwayFromPanel(doc)
+        : await vscode.window.showTextDocument(doc);
+      if (!this._persistent) { this.dispose(); }
       const pos = new vscode.Position(Math.max(0, line - 1), 0);
       editor.selection = new vscode.Selection(pos, pos);
       editor.revealRange(new vscode.Range(pos, pos), vscode.TextEditorRevealType.InCenter);
-      this.dispose();
     } catch {
       vscode.window.showErrorMessage(`Finder: Could not open file ${filePath}`);
     }
+  }
+
+  // Opening a text document in the webview's own editor group disposes the
+  // webview, so in persistent mode the panel is moved to a Beside group and the
+  // file opens in the column the editor was in before Spyglass took focus.
+  private async _showDocumentAwayFromPanel(doc: vscode.TextDocument): Promise<vscode.TextEditor> {
+    const plan = planFileOpen(this._panel.viewColumn, this._originColumn);
+    if (plan.movePanelBeside) {
+      this._panel.reveal(vscode.ViewColumn.Beside, true);
+    }
+    return vscode.window.showTextDocument(doc, { viewColumn: plan.fileTargetColumn as vscode.ViewColumn });
   }
 
   public dispose(): void {
