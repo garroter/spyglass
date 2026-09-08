@@ -1,8 +1,8 @@
 {
   "name": "spyglass",
   "displayName": "Spyglass",
-  "description": "Fast file and text search popup inspired by Neovim Telescope and JetBrains Finder",
-  "version": "0.2.9",
+  "description": "Fast file and text search popup inspired by Neovim Telescope and JetBrains Search Everywhere",
+  "version": "0.2.10",
   "publisher": "garroter",
   "license": "MIT",
   "icon": "images/icon.png",

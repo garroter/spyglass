@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.2.10] - 2026-09-08
+
+### Fixed
+- Marketplace/package description referenced "JetBrains Finder" (not a real product) — corrected to "JetBrains Search Everywhere", matching the README
+
+### Docs
+- Refreshed the popup demo screenshots in README (old GIF predated syntax highlighting and adaptive layout)
+
 ## [0.2.9] - 2026-09-08
 
 ### Fixed
