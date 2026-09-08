@@ -44,9 +44,13 @@ VS Code's built-in search (`Ctrl+Shift+F`) is powerful but slow to use — it re
 
 ## 📸 Demo
 
-**Popup — full-text search with live preview** (`Ctrl+Alt+F`)
+**Popup — browsing results with live, syntax-highlighted preview** (`Ctrl+Alt+F` / `shift shift`)
 
-![Popup search with live preview](https://raw.githubusercontent.com/garroter/spyglass/main/images/demo-popup.gif)
+![Popup with live preview](https://raw.githubusercontent.com/garroter/spyglass/main/images/screenshot-popup-preview.png)
+
+**Popup — live full-text search with match highlighting**
+
+![Popup live search results](https://raw.githubusercontent.com/garroter/spyglass/main/images/screenshot-popup-search.png)
 
 **Sidebar panel — persistent search in the Activity Bar** (`Ctrl+Alt+E`)
 
