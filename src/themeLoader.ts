@@ -30,8 +30,46 @@ function loadFile(filePath: string, depth: number): any {
   return parsed;
 }
 
+/**
+ * Resolves the effective theme id, honoring VSCode's auto light/dark and
+ * high-contrast switching (window.autoDetectColorScheme / autoDetectHighContrast),
+ * which override workbench.colorTheme with workbench.preferredLight/Dark/
+ * HighContrast(Light)ColorTheme depending on the OS appearance.
+ *
+ * `kind` should come from vscode.window.activeColorTheme.kind, which already
+ * reflects VSCode's own resolution of the OS appearance — we just need to map
+ * it back to the right *ThemeId* setting.
+ */
+export function resolveThemeId(
+  get: <T>(key: string) => T | undefined,
+  kind: vscode.ColorThemeKind
+): string | undefined {
+  const base = () => get<string>('workbench.colorTheme');
+  const autoHC = get<boolean>('window.autoDetectHighContrast') ?? true;
+  const autoColor = get<boolean>('window.autoDetectColorScheme') ?? false;
+
+  if (autoHC && kind === vscode.ColorThemeKind.HighContrast) {
+    return get<string>('workbench.preferredHighContrastColorTheme') ?? base();
+  }
+  if (autoHC && kind === vscode.ColorThemeKind.HighContrastLight) {
+    return get<string>('workbench.preferredHighContrastLightColorTheme') ?? base();
+  }
+  if (autoColor && kind === vscode.ColorThemeKind.Light) {
+    return get<string>('workbench.preferredLightColorTheme') ?? base();
+  }
+  if (autoColor && kind === vscode.ColorThemeKind.Dark) {
+    return get<string>('workbench.preferredDarkColorTheme') ?? base();
+  }
+  return base();
+}
+
 export function loadCurrentTheme(): object | null {
-  const themeId = vscode.workspace.getConfiguration().get<string>('workbench.colorTheme');
+  const config = vscode.workspace.getConfiguration();
+  const themeId = resolveThemeId(
+    <T,>(key: string) => config.get<T>(key),
+    vscode.window.activeColorTheme.kind
+  );
+  if (!themeId) { return null; }
   for (const ext of vscode.extensions.all) {
     const themes = ext.packageJSON?.contributes?.themes as Array<{ id?: string; label?: string; path: string }> | undefined;
     if (!themes) { continue; }

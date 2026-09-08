@@ -12237,8 +12237,9 @@ XID_Start XIDS`.split(/\s/).map((p2) => [w2(p2), p2])
     }).then(async (hl) => {
       if (vscodeTheme) {
         try {
-          const gdTheme = hl.getTheme("github-dark");
-          const baseTokens = gdTheme?.tokenColors ?? gdTheme?.settings ?? [];
+          const baseThemeName = document.body.classList.contains("vscode-light") ? "github-light" : "github-dark";
+          const baseTheme = hl.getTheme(baseThemeName);
+          const baseTokens = baseTheme?.tokenColors ?? baseTheme?.settings ?? [];
           const compositeTheme = {
             ...vscodeTheme,
             name: _themeName,

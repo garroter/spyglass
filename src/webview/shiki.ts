@@ -51,11 +51,15 @@ export function initHighlighter(vscodeTheme: object | null): void {
   }).then(async (hl) => {
     if (vscodeTheme) {
       try {
-        // Build composite: github-dark tokens as fallback base + VSCode theme on top.
+        // Build composite: base tokens as fallback + VSCode theme on top.
         // This ensures keywords, strings, etc. are always colored even if the
         // user's theme relies on semantic tokens and has sparse tokenColors.
-        const gdTheme = (hl as any).getTheme('github-dark') as any;
-        const baseTokens: any[] = gdTheme?.tokenColors ?? gdTheme?.settings ?? [];
+        // The base MUST match the current light/dark appearance — falling
+        // back to github-dark's pale-on-dark colors on a light background
+        // (or vice versa) produces low-contrast, barely-visible text.
+        const baseThemeName = document.body.classList.contains('vscode-light') ? 'github-light' : 'github-dark';
+        const baseTheme = (hl as any).getTheme(baseThemeName) as any;
+        const baseTokens: any[] = baseTheme?.tokenColors ?? baseTheme?.settings ?? [];
         const compositeTheme = {
           ...(vscodeTheme as any),
           name: _themeName,
