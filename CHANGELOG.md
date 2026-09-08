@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.2.9] - 2026-09-08
+
+### Fixed
+- Preview syntax highlighting no longer falls back to dark-theme colors on a light background — `resolveThemeId()` now honors `window.autoDetectColorScheme` / `autoDetectHighContrast`, picking up `workbench.preferredLightColorTheme` / `preferredDarkColorTheme` (and high-contrast variants) based on the active theme kind instead of always reading `workbench.colorTheme`
+- Shiki's fallback base tokens now match the active appearance (`github-light` vs `github-dark`) instead of always using `github-dark`
+
 ## [0.2.8] - 2026-08-25
 
 ### Added
