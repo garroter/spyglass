@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+### Added
+- **`spyglass.maxMatchesPerFile`** — how many matches are shown per file in text search (default `10`, unchanged). Previously hard-coded, so files with many occurrences were silently cut off
+- **`spyglass.maxFileSize`** — files larger than this are skipped by text search (default `"1M"`, unchanged), e.g. `"500K"`, `"10M"`. Previously hard-coded, so matches in big files never showed up with no way to opt in
+
 ### Fixed
 - **`spyglass.maxResults` above 200 had no effect** — results were cut to 200 inside the ripgrep backend regardless of the setting, and the "Showing first N results" hint never appeared because the list never reached the configured limit. The setting now works from 1 to 5000 (out-of-range values are clamped)
 - The Files / Recent / Git file lists ignored `spyglass.maxResults` and always stopped at 200 entries; they now honor it

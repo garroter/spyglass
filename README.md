@@ -72,6 +72,7 @@ VS Code's built-in search (`Ctrl+Shift+F`) is powerful but slow to use — it re
 - **Case sensitive** and **whole word** toggles
 - **Inline glob filter** — append a glob to any query to narrow results: `myFunc *.ts` or `test !*.test.ts`
 - **Multi-root workspace** — searches and file listings span all workspace folders simultaneously
+- **Tunable search limits** — raise `spyglass.maxResults`, `spyglass.maxMatchesPerFile` or `spyglass.maxFileSize` when the defaults hide matches you need (see [Search limits](#-search-limits))
 
 ### 🗂️ Navigation
 - **9 search scopes** — Project, Open Files, Files, Recent, Dir, Symbols, Git, Doc, Refs
@@ -205,6 +206,8 @@ Lines modified since the last git commit are marked with a **blue indicator** in
 |---------|---------|-------------|
 | `spyglass.defaultScope` | `project` | Scope on open: `project` `openFiles` `files` `recent` `here` `symbols` `git` `doc` `refs` |
 | `spyglass.maxResults` | `200` | Maximum number of results to display (`1`–`5000`) |
+| `spyglass.maxMatchesPerFile` | `10` | Maximum number of matches shown per file in text search |
+| `spyglass.maxFileSize` | `"1M"` | Files larger than this are skipped by text search (`500K`, `1M`, `10M`, `1G`) |
 | `spyglass.exclude` | `[".git","node_modules","out","dist","*.lock"]` | Glob patterns excluded from search and file listing |
 | `spyglass.openOnSide` | `false` | Open the popup in a side column instead of the active editor column |
 | `spyglass.closeOnSelect` | `true` | Close the popup after opening a result. Disable to keep it open and open multiple results from one search |
@@ -315,6 +318,28 @@ Append a glob pattern to any query to narrow the search without leaving the inpu
 | `error *.ts !*.d.ts` | Multiple globs combined |
 
 Patterns starting with `*` are treated as include globs, patterns starting with `!` as excludes. Everything else is the search query.
+
+---
+
+## 📏 Search limits
+
+To stay fast on large projects, text search caps how much it returns. All three caps are settings, so you can raise them when something you expect is missing:
+
+| Symptom | Setting | Default |
+|---------|---------|---------|
+| The header shows `200+ results` and asks you to narrow the query | `spyglass.maxResults` (1–5000) | `200` |
+| A file clearly contains more occurrences than Spyglass lists | `spyglass.maxMatchesPerFile` | `10` |
+| A match in a very large file (generated code, bundles, dumps) never shows up | `spyglass.maxFileSize` | `"1M"` |
+
+```json
+{
+  "spyglass.maxResults": 1000,
+  "spyglass.maxMatchesPerFile": 50,
+  "spyglass.maxFileSize": "5M"
+}
+```
+
+Higher values mean more work for ripgrep and a longer list to render, so raise them only as far as you need. Invalid values fall back to the defaults, and `spyglass.maxResults` above 5000 is capped at 5000.
 
 ---
 

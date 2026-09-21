@@ -106,6 +106,10 @@ const DEFAULT_EXCLUDES = ['.git', 'node_modules', 'out', 'dist', '*.lock'];
 export interface SearchLimits {
   /** Maximum number of results returned to the UI. */
   maxResults: number;
+  /** Maximum number of matches ripgrep reports per file (--max-count). */
+  maxMatchesPerFile: number;
+  /** Files larger than this are skipped (--max-filesize), e.g. "1M". */
+  maxFileSize: string;
 }
 
 export interface SearchOptions extends Partial<SearchLimits> {
@@ -115,7 +119,7 @@ export interface SearchOptions extends Partial<SearchLimits> {
   exclude?: string[];
 }
 
-const DEFAULT_LIMITS: SearchLimits = { maxResults: 200 };
+const DEFAULT_LIMITS: SearchLimits = { maxResults: 200, maxMatchesPerFile: 10, maxFileSize: '1M' };
 // Every result is posted to the webview, so an unbounded maxResults would freeze the UI.
 const MAX_RESULTS_CEILING = 5000;
 
@@ -124,15 +128,22 @@ function toPositiveInt(value: unknown, fallback: number): number {
 }
 
 /** Turns raw (user-editable) setting values into limits that are safe to hand to ripgrep. */
-export function normalizeSearchLimits(raw: { maxResults?: unknown }): SearchLimits {
+export function normalizeSearchLimits(raw: { maxResults?: unknown; maxMatchesPerFile?: unknown; maxFileSize?: unknown }): SearchLimits {
+  const size = typeof raw.maxFileSize === 'string' ? raw.maxFileSize.trim().toUpperCase() : '';
   return {
     maxResults: Math.min(toPositiveInt(raw.maxResults, DEFAULT_LIMITS.maxResults), MAX_RESULTS_CEILING),
+    maxMatchesPerFile: toPositiveInt(raw.maxMatchesPerFile, DEFAULT_LIMITS.maxMatchesPerFile),
+    maxFileSize: /^[1-9]\d*[KMG]?$/.test(size) ? size : DEFAULT_LIMITS.maxFileSize,
   };
 }
 
 export function readSearchLimits(): SearchLimits {
   const config = vscode.workspace.getConfiguration('spyglass');
-  return normalizeSearchLimits({ maxResults: config.get('maxResults') });
+  return normalizeSearchLimits({
+    maxResults: config.get('maxResults'),
+    maxMatchesPerFile: config.get('maxMatchesPerFile'),
+    maxFileSize: config.get('maxFileSize'),
+  });
 }
 
 export function buildRgArgs(
@@ -142,7 +153,9 @@ export function buildRgArgs(
   files?: string[],
 ): string[] {
   const excludes = opts?.exclude ?? DEFAULT_EXCLUDES;
-  const args: string[] = ['--json', '--max-count', '10', '--max-filesize', '1M'];
+  const maxMatchesPerFile = opts?.maxMatchesPerFile ?? DEFAULT_LIMITS.maxMatchesPerFile;
+  const maxFileSize = opts?.maxFileSize ?? DEFAULT_LIMITS.maxFileSize;
+  const args: string[] = ['--json', '--max-count', String(maxMatchesPerFile), '--max-filesize', maxFileSize];
   for (const e of excludes) {
     args.push('--glob', e.startsWith('!') ? e : `!${e}`);
   }

@@ -106,6 +106,18 @@
           "maximum": 5000,
           "description": "Maximum number of search results to display (1–5000). When the limit is reached the results header shows \"N+\" and a hint to narrow the query."
         },
+        "spyglass.maxMatchesPerFile": {
+          "type": "number",
+          "default": 10,
+          "minimum": 1,
+          "description": "Maximum number of matches shown per file in text search. Raise it to see every occurrence in files that match many times."
+        },
+        "spyglass.maxFileSize": {
+          "type": "string",
+          "default": "1M",
+          "pattern": "^[1-9][0-9]*[KkMmGg]?$",
+          "description": "Files larger than this are skipped by text search. A number with an optional K, M or G suffix, e.g. \"500K\", \"1M\", \"10M\". Larger values can slow down searches in repositories with big generated files."
+        },
         "spyglass.defaultScope": {
           "type": "string",
           "enum": [

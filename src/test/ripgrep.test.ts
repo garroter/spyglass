@@ -20,18 +20,20 @@ describe('buildRgArgs — fixed flags', () => {
     expect(buildRgArgs('q', false)).toContain('--json');
   });
 
-  it('always includes --max-count 10', () => {
-    const args = buildRgArgs('q', false);
-    const idx = args.indexOf('--max-count');
-    expect(idx).toBeGreaterThan(-1);
-    expect(args[idx + 1]).toBe('10');
+  it('defaults to --max-count 10 when no limit is configured', () => {
+    expect(argPairs(buildRgArgs('q', false), '--max-count')).toEqual(['10']);
   });
 
-  it('always includes --max-filesize 1M', () => {
-    const args = buildRgArgs('q', false);
-    const idx = args.indexOf('--max-filesize');
-    expect(idx).toBeGreaterThan(-1);
-    expect(args[idx + 1]).toBe('1M');
+  it('defaults to --max-filesize 1M when no limit is configured', () => {
+    expect(argPairs(buildRgArgs('q', false), '--max-filesize')).toEqual(['1M']);
+  });
+
+  it('passes maxMatchesPerFile to --max-count', () => {
+    expect(argPairs(buildRgArgs('q', false, { maxMatchesPerFile: 25 }), '--max-count')).toEqual(['25']);
+  });
+
+  it('passes maxFileSize to --max-filesize', () => {
+    expect(argPairs(buildRgArgs('q', false, { maxFileSize: '5M' }), '--max-filesize')).toEqual(['5M']);
   });
 
   it('places query after -- separator', () => {
