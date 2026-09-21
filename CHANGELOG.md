@@ -1,5 +1,11 @@
 # Changelog
 
+## [Unreleased]
+
+### Fixed
+- **`spyglass.maxResults` above 200 had no effect** — results were cut to 200 inside the ripgrep backend regardless of the setting, and the "Showing first N results" hint never appeared because the list never reached the configured limit. The setting now works from 1 to 5000 (out-of-range values are clamped)
+- The Files / Recent / Git file lists ignored `spyglass.maxResults` and always stopped at 200 entries; they now honor it
+
 ## [0.2.10] - 2026-09-08
 
 ### Fixed

@@ -59,7 +59,7 @@ function fuzzyFilter(fileList: RecentFile[], query: string): FileResult[] {
 }
 
 export function filterFilesLocally(fileList: RecentFile[], query: string): void {
-  const maxResults = 200;
+  const maxResults = (window as any).__spyglass.MAX_RESULTS;
 
   if (state.scope === 'recent' && state.pinnedFiles.length > 0) {
     const pinnedPaths = new Set(state.pinnedFiles.map(f => f.file));

@@ -1,6 +1,6 @@
 import * as vscode from 'vscode';
 import * as path from 'path';
-import { searchWithRipgrep, listFilesWithRipgrep, isRipgrepAvailable, CancellableSearch } from './ripgrep';
+import { searchWithRipgrep, listFilesWithRipgrep, isRipgrepAvailable, CancellableSearch, readSearchLimits } from './ripgrep';
 import { Scope, KeyBindings, ButtonPrefs } from './types';
 import { getUiStrings, UiStrings } from './i18n';
 import { cwdForFile, makeRelative } from './workspaceUtils';
@@ -138,7 +138,7 @@ export class FinderPanel {
     this._activeCursorLine = activeCursorLine;
     this._activeCursorChar = activeCursorChar;
     this._context = context;
-    const maxResults = vscode.workspace.getConfiguration('spyglass').get<number>('maxResults', 200);
+    const maxResults = readSearchLimits().maxResults;
     const pinnedFiles = context.workspaceState.get<string[]>('spyglass.pinnedFiles', []);
     const groupResults = context.workspaceState.get<boolean>('spyglass.groupResults', false);
     const buttonPrefs = context.workspaceState.get<ButtonPrefs>('spyglass.buttonPrefs', {
@@ -274,7 +274,8 @@ export class FinderPanel {
     this._currentSearches = [];
     const seq = ++this._searchSeq;
     const config = vscode.workspace.getConfiguration('spyglass');
-    const maxResults = config.get<number>('maxResults', 200);
+    const limits = readSearchLimits();
+    const maxResults = limits.maxResults;
     const exclude = config.get<string[]>('exclude');
 
     if (!query.trim()) {
@@ -303,7 +304,7 @@ export class FinderPanel {
       const cwds = this._scope === 'openFiles' ? [this._cwd] : this._cwdList;
       const accumulated = new Map<string, import('./types').SearchResult[]>();
 
-      const searches = cwds.map(cwd => searchWithRipgrep(query, cwd, useRegex, files, { ...opts, exclude: exclude ?? undefined }, (chunk) => {
+      const searches = cwds.map(cwd => searchWithRipgrep(query, cwd, useRegex, files, { ...opts, ...limits, exclude: exclude ?? undefined }, (chunk) => {
         if (seq !== this._searchSeq) { return; }
         accumulated.set(cwd, this._cwdList.length > 1 ? chunk.map(r => ({ ...r, relativePath: this._makeRelative(r.file) })) : chunk);
         const merged = [...accumulated.values()].flat().slice(0, maxResults);
@@ -332,7 +333,8 @@ export class FinderPanel {
     const seq = ++this._searchSeq;
     const cwd = this._activeDir || this._cwd;
     const config = vscode.workspace.getConfiguration('spyglass');
-    const maxResults = config.get<number>('maxResults', 200);
+    const limits = readSearchLimits();
+    const maxResults = limits.maxResults;
     const exclude = config.get<string[]>('exclude');
 
     if (!query.trim()) {
@@ -349,7 +351,7 @@ export class FinderPanel {
 
     const start = Date.now();
     try {
-      const search = searchWithRipgrep(query, cwd, useRegex, undefined, { ...opts, exclude: exclude ?? undefined }, (chunk) => {
+      const search = searchWithRipgrep(query, cwd, useRegex, undefined, { ...opts, ...limits, exclude: exclude ?? undefined }, (chunk) => {
         if (seq !== this._searchSeq) { return; }
         this._post({ type: 'resultsChunk', results: chunk.slice(0, maxResults), query });
       });

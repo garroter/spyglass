@@ -103,10 +103,42 @@ export interface CancellableSearch {
 
 const DEFAULT_EXCLUDES = ['.git', 'node_modules', 'out', 'dist', '*.lock'];
 
+export interface SearchLimits {
+  /** Maximum number of results returned to the UI. */
+  maxResults: number;
+}
+
+export interface SearchOptions extends Partial<SearchLimits> {
+  caseSensitive?: boolean;
+  wholeWord?: boolean;
+  globFilter?: string;
+  exclude?: string[];
+}
+
+const DEFAULT_LIMITS: SearchLimits = { maxResults: 200 };
+// Every result is posted to the webview, so an unbounded maxResults would freeze the UI.
+const MAX_RESULTS_CEILING = 5000;
+
+function toPositiveInt(value: unknown, fallback: number): number {
+  return typeof value === 'number' && Number.isFinite(value) && value >= 1 ? Math.floor(value) : fallback;
+}
+
+/** Turns raw (user-editable) setting values into limits that are safe to hand to ripgrep. */
+export function normalizeSearchLimits(raw: { maxResults?: unknown }): SearchLimits {
+  return {
+    maxResults: Math.min(toPositiveInt(raw.maxResults, DEFAULT_LIMITS.maxResults), MAX_RESULTS_CEILING),
+  };
+}
+
+export function readSearchLimits(): SearchLimits {
+  const config = vscode.workspace.getConfiguration('spyglass');
+  return normalizeSearchLimits({ maxResults: config.get('maxResults') });
+}
+
 export function buildRgArgs(
   query: string,
   useRegex: boolean,
-  opts?: { caseSensitive?: boolean; wholeWord?: boolean; globFilter?: string; exclude?: string[] },
+  opts?: SearchOptions,
   files?: string[],
 ): string[] {
   const excludes = opts?.exclude ?? DEFAULT_EXCLUDES;
@@ -136,7 +168,7 @@ export function searchWithRipgrep(
   cwd: string,
   useRegex: boolean,
   files?: string[],
-  opts?: { caseSensitive?: boolean; wholeWord?: boolean; globFilter?: string; exclude?: string[] },
+  opts?: SearchOptions,
   onChunk?: (results: SearchResult[]) => void
 ): CancellableSearch {
   let cancelled = false;
@@ -195,7 +227,7 @@ export function searchWithRipgrep(
       if (cancelled) { resolve([]); return; }
       if (!errored) {
         // code 0 = matches found, code 1 = no matches, code 2 = error
-        resolve(results.slice(0, 200));
+        resolve(results.slice(0, opts?.maxResults ?? DEFAULT_LIMITS.maxResults));
       }
     });
 

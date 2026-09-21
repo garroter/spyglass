@@ -204,7 +204,7 @@ Lines modified since the last git commit are marked with a **blue indicator** in
 | Setting | Default | Description |
 |---------|---------|-------------|
 | `spyglass.defaultScope` | `project` | Scope on open: `project` `openFiles` `files` `recent` `here` `symbols` `git` `doc` `refs` |
-| `spyglass.maxResults` | `200` | Maximum number of results to display |
+| `spyglass.maxResults` | `200` | Maximum number of results to display (`1`–`5000`) |
 | `spyglass.exclude` | `[".git","node_modules","out","dist","*.lock"]` | Glob patterns excluded from search and file listing |
 | `spyglass.openOnSide` | `false` | Open the popup in a side column instead of the active editor column |
 | `spyglass.closeOnSelect` | `true` | Close the popup after opening a result. Disable to keep it open and open multiple results from one search |

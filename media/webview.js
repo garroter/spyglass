@@ -1096,7 +1096,7 @@
     return scored.map(({ file, relativePath, matchPositions }) => ({ file, relativePath, matchPositions }));
   }
   function filterFilesLocally(fileList, query) {
-    const maxResults = 200;
+    const maxResults = window.__spyglass.MAX_RESULTS;
     if (state.scope === "recent" && state.pinnedFiles.length > 0) {
       const pinnedPaths = new Set(state.pinnedFiles.map((f2) => f2.file));
       const pinned = fuzzyFilter(state.pinnedFiles, query).map((r4) => ({ ...r4, isPinned: true }));
