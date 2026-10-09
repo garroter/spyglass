@@ -269,6 +269,7 @@ Lines modified since the last git commit are marked with a **blue indicator** in
 | `spyglass.maxMatchesPerFile` | `10` | Maximum number of matches shown per file in text search |
 | `spyglass.maxFileSize` | `"1M"` | Files larger than this are skipped by text search (`500K`, `1M`, `10M`, `1G`) |
 | `spyglass.exclude` | `[".git","node_modules","out","dist","*.lock"]` | Glob patterns excluded from search and file listing (lifted while [Include ignored & hidden files](#-ignored--hidden-files) is on, except `.git`) |
+| `spyglass.ripgrepPath` | `""` | Path to your own `rg` binary. Leave empty to use the ripgrep that ships with VS Code |
 | `spyglass.showWhatsNew` | `true` | Show a notification linking to the changelog after an update to a new minor or major version |
 | `spyglass.openOnSide` | `false` | Open the popup in a side column instead of the active editor column |
 | `spyglass.closeOnSelect` | `true` | Close the popup after opening a result. Disable to keep it open and open multiple results from one search |
@@ -444,10 +445,10 @@ Higher values mean more work for ripgrep and a longer list to render, so raise t
 
 Spyglass collects **no data**. All processing happens locally on your machine:
 
-- No network requests are made (webview CSP is `default-src 'none'`)
+- No network requests are made while searching (webview CSP is `default-src 'none'`). The one exception: if no ripgrep binary can be found (neither the one that ships with VS Code nor the bundled `@vscode/ripgrep`), Spyglass downloads the official ripgrep release from GitHub once, into its extension storage. Set `spyglass.ripgrepPath` to point at your own `rg` to avoid that
 - No telemetry, analytics, or crash reporting
 - Search history is stored locally in VS Code's `workspaceState` and never leaves your machine
-- Dependencies (`@vscode/ripgrep`, `shiki`) are fully local with no network activity
+- Dependencies (`@vscode/ripgrep`, `shiki`) run fully locally
 
 ---
 
