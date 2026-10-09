@@ -512,7 +512,7 @@ Press `F5` in VS Code to launch an Extension Development Host.
 
 ### Continuous integration and releases
 
-GitHub Actions runs lint, type-checks, the unit tests and the UI tests on every push to `main` and on every pull request (`.github/workflows/ci.yml`), and builds the `.vsix`. To release, bump `version` in `package.json`, give `CHANGELOG.md` a `## [x.y.z]` section, and push the tag `vx.y.z`: the release workflow checks the tag and the changelog, runs the same checks and publishes a GitHub Release with the `.vsix` that passed them. Publishing to the Marketplace is still a manual `vsce publish`.
+GitHub Actions runs lint, type-checks, the unit tests and the UI tests on every push to `main` and on every pull request (`.github/workflows/ci.yml`), and builds the `.vsix`. To release, bump `version` in `package.json`, give `CHANGELOG.md` a `## [x.y.z]` section, and push the tag `vx.y.z`: the release workflow checks the tag and the changelog, runs the same checks and publishes a GitHub Release with the `.vsix` that passed them, then publishes the same `.vsix` to the VS Code Marketplace and Open VSX (secrets `VSCE_PAT` and `OVSX_PAT`; a store without its secret is skipped).
 
 ### Project structure
 

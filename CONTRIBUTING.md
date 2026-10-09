@@ -103,7 +103,9 @@ is often revealing: run **Developer: Open Webview Developer Tools** from the Com
 2. Commit, then push a tag `vx.y.z`. The release workflow checks that the tag matches `package.json` and that
    the changelog has notes for it, runs the CI checks and publishes a GitHub Release with the `.vsix` that
    passed them.
-3. Publish to the Marketplace with `vsce publish` (it needs a token, so it is not automated).
+3. The same workflow publishes that `.vsix` to the VS Code Marketplace and to Open VSX, using the
+   repository secrets `VSCE_PAT` and `OVSX_PAT`. A store whose secret is missing is skipped (the run shows
+   a notice), and pre-release tags (`v1.2.3-beta.1`) are not published to the stores.
 
 After an update to a new minor version, users get one notification linking to the changelog, so a good
 changelog entry is also the announcement.
