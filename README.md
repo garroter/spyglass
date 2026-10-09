@@ -30,6 +30,21 @@
 
 ---
 
+## ✨ What's new
+
+- **A command for every scope** — `Find Files`, `Find in Project`, `Find Symbols in Document` … each opens Spyglass straight in that scope, so you can bind them to `Ctrl+P`, `Ctrl+T`, `Ctrl+Shift+O` → [Commands](#-commands)
+- **Right-click to search** — *Find in Folder* on any folder in the Explorer, *Find in Project* on selected text in an editor
+- **Search ignored & hidden files** — the `◌` toggle (`Alt+H`) also searches files hidden by `.gitignore`, dotfiles such as `.env`, and folders like `node_modules` / `dist` → [Ignored & hidden files](#-ignored--hidden-files)
+- **Search limits you can change** — `spyglass.maxResults` now really goes up to 5000, plus new `spyglass.maxMatchesPerFile` and `spyglass.maxFileSize` → [Search limits](#-search-limits)
+- **Smarter Recent** — ranked by how often and how recently you open files, and kept up to date in the sidebar
+- **Multiline search** — `↵` / `Alt+M`: a regex can match across lines
+- **Search history that works** — `Ctrl+↑` / `Ctrl+↓` go the right way, include the queries you typed this session, and run the query you recall
+- **`Ctrl+Space` multi-select** now works while you are typing in the search box
+
+Everything else is in the [changelog](https://github.com/garroter/spyglass/blob/main/CHANGELOG.md). After an update to a new minor version Spyglass shows one notification linking to it; turn that off with `spyglass.showWhatsNew`, or open it any time with **`Spyglass: What's New`** from the Command Palette.
+
+---
+
 ## Why Spyglass?
 
 VS Code's built-in search (`Ctrl+Shift+F`) is powerful but slow to use — it requires mouse clicks to navigate and doesn't show a live preview. Spyglass is designed to keep your hands on the keyboard:
@@ -71,15 +86,18 @@ VS Code's built-in search (`Ctrl+Shift+F`) is powerful but slow to use — it re
 - **Regex mode** toggle for power users
 - **Case sensitive** and **whole word** toggles
 - **Inline glob filter** — append a glob to any query to narrow results: `myFunc *.ts` or `test !*.test.ts`
+- **Ignored & hidden files toggle** — `◌` / `Alt+H` also searches files hidden by `.gitignore`, dotfiles and the folders in `spyglass.exclude` (never `.git`); see [Ignored & hidden files](#-ignored--hidden-files)
+- **Multiline search** — `↵` / `Alt+M` lets a regular expression match across lines (`foo\nbar`, `(?s)start.*?end`); a result shows its first line with a `+N` badge → [Multiline search](#-multiline-search)
 - **Multi-root workspace** — searches and file listings span all workspace folders simultaneously
 - **Tunable search limits** — raise `spyglass.maxResults`, `spyglass.maxMatchesPerFile` or `spyglass.maxFileSize` when the defaults hide matches you need (see [Search limits](#-search-limits))
 
 ### 🗂️ Navigation
 - **9 search scopes** — Project, Open Files, Files, Recent, Dir, Symbols, Git, Doc, Refs
 - **Pinned files** — pin any file with `Alt+P`; pinned files stay at the top of the Recent tab marked with `★` and persist across sessions
-- **Recent files on open** — opens to recent files immediately, no empty screen
+- **Recent files on open** — opens to recent files immediately, no empty screen; ranked by *frecency* (how often **and** how recently you open a file), so the files you keep coming back to rise above one you opened once a minute ago
 - **Scope memory** — last used scope is restored when you reopen
 - **Dir scope** — search only within the directory of the active file
+- **One command per scope** — "Find Files", "Find in Project", "Find Symbols in Document" … open Spyglass straight in that scope, so each can have its own shortcut (see [Commands](#-commands))
 - **Search history** — navigate previous queries with `Ctrl+↑` / `Ctrl+↓`
 - **Saved searches (bookmarks)** — `Alt+B` bookmarks the current query+scope; `★` button opens the bookmarks overlay; persisted across sessions
 - **Multi-select** — pick multiple results and open them all at once
@@ -143,6 +161,8 @@ Both modes share the same features, keyboard shortcuts, and state.
 | Group results by file | `Alt+L` |
 | Sort results (cycle) | `Alt+S` |
 | Include filter row | `Alt+I` |
+| Include ignored & hidden files | `Alt+H` |
+| Multiline search (regex) | `Alt+M` |
 | Toggle preview panel | `Shift+Alt+P` |
 | Toggle replace mode | `Alt+R` |
 | Focus replace input (in replace mode) | `Tab` |
@@ -166,7 +186,7 @@ Both modes share the same features, keyboard shortcuts, and state.
 | **Project** | Full-text search across all files in the workspace |
 | **Open Files** | Full-text search only within currently open editor tabs |
 | **Files** | Fuzzy search by filename across the whole project |
-| **Recent** | Recently opened files, ordered by most recent |
+| **Recent** | Recently opened files, ranked by frecency (frequency + recency); pinned files first |
 | **Dir** | Full-text search within the directory of the active file |
 | **Symbols** | Workspace symbol search via LSP (requires a language extension) |
 | **Git** | All files with uncommitted changes — modified, added, untracked, deleted, renamed |
@@ -174,6 +194,46 @@ Both modes share the same features, keyboard shortcuts, and state.
 | **Refs** | All references to the symbol under the cursor at the time Spyglass was opened |
 
 Switch between scopes with `Tab` while Spyglass is open.
+
+---
+
+## 🧭 Commands
+
+Besides the general `Spyglass: Open Search Popup`, every scope has its own command in the Command Palette. Each one opens Spyglass **straight in that scope** (or switches an already open popup to it) and loads its list right away where that makes sense (Recent, Git, Doc, Refs):
+
+| Command | Scope |
+|---------|-------|
+| `Spyglass: Find in Project` | Project — full-text search |
+| `Spyglass: Find Files` | Files — fuzzy search by file name |
+| `Spyglass: Find in Open Files` | Open Files — full-text search in open tabs |
+| `Spyglass: Find Recent Files` | Recent |
+| `Spyglass: Find in Current Directory` | Dir |
+| `Spyglass: Find Symbols in Workspace` | Symbols |
+| `Spyglass: Find Git Changes` | Git |
+| `Spyglass: Find Symbols in Document` | Doc |
+| `Spyglass: Find References` | Refs |
+| `Spyglass: Find in Folder` | Dir, on a folder chosen in the Explorer (right-click a folder → *Spyglass: Find in Folder*) |
+
+Two of them are also in context menus: right-click a **folder** in the Explorer for *Find in Folder*, and right-click **selected text** in an editor for *Find in Project* (the selection becomes the query). `Spyglass: What's New` opens the changelog. None of them has a default shortcut, so nothing you already use is taken over. Bind the ones you want in `keybindings.json` (`Ctrl+Shift+P` → *Open Keyboard Shortcuts (JSON)*), for example to get Quick Open-, Go to Symbol- and Find in Files-style keys:
+
+```json
+[
+  { "key": "ctrl+p",       "command": "spyglass.findFiles" },
+  { "key": "ctrl+t",       "command": "spyglass.findSymbols" },
+  { "key": "ctrl+shift+o", "command": "spyglass.findDocumentSymbols" },
+  { "key": "ctrl+shift+f", "command": "spyglass.findInProject" }
+]
+```
+
+The general command takes the scope as an argument too, which is handy if you prefer one command id everywhere:
+
+```json
+{ "key": "ctrl+p", "command": "spyglass.open", "args": { "scope": "files" } }
+```
+
+Valid scopes are `project`, `openFiles`, `files`, `recent`, `here`, `symbols`, `git`, `doc` and `refs`; an unknown value is ignored and Spyglass opens as usual.
+
+A scope chosen by a command is **not** remembered: the plain `Ctrl+Alt+F` / `Shift Shift` shortcut still reopens in the scope you last picked yourself with the tabs.
 
 ---
 
@@ -208,7 +268,8 @@ Lines modified since the last git commit are marked with a **blue indicator** in
 | `spyglass.maxResults` | `200` | Maximum number of results to display (`1`–`5000`) |
 | `spyglass.maxMatchesPerFile` | `10` | Maximum number of matches shown per file in text search |
 | `spyglass.maxFileSize` | `"1M"` | Files larger than this are skipped by text search (`500K`, `1M`, `10M`, `1G`) |
-| `spyglass.exclude` | `[".git","node_modules","out","dist","*.lock"]` | Glob patterns excluded from search and file listing |
+| `spyglass.exclude` | `[".git","node_modules","out","dist","*.lock"]` | Glob patterns excluded from search and file listing (lifted while [Include ignored & hidden files](#-ignored--hidden-files) is on, except `.git`) |
+| `spyglass.showWhatsNew` | `true` | Show a notification linking to the changelog after an update to a new minor or major version |
 | `spyglass.openOnSide` | `false` | Open the popup in a side column instead of the active editor column |
 | `spyglass.closeOnSelect` | `true` | Close the popup after opening a result. Disable to keep it open and open multiple results from one search |
 | `spyglass.openExternalWindow` | `false` | Like "openOnSide", but also keeps the popup open after selecting a result — ideal for keeping Spyglass on a second monitor (drag the panel's tab out of the window to make it a standalone window) |
@@ -225,7 +286,7 @@ Lines modified since the last git commit are marked with a **blue indicator** in
 
 ### Change the open shortcut
 
-Open **Keyboard Shortcuts** (`Ctrl+K Ctrl+S`), search for `Spyglass: Open Search Popup` or `Spyglass: Focus Sidebar Panel` and assign your preferred keys.
+Open **Keyboard Shortcuts** (`Ctrl+K Ctrl+S`), search for `Spyglass: Open Search Popup`, `Spyglass: Focus Sidebar Panel` or one of the per-scope [commands](#-commands) and assign your preferred keys.
 
 Or edit `keybindings.json` directly (`Ctrl+Shift+P` → *Open Keyboard Shortcuts (JSON)*):
 
@@ -321,6 +382,33 @@ Patterns starting with `*` are treated as include globs, patterns starting with 
 
 ---
 
+## 🙈 Ignored & hidden files
+
+By default Spyglass searches what ripgrep would: it skips files listed in `.gitignore` / `.ignore`, hidden files (dotfiles such as `.env`, folders such as `.github`) and anything matching `spyglass.exclude` (`node_modules`, `dist`, `out`, `*.lock` …). Turn on **Include ignored and hidden files** — the `◌` button in the secondary toolbar (behind `⋯`) or `Alt+H` — to search those too. When it is on, the `⋯` button shows a dot so you do not forget.
+
+- It applies to **Project**, **Open Files**, **Dir** and **Files**, and to **Replace all**, so the preview always covers exactly the files the search shows.
+- It lifts `spyglass.exclude` as well, because otherwise `dist/` and `node_modules/` would stay hidden. The **`.git`** folder is always skipped.
+- The choice is remembered with the other toolbar toggles. It can make searches slower and noisier in big repositories (`node_modules`, build output), so turn it off when you are done.
+
+---
+
+## ↵ Multiline search
+
+Turn on **Multiline search** — the `↵` button in the secondary toolbar (behind `⋯`) or `Alt+M` — to let a pattern match across line breaks. It is always a **regular expression** (you cannot type a line break into a plain string), whatever the regex toggle says. When it is on, the `⋯` button shows a dot.
+
+| Query | Finds |
+|-------|-------|
+| `import .*;\nimport` | two import lines in a row |
+| `\{\n\s*return` | a block that opens and returns on the next line |
+| `(?s)<div>.*?</div>` | anything between the tags, across any number of lines |
+
+- `.` does not match a line break unless you start the pattern with `(?s)`; `\n`, `\s` and `[\s\S]` always do.
+- A result that spans several lines is shown as its **first line** with a `+N` badge (N more lines); `Enter` opens the file at that first line.
+- **Replace all is not available** in multiline mode, because replacing works line by line and a wrong multi-line replacement is easy to miss. Turning multiline on switches replace mode off.
+- It applies to Project, Open Files and Dir. Searching is slower on big files, since ripgrep reads each file whole.
+
+---
+
 ## 📏 Search limits
 
 To stay fast on large projects, text search caps how much it returns. All three caps are settings, so you can raise them when something you expect is missing:
@@ -373,17 +461,29 @@ npm install
 npm run compile   # compile TypeScript
 npm run watch     # watch mode
 npm test          # run unit tests (vitest)
+npm run test:ui   # run UI tests (Playwright + headless Chromium)
 ```
 
+`npm run test:ui` rebuilds the webview bundle and drives the real UI against the real search backend,
+with only the VS Code API mocked. The first time, install the browser with `npx playwright install chromium`
+(or set `SPYGLASS_CHROMIUM` to an existing Chromium/Chrome binary).
+
 Press `F5` in VS Code to launch an Extension Development Host.
+
+### Continuous integration and releases
+
+GitHub Actions runs lint, type-checks, the unit tests and the UI tests on every push to `main` and on every pull request (`.github/workflows/ci.yml`), and builds the `.vsix`. To release, bump `version` in `package.json`, give `CHANGELOG.md` a `## [x.y.z]` section, and push the tag `vx.y.z`: the release workflow checks the tag and the changelog, runs the same checks and publishes a GitHub Release with the `.vsix` that passed them. Publishing to the Marketplace is still a manual `vsce publish`.
 
 ### Project structure
 
 ```
 src/
   extension.ts             — activation, command registration
-  FinderPanel.ts           — webview panel lifecycle, message handler
-  SpyglassSidebarProvider.ts — sidebar panel provider
+  FinderPanel.ts           — popup: webview panel lifecycle, opening files
+  SpyglassSidebarProvider.ts — sidebar view provider
+  SpyglassController.ts    — state, message handling and searches shared by the popup and the sidebar
+  scopeCommands.ts         — the per-scope "Find …" commands and scope-argument parsing
+  webviewHtml.ts           — HTML template for the webview (pure function)
   ripgrep.ts               — ripgrep search backend
   gitUtils.ts              — git status and diff parsing
   symbolSearch.ts          — LSP workspace symbol search
@@ -401,13 +501,16 @@ src/
     highlight.ts           — HTML escaping and query match highlighting
     shiki.ts               — Shiki syntax highlighter integration
   test/                    — unit tests (vitest)
+scripts/                   — release helpers (changelog section extraction)
+.github/workflows/         — CI and release workflows
+ui-tests/                  — UI tests (Playwright): webview + real controller + real ripgrep, VS Code API mocked
 ```
 
 ---
 
 ## 🤝 Contributing
 
-PRs and issues welcome at [github.com/garroter/spyglass](https://github.com/garroter/spyglass).
+PRs and issues welcome at [github.com/garroter/spyglass](https://github.com/garroter/spyglass). See [CONTRIBUTING.md](CONTRIBUTING.md) for how to set up, test and submit a change.
 
 ---
 
