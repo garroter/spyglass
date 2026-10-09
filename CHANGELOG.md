@@ -1,5 +1,10 @@
 # Changelog
 
+## [Unreleased]
+
+### Fixed
+- **"What's new" could not open the changelog on Linux** — clicking *Show changes* in the update notification (or running `Spyglass: What's New`) said `CHANGELOG.md cannot be found`, because the packaged extension names the file `changelog.md` and Linux file names are case-sensitive. Both names are now looked up
+
 ## [0.3.0] - 2026-10-09
 
 ### Added

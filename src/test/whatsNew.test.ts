@@ -8,6 +8,7 @@ const env = vi.hoisted(() => ({
   messages: [] as Array<{ text: string; buttons: string[] }>,
   configUpdates: [] as Array<{ key: string; value: unknown; target: unknown }>,
   commands: [] as unknown[][],
+  files: new Set<string>(),
 }));
 
 vi.mock('vscode', () => ({
@@ -15,6 +16,12 @@ vi.mock('vscode', () => ({
   ConfigurationTarget: { Global: 1 },
   Uri: { joinPath: (base: { fsPath: string }, ...seg: string[]) => ({ fsPath: [base.fsPath, ...seg].join('/') }) },
   workspace: {
+    fs: {
+      stat: async (uri: { fsPath: string }) => {
+        if (!env.files.has(uri.fsPath)) { throw new Error(`ENOENT ${uri.fsPath}`); }
+        return {};
+      },
+    },
     getConfiguration: () => ({
       get: (key: string, fallback?: unknown) => (key in env.settings ? env.settings[key] : fallback),
       update: async (key: string, value: unknown, target: unknown) => { env.configUpdates.push({ key, value, target }); },
@@ -53,6 +60,8 @@ beforeEach(() => {
   env.messages = [];
   env.configUpdates = [];
   env.commands = [];
+  // An installed extension: vsce packages CHANGELOG.md as lower-case changelog.md.
+  env.files = new Set(['/ext/changelog.md']);
 });
 
 describe('parseVersion', () => {
@@ -139,7 +148,7 @@ describe('announceIfUpdated', () => {
   it('opens the changelog when the user asks for it', async () => {
     env.choice = getUiStrings().whatsNewAction;
     await announceIfUpdated(makeContext('0.3.0', '0.2.10') as never);
-    expect(env.commands).toEqual([['markdown.showPreview', { fsPath: '/ext/CHANGELOG.md' }]]);
+    expect(env.commands).toEqual([['markdown.showPreview', { fsPath: '/ext/changelog.md' }]]);
   });
 
   it('turns the setting off, for all workspaces, when the user chooses "don\'t show again"', async () => {
@@ -158,7 +167,13 @@ describe('announceIfUpdated', () => {
 });
 
 describe('showWhatsNew', () => {
-  it('previews the CHANGELOG shipped with the extension', async () => {
+  it('previews changelog.md, the name the changelog has in an installed extension', async () => {
+    await showWhatsNew(makeContext('0.3.0') as never);
+    expect(env.commands).toEqual([['markdown.showPreview', { fsPath: '/ext/changelog.md' }]]);
+  });
+
+  it('previews CHANGELOG.md when running from the repository (F5)', async () => {
+    env.files = new Set(['/ext/CHANGELOG.md']);
     await showWhatsNew(makeContext('0.3.0') as never);
     expect(env.commands).toEqual([['markdown.showPreview', { fsPath: '/ext/CHANGELOG.md' }]]);
   });

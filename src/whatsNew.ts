@@ -20,9 +20,22 @@ export function shouldAnnounce(previous: string | undefined, current: string): b
   return now[0] > before[0] || (now[0] === before[0] && now[1] > before[1]);
 }
 
+// vsce packages CHANGELOG.md as lower-case changelog.md; the repository (F5) has CHANGELOG.md.
+// Names are case-sensitive on Linux, so look for both.
+const CHANGELOG_NAMES = ['changelog.md', 'CHANGELOG.md'];
+
 /** Opens the CHANGELOG that ships with the extension. */
 export async function showWhatsNew(context: vscode.ExtensionContext): Promise<void> {
-  await vscode.commands.executeCommand('markdown.showPreview', vscode.Uri.joinPath(context.extensionUri, 'CHANGELOG.md'));
+  let changelog = vscode.Uri.joinPath(context.extensionUri, CHANGELOG_NAMES[0]);
+  for (const name of CHANGELOG_NAMES) {
+    const uri = vscode.Uri.joinPath(context.extensionUri, name);
+    try {
+      await vscode.workspace.fs.stat(uri);
+      changelog = uri;
+      break;
+    } catch { /* try the next name */ }
+  }
+  await vscode.commands.executeCommand('markdown.showPreview', changelog);
 }
 
 /**
