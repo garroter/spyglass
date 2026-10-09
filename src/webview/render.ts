@@ -9,6 +9,21 @@ import { vscode } from './vscode';
 
 const S = (window as any).__spyglass.STRINGS;
 
+// The mouse selects the row it moves over - but only when it really moves: when a list is redrawn
+// under a resting cursor the browser reports the cursor entering the new row, which must not take
+// the selection away from the keyboard (as in VS Code's Quick Open).
+let lastPointer = { x: NaN, y: NaN };
+
+function selectOnHover(row: HTMLElement, index: number, onSelect: () => void): void {
+  row.addEventListener('mousemove', e => {
+    if (e.clientX === lastPointer.x && e.clientY === lastPointer.y) { return; }
+    lastPointer = { x: e.clientX, y: e.clientY };
+    if (state.selected === index) { return; }
+    state.selected = index;
+    onSelect();
+  });
+}
+
 /** How many results the current list has (what the selection moves through). */
 function listLength(): number {
   if (state.bookmarksMode) { return state.savedSearches.length; }
@@ -82,7 +97,7 @@ export function renderBookmarkResults(): void {
         document.dispatchEvent(new CustomEvent('spyglass:applyBookmark', { detail: { index: i } }));
       }
     });
-    div.addEventListener('mouseenter', () => { state.selected = i; updateSelection(); });
+    selectOnHover(div, i, () => { updateSelection(); });
     frag.appendChild(div);
   });
 
@@ -165,8 +180,8 @@ export function renderTextResults(): void {
         '</div>' +
         (dir ? '<div class="result-text">' + escHtml(dir) + '</div>' : '');
       div.addEventListener('click', () => vscode.postMessage({ type: 'open', file: r.file, line: 1 }));
-      div.addEventListener('mouseenter', () => {
-        state.selected = i; updateSelection();
+      selectOnHover(div, i, () => {
+        updateSelection();
         vscode.postMessage({ type: 'preview', file: r.file, line: 1 });
       });
       frag.appendChild(div);
@@ -248,7 +263,7 @@ export function renderTextResults(): void {
         div.addEventListener('click', (e) => {
           if (e.ctrlKey) { toggleSelectResult(i); } else { openResult(i); }
         });
-        div.addEventListener('mouseenter', () => { state.selected = i; updateSelection(); requestPreview(); });
+        selectOnHover(div, i, () => { updateSelection(); requestPreview(); });
         frag.appendChild(div);
       }
     }
@@ -271,7 +286,7 @@ export function renderTextResults(): void {
       div.addEventListener('click', (e) => {
         if (e.ctrlKey) { toggleSelectResult(i); } else { openResult(i); }
       });
-      div.addEventListener('mouseenter', () => { state.selected = i; updateSelection(); requestPreview(); });
+      selectOnHover(div, i, () => { updateSelection(); requestPreview(); });
       frag.appendChild(div);
     });
   }
@@ -307,7 +322,7 @@ export function renderCommandResults(): void {
     div.dataset.index = String(i);
     div.innerHTML = html;
     div.addEventListener('click', () => openResult(i));
-    div.addEventListener('mouseenter', () => { state.selected = i; updateSelection(); requestPreview(); });
+    selectOnHover(div, i, () => { updateSelection(); requestPreview(); });
     frag.appendChild(div);
   };
   state.commandResults.forEach((r, i) => {
@@ -402,7 +417,7 @@ export function renderFileResults(): void {
     }
 
     div.addEventListener('click', () => openResult(i));
-    div.addEventListener('mouseenter', () => { state.selected = i; updateSelection(); requestPreview(); });
+    selectOnHover(div, i, () => { updateSelection(); requestPreview(); });
     frag.appendChild(div);
   });
 
@@ -493,7 +508,7 @@ export function renderSymbolResults(): void {
       // Doc lists one file, the current one, so only the line is worth showing
       '<div class="result-text">' + (isDocScope() ? '' : escHtml(r.relativePath)) + ':' + r.line + '</div>';
     div.addEventListener('click', () => openResult(i));
-    div.addEventListener('mouseenter', () => { state.selected = i; updateSelection(); requestPreview(); });
+    selectOnHover(div, i, () => { updateSelection(); requestPreview(); });
     frag.appendChild(div);
   });
 

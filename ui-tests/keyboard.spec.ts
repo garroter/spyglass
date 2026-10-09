@@ -109,3 +109,49 @@ test('the keyboard shortcuts list names the new keys', async ({ openSpyglass }) 
   await expect(help).toContainText(/previous scope/i);
   await expect(help).toContainText(/resume/i);
 });
+
+test('results that arrive after you moved keep your selection (results stream in batches)', async ({ openSpyglass, page: p }) => {
+  // remember the last batch of results the extension sends, to replay it late
+  await p.addInitScript(() => {
+    const deliver = window.postMessage.bind(window);
+    window.postMessage = ((data: { type?: string }, origin: string) => {
+      if (data?.type === 'results') { (window as unknown as { __lastResults: unknown }).__lastResults = data; }
+      deliver(data, origin);
+    }) as typeof window.postMessage;
+  });
+  const { page } = await sevenResults(openSpyglass);
+  await page.locator('#query').press('ArrowDown');
+  await page.locator('#query').press('ArrowDown');
+  expect(await selectedIndex(page)).toBe(2);
+
+  // the final batch of the same search arrives after you moved, as it does in a big project
+  await page.evaluate(() => window.postMessage((window as unknown as { __lastResults: unknown }).__lastResults, '*'));
+  await page.waitForTimeout(100);
+
+  expect(await selectedIndex(page)).toBe(2);
+});
+
+test('a row redrawn under a resting mouse does not take the selection from the keyboard', async ({ openSpyglass }) => {
+  const { page } = await sevenResults(openSpyglass);
+  await page.locator('.result').nth(0).hover(); // the mouse rests on the first row
+  await page.locator('#query').press('Control+End');
+  expect(await selectedIndex(page)).toBe(6);
+
+  // what the browser does when the list is redrawn under the cursor: events for the new row, at
+  // the same position the mouse already rests on
+  const box = (await page.locator('.result').nth(0).boundingBox())!;
+  const at = { clientX: box.x + box.width / 2, clientY: box.y + box.height / 2, bubbles: true };
+  await page.locator('.result').nth(0).dispatchEvent('mouseenter', at);
+  await page.locator('.result').nth(0).dispatchEvent('mousemove', at);
+
+  expect(await selectedIndex(page)).toBe(6);
+});
+
+test('moving the mouse over a row still selects it', async ({ openSpyglass }) => {
+  const { page } = await sevenResults(openSpyglass);
+  await page.locator('#query').press('Control+End');
+
+  await page.locator('.result').nth(3).hover();
+
+  await expect.poll(() => selectedIndex(page)).toBe(3);
+});

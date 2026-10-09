@@ -133,6 +133,7 @@ export function triggerSearch(renderFn: () => void): void {
       renderFn();
       vscode.postMessage({ type: 'symbolSearch', query: state.query });
     } else {
+      state.selected = 0; // a new search starts at the top; its batches keep where the user moves
       vscode.postMessage({
         type: 'search',
         query: state.query,

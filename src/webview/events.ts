@@ -627,15 +627,17 @@ export function initMessages(): void {
         searchTook.textContent = '';
         render();
         break;
+      // Batches of one search: keep the selection the user may have moved meanwhile (a new search
+      // starts at the top, see triggerSearch), only keeping it inside the list.
       case 'resultsChunk':
         state.results = data.results;
-        state.selected = 0;
+        state.selected = Math.min(state.selected, Math.max(0, state.results.length - 1));
         render();
         break;
       case 'results':
         state.searching = false;
         state.results = data.results;
-        state.selected = 0;
+        state.selected = Math.min(state.selected, Math.max(0, state.results.length - 1));
         if (data.refsSymbol !== undefined) { state.refsSymbol = data.refsSymbol as string; }
         if (data.took > 0) { searchTook.textContent = data.took + 'ms'; }
         render();
