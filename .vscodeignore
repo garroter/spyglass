@@ -17,3 +17,10 @@ images/*.webm
 images/*.gif
 images/*.svg
 !images/icon.svg
+ui-tests/**
+playwright.config.ts
+test-results/**
+playwright-report/**
+.github/**
+scripts/**
+CONTRIBUTING.md

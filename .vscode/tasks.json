@@ -5,20 +5,48 @@
       "label": "npm: compile",
       "type": "npm",
       "script": "compile",
+      "problemMatcher": [
+        "$tsc"
+      ],
+      "detail": "Compile TypeScript"
+    },
+    {
+      "label": "npm: bundle-webview",
+      "type": "npm",
+      "script": "bundle-webview",
+      "problemMatcher": [],
+      "detail": "Bundle the popup/sidebar UI (src/webview/ -> media/webview.js)"
+    },
+    {
+      "label": "build",
+      "dependsOn": [
+        "npm: compile",
+        "npm: bundle-webview"
+      ],
+      "dependsOrder": "parallel",
       "group": {
         "kind": "build",
         "isDefault": true
       },
-      "problemMatcher": ["$tsc"],
-      "detail": "Compile TypeScript"
+      "detail": "Compile the extension and bundle the webview (what F5 runs first)"
     },
     {
       "label": "npm: watch",
       "type": "npm",
       "script": "watch",
-      "problemMatcher": ["$tsc-watch"],
+      "problemMatcher": [
+        "$tsc-watch"
+      ],
       "isBackground": true,
       "detail": "Watch and compile TypeScript"
+    },
+    {
+      "label": "npm: watch-webview",
+      "type": "npm",
+      "script": "watch-webview",
+      "problemMatcher": [],
+      "isBackground": true,
+      "detail": "Watch and rebundle the popup/sidebar UI"
     }
   ]
 }
