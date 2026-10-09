@@ -334,6 +334,14 @@
   .git-badge--R { color: var(--vscode-gitDecoration-renamedResourceForeground,   #73c991); }
   .result-text   { color: var(--f-dim); font-size: calc(var(--f-code) - 1px); white-space: pre; overflow: hidden; text-overflow: ellipsis; }
   .result-text mark { background: var(--f-match); color: inherit; font-weight: 700; border-radius: 2px; padding: 0 1px; }
+  /* fuzzy-matched letters of a file name (Files, Recent, Git), as Quick Open marks them */
+  .result-file mark, .cmd-label mark {
+    background: none; font-weight: 700;
+    color: var(--vscode-list-highlightForeground, var(--f-accent));
+  }
+  .result.selected .result-file mark, .result.selected .cmd-label mark {
+    color: var(--vscode-list-focusHighlightForeground, var(--vscode-list-highlightForeground, var(--f-accent)));
+  }
   .qm { background: var(--f-match); color: inherit; font-weight: 700; border-radius: 2px; padding: 0 1px; }
 
   .result.selected .result-file { color: var(--f-sel-fg); }
@@ -941,7 +949,6 @@ body.multiline #more-btn::after {
 /* ── Commands list ── */
 .cmd-row { display: flex; align-items: center; gap: 8px; }
 .cmd-label { color: var(--f-text); font-size: var(--f-ui); flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.cmd-label mark { background: none; color: var(--f-accent); font-weight: 700; }
 .cmd-recent { color: var(--f-dim); font-size: calc(var(--f-ui) - 2px); flex-shrink: 0; }
 .cmd-key {
   flex-shrink: 0;

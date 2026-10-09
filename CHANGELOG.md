@@ -1,5 +1,12 @@
 # Changelog
 
+## [Unreleased]
+
+### Fixed
+- **The selection jumped back to the top while you were moving** — results arrive in batches, and every batch put the selection back on the first result, so pressing `↓` before a search in a big project had finished was undone. A new search still starts at the top; later batches of the same search keep where you are
+- **A resting mouse took the selection from the keyboard** — when the list was redrawn under the cursor, the row under it became selected, undoing `↓` / `Ctrl+End` etc. Only moving the mouse selects a row now, as in Quick Open
+- The letters a file name matched in the Files, Recent and Git lists were shown black on bright yellow (the browser's default); they now use VS Code's list highlight colour
+
 ## [0.4.1] - 2026-10-09
 
 ### Fixed

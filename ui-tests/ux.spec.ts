@@ -203,3 +203,14 @@ test('text sizes follow VS Code: the UI size for labels, the editor size for cod
   expect(await size('.result .result-text')).toBe('19px');
   await expect.poll(() => size('#preview-content .ptext')).toBe('20px');
 });
+
+test('matched letters in file names are marked in the accent colour, not the browser\'s yellow', async ({ openSpyglass }) => {
+  const { page } = await openSpyglass({ initialScope: 'files' });
+  await page.evaluate(() => document.documentElement.style.setProperty('--vscode-focusBorder', 'rgb(0, 120, 212)'));
+  await page.locator('#query').fill('util');
+
+  const mark = page.locator('.result .result-file mark').first();
+  await expect(mark).toBeVisible();
+  const style = await mark.evaluate(el => { const cs = getComputedStyle(el); return { bg: cs.backgroundColor, color: cs.color }; });
+  expect(style).toEqual({ bg: 'rgba(0, 0, 0, 0)', color: 'rgb(0, 120, 212)' });
+});
