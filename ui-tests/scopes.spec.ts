@@ -31,7 +31,15 @@ test('switching scope is remembered for the next time', async ({ openSpyglass })
   await expect.poll(() => s.state.get('spyglass.lastScope')).toBe('files');
 });
 
-test('Spyglass reopens in the scope it was last used in', async ({ openSpyglass }) => {
+test('Spyglass reopens in the scope it was last used in', async ({ openSpyglass, page: p }) => {
+  // Nothing else may redraw the list: the page has to show the right empty state by itself
+  // (a late git status used to do it, so this passed or failed depending on timing).
+  await p.addInitScript(() => {
+    const deliver = window.postMessage.bind(window);
+    window.postMessage = ((data: { type?: string }, origin: string) => {
+      if (data?.type !== 'gitStatus') { deliver(data, origin); }
+    }) as typeof window.postMessage;
+  });
   const { page } = await openSpyglass({ state: { 'spyglass.lastScope': 'files' } });
 
   await expect(page.locator('.tab.active')).toHaveAttribute('data-scope', 'files');

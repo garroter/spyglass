@@ -78,5 +78,7 @@ if (RESUME) {
   triggerSearch(render);
 } else if (scopeLoadsWithoutQuery(state.scope)) {
   triggerSearch(render);
+} else {
+  render(); // the empty state of this scope (e.g. "Start typing to search files…"), not the page's placeholder
 }
 queryEl.focus();
