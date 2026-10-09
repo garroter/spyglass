@@ -1,6 +1,9 @@
 # Changelog
 
-## [Unreleased]
+## [0.4.2] - 2026-10-09
+
+### Changed
+- New screenshots in the README and on the store page, showing 0.4: the Commands list, go to line, the options menu and the sidebar. The 52 MB animation of the sidebar is gone, so the page loads much faster
 
 ### Fixed
 - **The selection jumped back to the top while you were moving** — results arrive in batches, and every batch put the selection back on the first result, so pressing `↓` before a search in a big project had finished was undone. A new search still starts at the top; later batches of the same search keep where you are
