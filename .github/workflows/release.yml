@@ -6,6 +6,9 @@ name: Release
 # VSCodium, Cursor and Code - OSS install from). Each store needs a token in the repository secrets -
 # VSCE_PAT (Azure DevOps, Marketplace: Manage) and OVSX_PAT (open-vsx.org) - and is skipped, with a
 # notice, while its token is missing. Pre-releases (v1.2.3-beta.1) only get the GitHub Release.
+# Note: VSCE_PAT has to be a global Azure DevOps PAT ("All accessible organizations"), a kind Microsoft
+# is retiring (2026-12-01) and no longer lets you create; the replacement is Microsoft Entra ID
+# (vsce publish --azure-credential). Until that is set up the Marketplace is published by hand.
 on:
   push:
     tags: ['v*']
