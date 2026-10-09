@@ -44,7 +44,10 @@ export const state: AppState = {
   refsSymbol: '',
   fileLine: null,
   fileColumn: null,
-  atReturnScope: null,
+  prefixReturnScope: null,
+  commandEntries: null,
+  recentCommands: [],
+  commandResults: [],
   pendingSelect: null,
 };
 

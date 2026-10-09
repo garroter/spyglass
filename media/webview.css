@@ -937,3 +937,24 @@ body.multiline #more-btn::after {
   border: 1px solid var(--f-accent);
   vertical-align: 1px;
 }
+
+/* ── Commands list ── */
+.cmd-row { display: flex; align-items: center; gap: 8px; }
+.cmd-label { color: var(--f-text); font-size: var(--f-ui); flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cmd-label mark { background: none; color: var(--f-accent); font-weight: 700; }
+.cmd-recent { color: var(--f-dim); font-size: calc(var(--f-ui) - 2px); flex-shrink: 0; }
+.cmd-key {
+  flex-shrink: 0;
+  font-size: calc(var(--f-ui) - 2px);
+  color: var(--f-dim);
+  border: 1px solid var(--f-border);
+  border-radius: 4px;
+  padding: 0 5px;
+  white-space: nowrap;
+}
+.cmd-show-all .cmd-label { color: var(--f-dim); font-style: italic; }
+.cmd-details { padding: 14px 16px; display: grid; gap: 8px; }
+.cmd-detail-row { display: flex; gap: 12px; font-size: var(--f-ui); }
+.cmd-detail-label { color: var(--f-dim); width: 90px; flex-shrink: 0; }
+.cmd-detail-value { color: var(--f-text); word-break: break-all; }
+.cmd-detail-mono { font-family: var(--vscode-editor-font-family, monospace); }

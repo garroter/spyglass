@@ -6,7 +6,7 @@ import {
   sortBtn, includeBtn, includeRow, includeInput,
   bookmarksBtn, moreBtn, moreMenu, ignoredBtn, multilineBtn, tabsBar, tabsWrap, previewCont,
 } from './dom';
-import { isFileScope, isSymbolScope, isDocScope, isGitScope, isTextScope, isRefsScope, parseQueryInput, triggerSearch, filterFilesLocally, visibleSymbols, parseFileQuery, isGotoLine } from './search';
+import { isFileScope, isSymbolScope, isDocScope, isGitScope, isTextScope, isRefsScope, parseQueryInput, triggerSearch, filterFilesLocally, visibleSymbols, parseFileQuery, isGotoLine, isCommandScope, filterCommands } from './search';
 import { clearPreview, togglePreview, requestPreview } from './preview';
 import { render, navigate, navigateTo, pageSize, rememberSession, openResult, openResultInSplit, openAllSelected,
          toggleSelectResult, selectAll, copyCurrentPath, refreshGitScope,
@@ -39,7 +39,7 @@ let previewSeq = 0;
 
 /** Scopes whose list is worth showing as soon as they are entered, before anything is typed. */
 export function scopeLoadsWithoutQuery(scope: string): boolean {
-  return scope === 'recent' || scope === 'git' || scope === 'refs' || scope === 'doc';
+  return scope === 'recent' || scope === 'git' || scope === 'refs' || scope === 'doc' || scope === 'commands';
 }
 
 export function updateReplaceRowVisibility(): void {
@@ -49,7 +49,7 @@ export function updateReplaceRowVisibility(): void {
 export function setScope(scope: string, opts: { remember?: boolean } = {}): void {
   if (scope === 'git') { state.gitFiles = null; }
   if (scope === 'doc') { state.symbolResults = []; }
-  state.atReturnScope = null; // a scope chosen any other way ends the `@` round trip
+  state.prefixReturnScope = null; // a scope chosen any other way ends the `@` round trip
   state.scope = scope;
   state.selected = 0;
   state.multiSelected = new Set();
@@ -70,16 +70,28 @@ export function setScope(scope: string, opts: { remember?: boolean } = {}): void
   }
 }
 
+/**
+ * Tab / Shift+Tab: the next / previous scope. Commands is not in the cycle; from it, the cycle goes
+ * on from the list it was entered from (or Files).
+ */
+function cycleScope(dir: 1 | -1): void {
+  const from = SCOPES.includes(state.scope) ? state.scope : (state.prefixReturnScope ?? 'files');
+  setScope(SCOPES[(SCOPES.indexOf(from) + dir + SCOPES.length) % SCOPES.length]);
+}
+
 /** Shows the tabs, toolbar buttons and placeholder that belong to the current scope. */
 export function applyScopeChrome(): void {
-  tabs.forEach(t => t.classList.toggle('active', t.dataset.scope === state.scope));
+  tabs.forEach(t => {
+    t.classList.toggle('active', t.dataset.scope === state.scope);
+    if (t.dataset.scope === 'commands') { t.hidden = state.scope !== 'commands'; } // a tab only while in use
+  });
   revealActiveTab();
   const isFile = isFileScope();
   const isSym  = isSymbolScope();
   const isRefs = isRefsScope();
   // Text search options do nothing in the file, symbol and reference lists: hide them there
   // rather than show them greyed out, so those lists look as plain as Quick Open.
-  const textOnly = isFile || isSym || isRefs;
+  const textOnly = isFile || isSym || isRefs || isCommandScope();
   for (const btn of [regexBtn, caseBtn, wordBtn, groupBtn, replaceBtn, multilineBtn, sortBtn]) {
     btn.disabled = textOnly;
     btn.hidden = textOnly;
@@ -93,6 +105,7 @@ export function applyScopeChrome(): void {
                       : state.scope === 'here'    ? S.searchInCurrentDir
                       : state.scope === 'git'     ? S.filterChangedFiles
                       : state.scope === 'refs'    ? S.refsToSymbol
+                      : state.scope === 'commands' ? S.runCommandPlaceholder
                       : S.searchInProject;
 }
 
@@ -126,12 +139,16 @@ export function applyQueryInput(): void {
   const raw = queryEl.value;
   // Like Quick Open: a leading `@` in a file list shows the current file's symbols (Doc), and
   // deleting the `@` goes back to the list it came from.
-  if ((state.scope === 'files' || state.scope === 'recent') && raw.startsWith('@')) {
+  // In the same way a leading `>` lists the commands.
+  const prefixScope: Record<string, string> = { '@': 'doc', '>': 'commands' };
+  const target = prefixScope[raw.charAt(0)];
+  if (state.prefixReturnScope && target !== state.scope && (state.scope === 'doc' || state.scope === 'commands')) {
+    setScope(state.prefixReturnScope, { remember: false }); // the prefix was deleted (or swapped for the other one)
+  }
+  if ((state.scope === 'files' || state.scope === 'recent') && target) {
     const from = state.scope;
-    setScope('doc', { remember: false });
-    state.atReturnScope = from;
-  } else if (state.scope === 'doc' && state.atReturnScope && !raw.startsWith('@')) {
-    setScope(state.atReturnScope, { remember: false });
+    setScope(target, { remember: false });
+    state.prefixReturnScope = from;
   }
 
   const { query, globFilter } = parseQueryInput(raw);
@@ -139,6 +156,8 @@ export function applyQueryInput(): void {
   state.fileColumn = null;
   if (isDocScope()) {
     state.query = query.startsWith('@') ? query.slice(1) : query;
+  } else if (isCommandScope()) {
+    state.query = (query.startsWith('>') ? query.slice(1) : query).trim();
   } else if (isFileScope()) {
     const parsed = parseFileQuery(query); // `util.ts:42:7`
     state.query = parsed.query;
@@ -370,7 +389,7 @@ function handleMoveKeys(e: KeyboardEvent): boolean {
   else if (ctrlOnly && key === 'd')                 { act = () => previewCont.scrollBy({ top: previewCont.clientHeight / 2 }); }
   else if (ctrlOnly && key === 'u')                 { act = () => previewCont.scrollBy({ top: -previewCont.clientHeight / 2 }); }
   else if (e.shiftKey && e.key === 'Tab' && !e.ctrlKey && !e.altKey) {
-    act = () => setScope(SCOPES[(SCOPES.indexOf(state.scope) - 1 + SCOPES.length) % SCOPES.length]);
+    act = () => cycleScope(-1);
   }
   if (!act) { return false; }
   e.preventDefault();
@@ -415,7 +434,7 @@ export function initEvents(): void {
       if (state.replaceMode) {
         (document.getElementById('replace-input') as HTMLInputElement).focus();
       } else {
-        setScope(SCOPES[(SCOPES.indexOf(state.scope) + 1) % SCOPES.length]);
+        cycleScope(1);
       }
     } else if (matchKey(e, KB.toggleRegex)) {
       e.preventDefault(); toggleRegex();
@@ -481,7 +500,7 @@ export function initEvents(): void {
       else if (state.replaceMode) { toggleReplaceMode(); }
       else { vscode.postMessage({ type: 'close' }); }
     }
-    else if (e.key === 'Tab')                  { e.preventDefault(); setScope(SCOPES[(SCOPES.indexOf(state.scope) + 1) % SCOPES.length]); }
+    else if (e.key === 'Tab')                  { e.preventDefault(); cycleScope(1); }
   });
 
   tabs.forEach(tab => tab.addEventListener('click', () => setScope(tab.dataset.scope!)));
@@ -665,6 +684,11 @@ export function initMessages(): void {
         render();
         break;
       case 'symbolResults':
+      case 'commands':
+        state.commandEntries = data.entries;
+        state.recentCommands = data.recent ?? [];
+        if (isCommandScope()) { filterCommands(); render(); }
+        break;
       case 'docResults':
         state.searching = false;
         state.symbolResults = data.results;
@@ -685,6 +709,8 @@ export function initMessages(): void {
         render();
         break;
       case 'previewContent': {
+        // a file preview asked for just before switching to Commands: the pane describes commands now
+        if (isCommandScope()) { break; }
         const { content, currentLine, relativePath, ext, changedLines } = data;
         const query = (isFileScope() || isSymbolScope()) ? '' : state.query;
         // Highlighting can wait for a grammar to load; by then a newer preview may have arrived.

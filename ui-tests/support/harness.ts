@@ -36,6 +36,8 @@ export interface OpenOptions {
   beforeOpen?: (project: string) => void;
   /** `spyglass.*` settings, without the prefix: { maxResults: 50 }. */
   settings?: Record<string, unknown>;
+  /** Initial globalState entries, e.g. { 'spyglass.recentCommands': ['git.commit'] }. */
+  globalState?: Record<string, unknown>;
   /** Initial workspaceState entries, e.g. { 'spyglass.lastScope': 'files' }; may depend on the project dir. */
   state?: Record<string, unknown> | ((project: string) => Record<string, unknown>);
 }
@@ -53,6 +55,8 @@ export interface Spyglass {
   fromPage: Array<Record<string, unknown>>;
   /** The extension's workspaceState. */
   state: Map<string, unknown>;
+  /** The extension's globalState. */
+  globalState: Map<string, unknown>;
   abs: (rel: string) => string;
   read: (rel: string) => string;
 }
@@ -86,6 +90,7 @@ export const test = base.extend<{ openSpyglass: (options?: OpenOptions) => Promi
 
       const initialState = typeof options.state === 'function' ? options.state(project) : options.state;
       const state = new Map<string, unknown>(Object.entries(initialState ?? {}));
+      const globalState = new Map<string, unknown>(Object.entries(options.globalState ?? {}));
       const context = {
         extensionUri: Uri.file(ROOT),
         globalStorageUri: Uri.file(path.join(project, '.storage')),
@@ -93,6 +98,10 @@ export const test = base.extend<{ openSpyglass: (options?: OpenOptions) => Promi
         workspaceState: {
           get: (key: string, fallback?: unknown) => (state.has(key) ? state.get(key) : fallback),
           update: async (key: string, value: unknown) => { state.set(key, value); },
+        },
+        globalState: {
+          get: (key: string, fallback?: unknown) => (globalState.has(key) ? globalState.get(key) : fallback),
+          update: async (key: string, value: unknown) => { globalState.set(key, value); },
         },
       };
 
@@ -169,7 +178,7 @@ export const test = base.extend<{ openSpyglass: (options?: OpenOptions) => Promi
       for (const msg of early.splice(0)) { await deliver(msg); }
 
       return {
-        page, controller, project, opened, openedInSplit, fromPage, state,
+        page, controller, project, opened, openedInSplit, fromPage, state, globalState,
         closeCount: () => closeCount,
         abs: rel => path.join(project, rel),
         read: rel => fs.readFileSync(path.join(project, rel), 'utf-8'),

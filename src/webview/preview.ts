@@ -1,7 +1,7 @@
 import { state, saveButtonPrefs } from './state';
 import { escHtml, applyQueryHighlight } from './highlight';
 import { previewHdr, previewEmpty, previewCont, rightPanel, leftPanel, previewBtn } from './dom';
-import { isFileScope, isSymbolScope, visibleSymbols } from './search';
+import { isFileScope, isSymbolScope, isCommandScope, visibleSymbols } from './search';
 
 let previewTimer: ReturnType<typeof setTimeout> | null = null;
 
@@ -14,6 +14,27 @@ export function renderBreadcrumbs(relativePath: string): void {
     return '<span class="bc-' + (isLast ? 'file' : 'dir') + '">' + escHtml(part) + '</span>'
       + (isLast ? '' : '<span class="bc-sep"> / </span>');
   }).join('');
+}
+
+/** In the Commands list the preview pane describes the selected command: what binds a key to it. */
+function showCommandDetails(): void {
+  if (!state.showPreview) { return; }
+  const r = state.commandResults[state.selected];
+  if (!r) { clearPreview(); return; }
+  const S = (window as any).__spyglass.STRINGS;
+  const e = r.entry;
+  const row = (label: string, value: string, mono = false) =>
+    '<div class="cmd-detail-row"><span class="cmd-detail-label">' + escHtml(label) + '</span>' +
+    '<span class="cmd-detail-value' + (mono ? ' cmd-detail-mono' : '') + '">' + escHtml(value) + '</span></div>';
+  previewHdr.innerHTML = '<span class="bc-file">' + escHtml(e.category ? e.category + ': ' + e.title : e.title) + '</span>';
+  previewEmpty.style.display = 'none';
+  previewCont.style.display = 'block';
+  previewCont.innerHTML = '<div class="cmd-details">' +
+    row(S.commandId, e.id, true) +
+    row(S.commandFrom, e.source === 'extension' ? (e.extensionName ?? '') : 'VS Code') +
+    row(S.commandKey, e.keybinding ?? S.commandNoKey) +
+    '</div>';
+  state.currentPreviewFile = null;
 }
 
 export function clearPreview(): void {
@@ -73,6 +94,7 @@ export function renderPreview(
 }
 
 export function requestPreview(): void {
+  if (isCommandScope()) { showCommandDetails(); return; }
   if (isFileScope())   { requestFilePreview(); }
   else if (isSymbolScope()) { requestSymbolPreview(); }
   else                 { requestTextPreview(); }

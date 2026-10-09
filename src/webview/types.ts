@@ -22,6 +22,15 @@ export interface RecentFile {
   rel: string;
 }
 
+export interface CommandEntry {
+  id: string;
+  title: string;
+  category?: string;
+  source: 'core' | 'extension';
+  extensionName?: string;
+  keybinding?: string;
+}
+
 export interface SymbolResult {
   file: string;
   relativePath: string;
@@ -105,8 +114,13 @@ export interface AppState {
   /** Line (and column) typed after a file query in a file list: `util.ts:42:7`; null when none. */
   fileLine: number | null;
   fileColumn: number | null;
-  /** The file list a leading `@` switched to Doc from, to go back to when the `@` is deleted. */
-  atReturnScope: string | null;
+  /** The file list a leading `@` (Doc) or `>` (Commands) switched from, to go back to when it is deleted. */
+  prefixReturnScope: string | null;
+  /** All commands, once the extension has sent them (null until then); recently run ids, newest first. */
+  commandEntries: CommandEntry[] | null;
+  recentCommands: string[];
+  /** The commands listed for the current query. */
+  commandResults: Array<{ entry: CommandEntry; positions: number[]; recent: boolean }>;
   /** A result to select once the list has loaded (Resume Last Search); null when none. */
   pendingSelect: number | null;
 }

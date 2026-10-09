@@ -2,20 +2,29 @@ import { state } from './state';
 import type { RecentFile, FileResult, SymbolResult } from './types';
 
 import { vscode } from './vscode';
-import { fuzzyRank, fuzzyScore, parseFileQuery, parseQueryInput } from '../webviewUtils';
+import { fuzzyRank, fuzzyScore, parseFileQuery, parseQueryInput, rankCommands } from '../webviewUtils';
 
 export function isFileScope(): boolean   { return state.scope === 'files' || state.scope === 'recent' || state.scope === 'git'; }
 export function isSymbolScope(): boolean { return state.scope === 'symbols' || state.scope === 'doc'; }
 export function isDocScope(): boolean    { return state.scope === 'doc'; }
 export function isGitScope(): boolean    { return state.scope === 'git'; }
 export function isRefsScope(): boolean   { return state.scope === 'refs'; }
-export function isTextScope(): boolean   { return !isFileScope() && !isSymbolScope(); }
+export function isCommandScope(): boolean { return state.scope === 'commands'; }
+export function isTextScope(): boolean   { return !isFileScope() && !isSymbolScope() && !isCommandScope(); }
 
 /** The symbols as listed: Doc filters by the query locally, and the kind chips filter both scopes. */
 export function visibleSymbols(): SymbolResult[] {
   const q = isDocScope() ? state.query.toLowerCase() : '';
   const byQuery = q ? state.symbolResults.filter(r => r.name.toLowerCase().includes(q)) : state.symbolResults;
   return state.symbolKindFilter ? byQuery.filter(r => r.kindLabel === state.symbolKindFilter) : byQuery;
+}
+
+/** Ranks the commands for the current query (recently run first). */
+export function filterCommands(): void {
+  const maxResults = (window as any).__spyglass.MAX_RESULTS;
+  state.commandResults = rankCommands(state.commandEntries ?? [], state.query, state.recentCommands, maxResults);
+  state.searching = false;
+  state.selected = 0;
 }
 
 /** A bare `:line` in Files or Recent: go to that line in the current file. */
@@ -61,6 +70,17 @@ let searchTimer: ReturnType<typeof setTimeout> | null = null;
 
 export function triggerSearch(renderFn: () => void): void {
   clearTimeout(searchTimer!);
+  if (isCommandScope()) {
+    if (state.commandEntries) {
+      filterCommands();
+    } else {
+      // the extension sends the list once, on first use ('commands' message)
+      state.searching = true;
+      vscode.postMessage({ type: 'commandList' });
+    }
+    renderFn();
+    return;
+  }
   if (isGotoLine()) {
     // only the extension knows the current file; it answers with an 'activeFile' message
     state.searching = true;

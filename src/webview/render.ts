@@ -1,7 +1,7 @@
 import { state } from './state';
 import { escHtml, highlightMatch, highlightPositions, firstLineMatch, trimIndent } from './highlight';
 import { wrap, stateMsg, resultInfo, queryEl } from './dom';
-import { isFileScope, isSymbolScope, isDocScope, isGitScope, isRefsScope, triggerSearch, visibleSymbols, isGotoLine } from './search';
+import { isFileScope, isSymbolScope, isDocScope, isGitScope, isRefsScope, isCommandScope, triggerSearch, visibleSymbols, isGotoLine } from './search';
 import type { SearchResult } from './types';
 import { requestPreview, recentDefault, textResultTarget } from './preview';
 
@@ -12,6 +12,8 @@ const S = (window as any).__spyglass.STRINGS;
 /** How many results the current list has (what the selection moves through). */
 function listLength(): number {
   if (state.bookmarksMode) { return state.savedSearches.length; }
+  // the Commands list ends with a "Show all commands" row, once the list has arrived
+  if (isCommandScope()) { return state.commandEntries ? state.commandResults.length + 1 : 0; }
   const rd = recentDefault();
   return rd ? rd.length
     : isFileScope() ? state.fileResults.length
@@ -33,6 +35,7 @@ export function render(): void {
     wrap.querySelectorAll('.sym-kind-chips').forEach(el => el.remove());
   }
   if (state.bookmarksMode)  { renderBookmarkResults(); }
+  else if (isCommandScope()) { renderCommandResults(); }
   else if (isFileScope())   { renderFileResults(); }
   else if (isSymbolScope()) { renderSymbolResults(); }
   else                      { renderTextResults(); }
@@ -278,6 +281,45 @@ export function renderTextResults(): void {
   requestPreview();
 }
 
+/** The Commands list: "Category: Title" with its key, recently run ones first, then the hand-over row. */
+export function renderCommandResults(): void {
+  wrap.querySelectorAll('.result').forEach(el => el.remove());
+  if (state.searching || !state.commandEntries) {
+    stateMsg.innerHTML = '<span class="spinner"></span>';
+    stateMsg.style.display = '';
+    resultInfo.textContent = '…';
+    return;
+  }
+  stateMsg.style.display = 'none';
+
+  const frag = document.createDocumentFragment();
+  const addRow = (i: number, html: string, extraClass = '') => {
+    const div = document.createElement('div');
+    div.className = 'result cmd-row' + extraClass + (i === state.selected ? ' selected' : '');
+    div.dataset.index = String(i);
+    div.innerHTML = html;
+    div.addEventListener('click', () => openResult(i));
+    div.addEventListener('mouseenter', () => { state.selected = i; updateSelection(); requestPreview(); });
+    frag.appendChild(div);
+  };
+  state.commandResults.forEach((r, i) => {
+    const label = r.entry.category ? r.entry.category + ': ' + r.entry.title : r.entry.title;
+    addRow(i,
+      '<span class="cmd-label">' + highlightPositions(label, r.positions) + '</span>' +
+      (r.recent ? '<span class="cmd-recent">' + escHtml(S.recentlyUsed) + '</span>' : '') +
+      (r.entry.keybinding ? '<span class="cmd-key">' + escHtml(r.entry.keybinding) + '</span>' : ''),
+      r.recent ? ' cmd-row--recent' : '');
+  });
+  const showAll = S.showAllCommands.replace('{0}', state.query);
+  addRow(state.commandResults.length, '<span class="cmd-label">' + escHtml(showAll) + '</span>', ' cmd-show-all');
+
+  wrap.appendChild(frag);
+  const n = state.commandResults.length;
+  resultInfo.textContent = n + ' ' + (n === 1 ? S.commandSingular : S.commandPlural);
+  scrollToSelected();
+  requestPreview();
+}
+
 export function renderFileResults(): void {
   wrap.querySelectorAll('.result').forEach(el => el.remove());
   const MAX_RESULTS = (window as any).__spyglass.MAX_RESULTS;
@@ -464,6 +506,13 @@ function fileTarget(): { line: number; column?: number } {
 }
 
 export function openResult(index: number): void {
+  if (isCommandScope()) {
+    if (!state.commandEntries) { return; } // the list has not arrived yet
+    const r = state.commandResults[index];
+    if (r) { vscode.postMessage({ type: 'runCommand', id: r.entry.id }); }
+    else if (index === state.commandResults.length) { vscode.postMessage({ type: 'showAllCommands', query: state.query }); }
+    return;
+  }
   if (isFileScope()) {
     const r = state.fileResults[index];
     if (r) { vscode.postMessage({ type: 'open', file: r.file, ...fileTarget() }); }

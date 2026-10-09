@@ -37,6 +37,9 @@ export const mock = {
   commands: [] as unknown[][],
   /** Return values for executeCommand, keyed by command id, e.g. 'vscode.executeDocumentSymbolProvider'. */
   commandResults: {} as Record<string, unknown>,
+  /** What vscode.commands.getCommands() reports and vscode.extensions.all lists. */
+  commandIds: [] as string[],
+  extensions: [] as unknown[],
   themeListeners: new Set<() => void>(),
   reset(): void {
     this.settings = {};
@@ -47,6 +50,8 @@ export const mock = {
     this.infoMessages = [];
     this.commands = [];
     this.commandResults = {};
+    this.commandIds = [];
+    this.extensions = [];
     this.themeListeners.clear();
   },
 };
@@ -91,8 +96,14 @@ const vscodeMock = {
     showInformationMessage(message: string) { mock.infoMessages.push(message); return Promise.resolve(undefined); },
     withProgress: <T>(_options: unknown, task: () => T) => task(),
   },
-  commands: { executeCommand: async (...args: unknown[]) => { mock.commands.push(args); return mock.commandResults[args[0] as string]; } },
-  extensions: { all: [] as unknown[] },
+  commands: {
+    executeCommand: async (...args: unknown[]) => { mock.commands.push(args); return mock.commandResults[args[0] as string]; },
+    getCommands: async () => mock.commandIds,
+  },
+  extensions: {
+    get all() { return mock.extensions; },
+    onDidChange: () => ({ dispose() {} }),
+  },
   ColorThemeKind: { Light: 1, Dark: 2, HighContrast: 3, HighContrastLight: 4 },
   ProgressLocation: { Notification: 15 },
   Position: class { constructor(public line: number, public character: number) {} },

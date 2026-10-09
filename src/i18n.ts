@@ -11,6 +11,16 @@ export interface UiStrings {
   git: string;
   doc: string;
   refs: string;
+  commands: string;
+  runCommandPlaceholder: string;
+  recentlyUsed: string;
+  showAllCommands: string;
+  commandSingular: string;
+  commandPlural: string;
+  commandId: string;
+  commandFrom: string;
+  commandKey: string;
+  commandNoKey: string;
 
   // Button tooltips (without keybinding suffix, appended at render time)
   regex: string;
@@ -96,6 +106,16 @@ const zh: UiStrings = {
   git: 'Git',
   doc: '文档',
   refs: '引用',
+  commands: '命令',
+  runCommandPlaceholder: '运行命令…',
+  recentlyUsed: '最近使用',
+  showAllCommands: '在命令面板中显示“{0}”的所有命令',
+  commandSingular: '个命令',
+  commandPlural: '个命令',
+  commandId: '命令 ID',
+  commandFrom: '来源',
+  commandKey: '快捷键',
+  commandNoKey: '无',
 
   regex: '正则',
   caseSensitive: '大小写',
@@ -210,6 +230,16 @@ const en: UiStrings = {
   git: 'Git',
   doc: 'Doc',
   refs: 'Refs',
+  commands: 'Commands',
+  runCommandPlaceholder: 'Run a command…',
+  recentlyUsed: 'recently used',
+  showAllCommands: "Show all commands for '{0}'",
+  commandSingular: 'command',
+  commandPlural: 'commands',
+  commandId: 'Command ID',
+  commandFrom: 'From',
+  commandKey: 'Keybinding',
+  commandNoKey: 'None',
 
   regex: 'Regex',
   caseSensitive: 'Case sensitive',

@@ -118,6 +118,8 @@ export function renderWebviewHtml(params: WebviewHtmlParams): string {
   <button type="button" class="tab" data-scope="git">${s.git}</button>
   <button type="button" class="tab" data-scope="doc">${s.doc}</button>
   <button type="button" class="tab" data-scope="refs">${s.refs}</button>
+  <!-- shown only while the Commands list is (entered with ">" or Spyglass: Find Commands) -->
+  <button type="button" class="tab" data-scope="commands" hidden>${s.commands}</button>
 </div>
 </div>
 
