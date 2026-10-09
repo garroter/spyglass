@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { fuzzyScore, parseFileQuery, parseQueryInput } from '../webviewUtils';
+import { commandLabel, fuzzyScore, parseFileQuery, parseQueryInput, rankCommands } from '../webviewUtils';
 
 describe('fuzzyScore', () => {
   it('returns null when query characters are not all present', () => {
@@ -287,5 +287,60 @@ describe('fuzzyRank', () => {
       { file: '/3', rel: 'src/application.ts' },
     ];
     expect(fuzzyRank(list, 'app', 10).map(r => r.item.file)).toEqual(['/2', '/3', '/1']);
+  });
+});
+
+describe('rankCommands (the Commands list: recently run first)', () => {
+  const entries = [
+    { id: 'a.close', title: 'Close Editor', category: 'View' },
+    { id: 'git.commit', title: 'Commit', category: 'Git' },
+    { id: 'git.push', title: 'Push', category: 'Git' },
+    { id: 'fmt', title: 'Format Document', category: 'Editor' },
+    { id: 'plain', title: 'Reload Window' },
+  ];
+  const ids = (r: Array<{ entry: { id: string } }>) => r.map(x => x.entry.id);
+
+  it('labels a command "Category: Title", or just the title', () => {
+    expect(commandLabel(entries[1])).toBe('Git: Commit');
+    expect(commandLabel(entries[4])).toBe('Reload Window');
+  });
+
+  it('with no query lists the recent ones first, newest first, then the rest in the given order', () => {
+    const r = rankCommands(entries, '', ['git.push', 'fmt'], 100);
+    expect(ids(r)).toEqual(['git.push', 'fmt', 'a.close', 'git.commit', 'plain']);
+    expect(r.map(x => x.recent)).toEqual([true, true, false, false, false]);
+  });
+
+  it('with a query puts matching recent ones first, then the others by how well they match', () => {
+    const r = rankCommands(entries, 'git', ['git.push'], 100);
+    expect(ids(r)).toEqual(['git.push', 'git.commit']);
+  });
+
+  it('leaves out commands that do not match', () => {
+    expect(ids(rankCommands(entries, 'zzz', ['git.push'], 100))).toEqual([]);
+  });
+
+  it('ignores recent ids that are no longer in the list', () => {
+    expect(ids(rankCommands(entries, '', ['gone.away', 'plain'], 100))[0]).toBe('plain');
+  });
+
+  it('shows at most 10 recent ones first for a query', () => {
+    const many = Array.from({ length: 15 }, (_, i) => ({ id: `c${i}`, title: `Command ${i}` }));
+    const recent = many.map(m => m.id).reverse(); // c14 newest
+    const r = rankCommands(many, 'command', recent, 100);
+    expect(r.filter(x => x.recent)).toHaveLength(10);
+    expect(ids(r).slice(0, 10)).toEqual(recent.slice(0, 10));
+    expect(r).toHaveLength(15);
+  });
+
+  it('stops at the limit', () => {
+    expect(rankCommands(entries, '', [], 2)).toHaveLength(2);
+  });
+
+  it('marks the matched characters of the label', () => {
+    const [first] = rankCommands(entries, 'gc', [], 100);
+    expect(first.entry.id).toBe('git.commit');
+    const label = commandLabel(first.entry);
+    expect(first.positions.map(p => label[p]).join('')).toBe('GC');
   });
 });

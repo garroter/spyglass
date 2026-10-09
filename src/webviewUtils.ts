@@ -224,3 +224,60 @@ export function fuzzyRank<T extends { rel: string }>(list: readonly T[], query: 
     return { item: list[i], positions: Array.from(pos) };
   });
 }
+
+// ---------------------------------------------------------------------------------------------------
+// The Commands list
+// ---------------------------------------------------------------------------------------------------
+
+/** How a command is listed and matched: "Category: Title", or the title alone. */
+export function commandLabel(e: { title: string; category?: string }): string {
+  return e.category ? e.category + ': ' + e.title : e.title;
+}
+
+export interface RankedCommand<T> {
+  entry: T;
+  /** Matched character positions in commandLabel(entry). */
+  positions: number[];
+  /** One of the recently run commands, listed first. */
+  recent: boolean;
+}
+
+const MAX_RECENT_FIRST = 10;
+
+/**
+ * The commands to list for `query`, at most `limit`: recently run ones first (newest first; with a
+ * query only those that match, at most 10), then the rest - in the given order when the query is
+ * empty, else by fuzzy score. Recent ids that are no longer in `entries` are ignored.
+ */
+export function rankCommands<T extends { id: string; title: string; category?: string }>(
+  entries: readonly T[], query: string, recentIds: readonly string[], limit: number,
+): RankedCommand<T>[] {
+  const q = query.trim();
+  const byId = new Map(entries.map(e => [e.id, e]));
+  const out: RankedCommand<T>[] = [];
+  const taken = new Set<string>();
+
+  for (const id of recentIds) {
+    if (out.length >= (q ? MAX_RECENT_FIRST : limit)) { break; }
+    const entry = byId.get(id);
+    if (!entry || taken.has(id)) { continue; }
+    const m = q ? fuzzyScore(commandLabel(entry), q) : { score: 0, positions: [] };
+    if (!m) { continue; }
+    out.push({ entry, positions: m.positions, recent: true });
+    taken.add(id);
+  }
+
+  const rest: Array<RankedCommand<T> & { score: number; order: number }> = [];
+  entries.forEach((entry, order) => {
+    if (taken.has(entry.id)) { return; }
+    const m = q ? fuzzyScore(commandLabel(entry), q) : { score: 0, positions: [] };
+    if (m) { rest.push({ entry, positions: m.positions, recent: false, score: m.score, order }); }
+  });
+  if (q) { rest.sort((a, b) => b.score - a.score || a.order - b.order); }
+
+  for (const r of rest) {
+    if (out.length >= limit) { break; }
+    out.push({ entry: r.entry, positions: r.positions, recent: false });
+  }
+  return out.slice(0, limit);
+}
