@@ -42,6 +42,9 @@ export const state: AppState = {
   savedSearches: (SAVED_SEARCHES ?? []).slice(),
   bookmarksMode: false,
   refsSymbol: '',
+  fileLine: null,
+  fileColumn: null,
+  atReturnScope: null,
 };
 
 export function saveButtonPrefs(): void {

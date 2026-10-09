@@ -43,6 +43,21 @@ export function parseQueryInput(raw: string): { query: string; globFilter: strin
   };
 }
 
+/**
+ * Splits a trailing `:line` or `:line:column` off a file-list query, as in VS Code's Quick Open:
+ * `util.ts:42` → file query `util.ts`, line 42. A bare `:42` means a line in the current file
+ * (empty query). A trailing `:` alone is dropped, so the list stays put while the number is typed.
+ */
+export function parseFileQuery(query: string): { query: string; line?: number; column?: number } {
+  const m = /^(.*?):([1-9]\d*)(?::([1-9]\d*))?$/.exec(query);
+  if (m) {
+    return m[3] !== undefined
+      ? { query: m[1], line: Number(m[2]), column: Number(m[3]) }
+      : { query: m[1], line: Number(m[2]) };
+  }
+  return { query: query.endsWith(':') ? query.slice(0, -1) : query };
+}
+
 // ---------------------------------------------------------------------------------------------------
 // Ranking a long list of files while the user types
 // ---------------------------------------------------------------------------------------------------

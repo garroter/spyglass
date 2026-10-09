@@ -1,6 +1,6 @@
 import { state } from './state';
 import { ctxMenu, ctxOpen, ctxOpenSplit, ctxCopyAbs, ctxCopyRel, ctxReveal, ctxPin, wrap } from './dom';
-import { isFileScope, isSymbolScope } from './search';
+import { isFileScope, isSymbolScope, visibleSymbols } from './search';
 import { recentDefault } from './preview';
 import { openResult, openResultInSplit, updateSelection, togglePin, isPinnedFile } from './render';
 
@@ -20,7 +20,7 @@ function getResultData(i: number): CtxData | null {
     return r ? { file: r.file, rel: r.relativePath, line: 1 } : null;
   }
   if (isSymbolScope()) {
-    const r = state.symbolResults[i];
+    const r = visibleSymbols()[i];
     return r ? { file: r.file, rel: r.relativePath, line: r.line } : null;
   }
   const r = state.results[i];

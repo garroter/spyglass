@@ -1,5 +1,13 @@
 # Changelog
 
+## [Unreleased]
+
+### Added
+- **Go to line & symbol, like Quick Open** — in the Files and Recent lists `util.ts:42` (or `util.ts:42:7`) previews and opens the file at that line (and column), `:42` goes to a line in the file you are editing, and a leading `@` switches to the symbols of that file (Doc), going back when you delete the `@`. `file:line` works in the Git list too. Text searches are unchanged
+
+### Fixed
+- **Doc / Symbols: Enter opened the wrong symbol after filtering** — with a query (Doc) or a kind chip active, `Enter`, `Ctrl+Enter`, the preview, copying the path and multi-select used the position in the unfiltered list, so they could act on a different symbol than the one highlighted
+
 ## [0.3.1] - 2026-10-09
 
 ### Changed

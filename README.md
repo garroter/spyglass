@@ -98,6 +98,7 @@ VS Code's built-in search (`Ctrl+Shift+F`) is powerful but slow to use — it re
 - **Scope memory** — last used scope is restored when you reopen
 - **Dir scope** — search only within the directory of the active file
 - **One command per scope** — "Find Files", "Find in Project", "Find Symbols in Document" … open Spyglass straight in that scope, so each can have its own shortcut (see [Commands](#-commands))
+- **Go to line & symbol** — `util.ts:42` opens a file at a line, `:42` jumps to a line in the current file, `@name` lists its symbols, just like Quick Open → [Go to line & symbol](#-go-to-line--symbol)
 - **Search history** — navigate previous queries with `Ctrl+↑` / `Ctrl+↓`
 - **Saved searches (bookmarks)** — `Alt+B` bookmarks the current query+scope; `★` button opens the bookmarks overlay; persisted across sessions
 - **Multi-select** — pick multiple results and open them all at once
@@ -234,6 +235,21 @@ The general command takes the scope as an argument too, which is handy if you pr
 Valid scopes are `project`, `openFiles`, `files`, `recent`, `here`, `symbols`, `git`, `doc` and `refs`; an unknown value is ignored and Spyglass opens as usual.
 
 A scope chosen by a command is **not** remembered: the plain `Ctrl+Alt+F` / `Shift Shift` shortcut still reopens in the scope you last picked yourself with the tabs.
+
+---
+
+## 🎯 Go to line & symbol
+
+In the **Files** and **Recent** lists the query understands the same shortcuts as VS Code's Quick Open (`Ctrl+P`):
+
+| Type | What happens |
+|------|--------------|
+| `util.ts:42` | Filters the files by `util.ts`; the preview shows line 42 and `Enter` opens the file there (also in the **Git** list) |
+| `util.ts:42:7` | The same, with the cursor at column 7 |
+| `:42` | Line 42 in the file you are editing: one result, previewed at that line |
+| `@` | Switches to the **Doc** scope — the symbols of the current file — and keeps the `@` in the box; `@init` filters them |
+
+Delete the `@` and you are back in the list you came from. A line past the end of the file goes to its last line. In the text search scopes (Project, Open Files, Dir) nothing changes: `std::vector` or `@Override` are searched as text.
 
 ---
 

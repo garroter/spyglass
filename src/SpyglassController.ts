@@ -24,9 +24,20 @@ export function resolveInitialScope(lastScope: string | undefined, configured: s
  */
 export interface SpyglassHost {
   readonly webview: vscode.Webview;
-  openFile(filePath: string, line: number): Promise<void>;
-  openFileInSplit(filePath: string, line: number): Promise<void>;
+  /** `line` and `column` are 1-based; a missing column means the start of the line. */
+  openFile(filePath: string, line: number, column?: number): Promise<void>;
+  openFileInSplit(filePath: string, line: number, column?: number): Promise<void>;
   close(): void;
+}
+
+/**
+ * Puts the cursor at a 1-based line and column and scrolls it into view. Positions past the end of
+ * the line or the file are moved back onto it, as `util.ts:9999` does in Quick Open.
+ */
+export function revealPosition(editor: vscode.TextEditor, line: number, column?: number): void {
+  const pos = editor.document.validatePosition(new vscode.Position(Math.max(0, line - 1), Math.max(0, (column ?? 1) - 1)));
+  editor.selection = new vscode.Selection(pos, pos);
+  editor.revealRange(new vscode.Range(pos, pos), vscode.TextEditorRevealType.InCenter);
 }
 
 export interface ActiveContext {
@@ -328,13 +339,19 @@ export class SpyglassController {
         }
         break;
       case 'openInSplit':
-        await this._host.openFileInSplit(msg.file as string, msg.line as number);
+        await this._host.openFileInSplit(msg.file as string, msg.line as number, msg.column as number | undefined);
         break;
       case 'preview':
         await this._sendPreview(msg.file as string, msg.line as number);
         break;
       case 'open':
-        await this._host.openFile(msg.file as string, msg.line as number);
+        await this._host.openFile(msg.file as string, msg.line as number, msg.column as number | undefined);
+        break;
+      case 'activeFile':
+        // a bare `:line` in a file list goes to that line in the current file
+        this.post(this._activeFile
+          ? { type: 'activeFile', file: this._activeFile, relativePath: this._makeRelative(this._activeFile) }
+          : { type: 'activeFile', file: '' });
         break;
       case 'scopeChanged':
         this._scope = msg.scope as Scope;
@@ -746,7 +763,8 @@ export class SpyglassController {
       }
 
       const changedLines = await getChangedLines(filePath, cwdForFile(filePath, this._cwdList, this._cwd), this._gitCache);
-      this.post({ type: 'previewContent', content, currentLine: targetLine, relativePath, ext, changedLines });
+      const lineCount = content.split('\n').length;
+      this.post({ type: 'previewContent', content, currentLine: Math.min(targetLine, lineCount), relativePath, ext, changedLines });
     } catch {
       this.post({ type: 'previewContent', content: '(cannot read file)', currentLine: 1, relativePath, ext: '', changedLines: [] });
     }

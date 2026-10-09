@@ -1,7 +1,7 @@
 import { state, saveButtonPrefs } from './state';
 import { escHtml, applyQueryHighlight } from './highlight';
 import { previewHdr, previewEmpty, previewCont, rightPanel, leftPanel, previewBtn } from './dom';
-import { isFileScope, isSymbolScope } from './search';
+import { isFileScope, isSymbolScope, visibleSymbols } from './search';
 
 let previewTimer: ReturnType<typeof setTimeout> | null = null;
 
@@ -94,13 +94,13 @@ function requestFilePreview(): void {
   if (!r) { return; }
   clearTimeout(previewTimer!);
   previewTimer = setTimeout(() => {
-    vscode.postMessage({ type: 'preview', file: r.file, line: 1 });
+    vscode.postMessage({ type: 'preview', file: r.file, line: state.fileLine ?? 1 });
   }, 80);
 }
 
 function requestSymbolPreview(): void {
   if (!state.showPreview) { return; }
-  const r = state.symbolResults[state.selected];
+  const r = visibleSymbols()[state.selected];
   if (!r) { return; }
   clearTimeout(previewTimer!);
   previewTimer = setTimeout(() => {

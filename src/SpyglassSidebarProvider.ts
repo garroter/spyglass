@@ -1,5 +1,5 @@
 import * as vscode from 'vscode';
-import { SpyglassController, SpyglassHost } from './SpyglassController';
+import { SpyglassController, SpyglassHost, revealPosition } from './SpyglassController';
 
 /** The Activity Bar view: a persistent webview that hosts a SpyglassController. */
 export class SpyglassSidebarProvider implements vscode.WebviewViewProvider {
@@ -22,8 +22,8 @@ export class SpyglassSidebarProvider implements vscode.WebviewViewProvider {
     // The sidebar stays open: opening a result never closes it, and Esc does nothing.
     const host: SpyglassHost = {
       webview: webviewView.webview,
-      openFile: (filePath, line) => this._show(filePath, line, { viewColumn: vscode.ViewColumn.One, preserveFocus: false }),
-      openFileInSplit: (filePath, line) => this._show(filePath, line, { viewColumn: vscode.ViewColumn.Beside }),
+      openFile: (filePath, line, column) => this._show(filePath, line, column, { viewColumn: vscode.ViewColumn.One, preserveFocus: false }),
+      openFileInSplit: (filePath, line, column) => this._show(filePath, line, column, { viewColumn: vscode.ViewColumn.Beside }),
       close: () => { /* nothing to close */ },
     };
 
@@ -41,14 +41,12 @@ export class SpyglassSidebarProvider implements vscode.WebviewViewProvider {
     webviewView.onDidDispose(() => controller.dispose());
   }
 
-  private async _show(filePath: string, line: number, options: vscode.TextDocumentShowOptions): Promise<void> {
+  private async _show(filePath: string, line: number, column: number | undefined, options: vscode.TextDocumentShowOptions): Promise<void> {
     try {
       const uri = vscode.Uri.file(filePath);
       const doc = await vscode.workspace.openTextDocument(uri);
       const editor = await vscode.window.showTextDocument(doc, options);
-      const pos = new vscode.Position(Math.max(0, line - 1), 0);
-      editor.selection = new vscode.Selection(pos, pos);
-      editor.revealRange(new vscode.Range(pos, pos), vscode.TextEditorRevealType.InCenter);
+      revealPosition(editor, line, column);
     } catch {
       vscode.window.showErrorMessage(`Spyglass: Could not open file ${filePath}`);
     }

@@ -57,6 +57,7 @@ export interface UiStrings {
   copiedPaths: string;
   copied: string;
   noFileSelected: string;
+  gotoLineNoFile: string;
 
   // Errors
   ripgrepNotFound: string;
@@ -120,7 +121,7 @@ const zh: UiStrings = {
   replaceAll: '全部替换',
   includeLabel: '包含:',
 
-  searchFilesByName: '按文件名搜索...',
+  searchFilesByName: '按文件名搜索… (文件:行, :行, @符号)',
   filterRecentFiles: '筛选最近文件...',
   searchWorkspaceSymbols: '搜索工作区符号...',
   filterDocumentSymbols: '筛选文档符号...',
@@ -135,6 +136,7 @@ const zh: UiStrings = {
   copiedPaths: '已复制',
   copied: '已复制:',
   noFileSelected: '未选择文件',
+  gotoLineNoFile: '请先打开一个文件，才能跳转到行',
 
   ripgrepNotFound: 'Spyglass: 未找到或无法自动安装 ripgrep。请系统级安装或在设置中指定 spyglass.ripgrepPath。',
   openSettings: '打开设置',
@@ -225,7 +227,7 @@ const en: UiStrings = {
   replaceAll: 'Replace all',
   includeLabel: 'include:',
 
-  searchFilesByName: 'Search files by name...',
+  searchFilesByName: 'Search files by name… (file:line, :line, @symbol)',
   filterRecentFiles: 'Filter recent files...',
   searchWorkspaceSymbols: 'Search workspace symbols...',
   filterDocumentSymbols: 'Filter document symbols...',
@@ -240,6 +242,7 @@ const en: UiStrings = {
   copiedPaths: 'Copied',
   copied: 'Copied:',
   noFileSelected: 'No file selected',
+  gotoLineNoFile: 'Open a file to go to a line',
 
   ripgrepNotFound: 'Spyglass: could not find or auto-install ripgrep. Install it system-wide or set spyglass.ripgrepPath in settings.',
   openSettings: 'Open Settings',

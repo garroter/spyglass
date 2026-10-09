@@ -6,7 +6,7 @@ import {
   sortBtn, includeBtn, includeRow, includeInput,
   bookmarksBtn, moreBtn, secondaryToolbar, ignoredBtn, multilineBtn,
 } from './dom';
-import { isFileScope, isSymbolScope, isDocScope, isGitScope, isTextScope, isRefsScope, parseQueryInput, triggerSearch, filterFilesLocally } from './search';
+import { isFileScope, isSymbolScope, isDocScope, isGitScope, isTextScope, isRefsScope, parseQueryInput, triggerSearch, filterFilesLocally, visibleSymbols, parseFileQuery, isGotoLine } from './search';
 import { clearPreview, togglePreview, requestPreview } from './preview';
 import { render, navigate, openResult, openResultInSplit, openAllSelected,
          toggleSelectResult, selectAll, copyCurrentPath, refreshGitScope,
@@ -49,6 +49,7 @@ export function updateReplaceRowVisibility(): void {
 export function setScope(scope: string, opts: { remember?: boolean } = {}): void {
   if (scope === 'git') { state.gitFiles = null; }
   if (scope === 'doc') { state.symbolResults = []; }
+  state.atReturnScope = null; // a scope chosen any other way ends the `@` round trip
   state.scope = scope;
   state.selected = 0;
   state.multiSelected = new Set();
@@ -94,8 +95,30 @@ function applyQueryInput(): void {
     state.bookmarksMode = false;
     bookmarksBtn.classList.remove('active');
   }
-  const { query, globFilter } = parseQueryInput(queryEl.value);
-  state.query = query;
+  const raw = queryEl.value;
+  // Like Quick Open: a leading `@` in a file list shows the current file's symbols (Doc), and
+  // deleting the `@` goes back to the list it came from.
+  if ((state.scope === 'files' || state.scope === 'recent') && raw.startsWith('@')) {
+    const from = state.scope;
+    setScope('doc', { remember: false });
+    state.atReturnScope = from;
+  } else if (state.scope === 'doc' && state.atReturnScope && !raw.startsWith('@')) {
+    setScope(state.atReturnScope, { remember: false });
+  }
+
+  const { query, globFilter } = parseQueryInput(raw);
+  state.fileLine = null;
+  state.fileColumn = null;
+  if (isDocScope()) {
+    state.query = query.startsWith('@') ? query.slice(1) : query;
+  } else if (isFileScope()) {
+    const parsed = parseFileQuery(query); // `util.ts:42:7`
+    state.query = parsed.query;
+    state.fileLine = parsed.line ?? null;
+    state.fileColumn = parsed.column ?? null;
+  } else {
+    state.query = query;
+  }
   if (globFilter !== state.globFilter) { state.globFilter = globFilter; }
   state.selected = 0;
   triggerSearch(render);
@@ -409,7 +432,7 @@ export function initEvents(): void {
         const r = state.fileResults[state.selected];
         if (r) { absFile = r.file; }
       } else if (isSymbolScope()) {
-        const r = state.symbolResults[state.selected];
+        const r = visibleSymbols()[state.selected];
         if (r) { absFile = r.file; }
       } else {
         const r = state.results[state.selected];
@@ -544,6 +567,14 @@ export function initMessages(): void {
         reinitHighlighter(data.theme).then(() => {
           if (state.currentPreviewFile) { requestPreview(); }
         });
+        break;
+      case 'activeFile':
+        // the answer to a bare `:line`, if that is still what is typed
+        if (!isGotoLine()) { break; }
+        state.searching = false;
+        state.selected = 0;
+        state.fileResults = data.file ? [{ file: data.file, relativePath: data.relativePath, matchPositions: [] }] : [];
+        render();
         break;
       case 'previewContent': {
         const { content, currentLine, relativePath, ext, changedLines } = data;

@@ -1,8 +1,8 @@
 import { state } from './state';
-import type { RecentFile, FileResult } from './types';
+import type { RecentFile, FileResult, SymbolResult } from './types';
 
 import { vscode } from './vscode';
-import { fuzzyRank, fuzzyScore, parseQueryInput } from '../webviewUtils';
+import { fuzzyRank, fuzzyScore, parseFileQuery, parseQueryInput } from '../webviewUtils';
 
 export function isFileScope(): boolean   { return state.scope === 'files' || state.scope === 'recent' || state.scope === 'git'; }
 export function isSymbolScope(): boolean { return state.scope === 'symbols' || state.scope === 'doc'; }
@@ -11,8 +11,20 @@ export function isGitScope(): boolean    { return state.scope === 'git'; }
 export function isRefsScope(): boolean   { return state.scope === 'refs'; }
 export function isTextScope(): boolean   { return !isFileScope() && !isSymbolScope(); }
 
+/** The symbols as listed: Doc filters by the query locally, and the kind chips filter both scopes. */
+export function visibleSymbols(): SymbolResult[] {
+  const q = isDocScope() ? state.query.toLowerCase() : '';
+  const byQuery = q ? state.symbolResults.filter(r => r.name.toLowerCase().includes(q)) : state.symbolResults;
+  return state.symbolKindFilter ? byQuery.filter(r => r.kindLabel === state.symbolKindFilter) : byQuery;
+}
+
+/** A bare `:line` in Files or Recent: go to that line in the current file. */
+export function isGotoLine(): boolean {
+  return (state.scope === 'files' || state.scope === 'recent') && state.fileLine !== null && !state.query;
+}
+
 // The same functions the unit tests exercise (src/webviewUtils.ts); esbuild bundles them in.
-export { parseQueryInput, fuzzyScore };
+export { parseQueryInput, parseFileQuery, fuzzyScore };
 
 /** The files to list for `query`, at most `limit`; a blank query lists them in their given order. */
 function fuzzyFilter(fileList: RecentFile[], query: string, limit: number): FileResult[] {
@@ -49,6 +61,13 @@ let searchTimer: ReturnType<typeof setTimeout> | null = null;
 
 export function triggerSearch(renderFn: () => void): void {
   clearTimeout(searchTimer!);
+  if (isGotoLine()) {
+    // only the extension knows the current file; it answers with an 'activeFile' message
+    state.searching = true;
+    renderFn();
+    vscode.postMessage({ type: 'activeFile' });
+    return;
+  }
   if (state.scope === 'files') {
     if (state.fileList) {
       filterFilesLocally(state.fileList, state.query);

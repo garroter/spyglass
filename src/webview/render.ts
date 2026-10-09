@@ -1,7 +1,7 @@
 import { state } from './state';
 import { escHtml, highlightMatch, highlightPositions, firstLineMatch } from './highlight';
 import { wrap, stateMsg, resultInfo } from './dom';
-import { isFileScope, isSymbolScope, isDocScope, isGitScope, isRefsScope, triggerSearch } from './search';
+import { isFileScope, isSymbolScope, isDocScope, isGitScope, isRefsScope, triggerSearch, visibleSymbols, isGotoLine } from './search';
 import type { SearchResult } from './types';
 import { requestPreview, recentDefault, textResultTarget } from './preview';
 
@@ -272,7 +272,8 @@ export function renderFileResults(): void {
   const GIT_LABEL: Record<string, string> = { M: 'modified', A: 'added', U: 'untracked', D: 'deleted', R: 'renamed' };
 
   if (state.fileResults.length === 0) {
-    stateMsg.textContent = state.query
+    stateMsg.textContent = isGotoLine() ? S.gotoLineNoFile
+      : state.query
       ? 'No files found.'
       : state.scope === 'recent' ? 'No recent files yet.'
       : state.scope === 'git'   ? 'Working tree is clean — no changes.'
@@ -403,15 +404,8 @@ export function renderSymbolResults(): void {
     wrap.prepend(chipsRow);
   }
 
-  // Filter by query (doc scope: local filter; symbols: LSP already filtered)
-  const queryFiltered = (isDocScope() && state.query)
-    ? state.symbolResults.filter(r => r.name.toLowerCase().includes(state.query.toLowerCase()))
-    : state.symbolResults;
-
-  // Filter by kind if active
-  const filtered = state.symbolKindFilter
-    ? queryFiltered.filter(r => r.kindLabel === state.symbolKindFilter)
-    : queryFiltered;
+  // Doc filters by the query locally (Symbols is already filtered by the LSP), then by kind
+  const filtered = visibleSymbols();
 
   const frag = document.createDocumentFragment();
   filtered.forEach((r, i) => {
@@ -441,12 +435,19 @@ export function renderSymbolResults(): void {
 
 // ── Actions (kept here to avoid circular deps with events.ts) ──────────────
 
+/** Where a file from a file list opens: the line (and column) typed after it, `util.ts:42:7`, else the top. */
+function fileTarget(): { line: number; column?: number } {
+  return state.fileColumn !== null
+    ? { line: state.fileLine ?? 1, column: state.fileColumn }
+    : { line: state.fileLine ?? 1 };
+}
+
 export function openResult(index: number): void {
   if (isFileScope()) {
     const r = state.fileResults[index];
-    if (r) { vscode.postMessage({ type: 'open', file: r.file, line: 1 }); }
+    if (r) { vscode.postMessage({ type: 'open', file: r.file, ...fileTarget() }); }
   } else if (isSymbolScope()) {
-    const r = state.symbolResults[index];
+    const r = visibleSymbols()[index];
     if (r) { vscode.postMessage({ type: 'open', file: r.file, line: r.line }); }
   } else {
     const target = textResultTarget(index);
@@ -457,9 +458,9 @@ export function openResult(index: number): void {
 export function openResultInSplit(index: number): void {
   if (isFileScope()) {
     const r = state.fileResults[index];
-    if (r) { vscode.postMessage({ type: 'openInSplit', file: r.file, line: 1 }); }
+    if (r) { vscode.postMessage({ type: 'openInSplit', file: r.file, ...fileTarget() }); }
   } else if (isSymbolScope()) {
-    const r = state.symbolResults[index];
+    const r = visibleSymbols()[index];
     if (r) { vscode.postMessage({ type: 'openInSplit', file: r.file, line: r.line }); }
   } else {
     const target = textResultTarget(index);
@@ -477,7 +478,7 @@ export function selectAll(): void {
   const rd = recentDefault();
   const len = rd ? rd.length
             : isFileScope() ? state.fileResults.length
-            : isSymbolScope() ? state.symbolResults.length
+            : isSymbolScope() ? visibleSymbols().length
             : state.results.length;
   for (let i = 0; i < len; i++) { state.multiSelected.add(i); }
   showToast(`${S.selectedResults} ${len} result${len !== 1 ? 's' : ''}`);
@@ -489,11 +490,11 @@ export function openAllSelected(): void {
   if (isFileScope()) {
     for (const i of state.multiSelected) {
       const r = state.fileResults[i];
-      if (r) { vscode.postMessage({ type: 'open', file: r.file, line: 1 }); }
+      if (r) { vscode.postMessage({ type: 'open', file: r.file, ...fileTarget() }); }
     }
   } else if (isSymbolScope()) {
     for (const i of state.multiSelected) {
-      const r = state.symbolResults[i];
+      const r = visibleSymbols()[i];
       if (r) { vscode.postMessage({ type: 'open', file: r.file, line: r.line }); }
     }
   } else {
@@ -514,7 +515,7 @@ export function copyCurrentPath(): void {
       }
     } else if (isSymbolScope()) {
       for (const i of state.multiSelected) {
-        const r = state.symbolResults[i];
+        const r = visibleSymbols()[i];
         if (r) { paths.push(r.file); }
       }
     } else {
@@ -535,7 +536,7 @@ export function copyCurrentPath(): void {
     const r = state.fileResults[state.selected];
     if (r) { file = r.file; }
   } else if (isSymbolScope()) {
-    const r = state.symbolResults[state.selected];
+    const r = visibleSymbols()[state.selected];
     if (r) { file = r.file; }
   } else {
     const rd = recentDefault();
@@ -554,7 +555,7 @@ export function currentFile(): { file: string; rel: string } | null {
     return r ? { file: r.file, rel: r.relativePath } : null;
   }
   if (isSymbolScope()) {
-    const r = state.symbolResults[state.selected];
+    const r = visibleSymbols()[state.selected];
     return r ? { file: r.file, rel: r.relativePath } : null;
   }
   const rd = recentDefault();
@@ -616,7 +617,7 @@ export function navigate(delta: number): void {
   const rd = recentDefault();
   const len = rd ? rd.length
             : isFileScope() ? state.fileResults.length
-            : isSymbolScope() ? state.symbolResults.length
+            : isSymbolScope() ? visibleSymbols().length
             : state.results.length;
   state.selected = Math.max(0, Math.min(state.selected + delta, len - 1));
   updateSelection();

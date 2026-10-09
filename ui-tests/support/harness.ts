@@ -44,8 +44,8 @@ export interface Spyglass {
   /** Temp copy of ui-tests/fixtures/project; tests may modify it. */
   project: string;
   /** Files the host was asked to open / open in a split, and how often it was asked to close. */
-  opened: Array<{ file: string; line: number }>;
-  openedInSplit: Array<{ file: string; line: number }>;
+  opened: Array<{ file: string; line: number; column?: number }>;
+  openedInSplit: Array<{ file: string; line: number; column?: number }>;
   closeCount: () => number;
   /** Every message the page posted to the host. */
   fromPage: Array<Record<string, unknown>>;
@@ -140,8 +140,8 @@ export const test = base.extend<{ openSpyglass: (options?: OpenOptions) => Promi
       let closeCount = 0;
       const host = {
         webview,
-        openFile: async (file: string, line: number) => { opened.push({ file, line }); },
-        openFileInSplit: async (file: string, line: number) => { openedInSplit.push({ file, line }); },
+        openFile: async (file: string, line: number, column?: number) => { opened.push({ file, line, column }); },
+        openFileInSplit: async (file: string, line: number, column?: number) => { openedInSplit.push({ file, line, column }); },
         close: () => { closeCount++; },
       } as unknown as SpyglassHost;
 

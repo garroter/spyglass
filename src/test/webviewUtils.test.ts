@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { fuzzyScore, parseQueryInput } from '../webviewUtils';
+import { fuzzyScore, parseFileQuery, parseQueryInput } from '../webviewUtils';
 
 describe('fuzzyScore', () => {
   it('returns null when query characters are not all present', () => {
@@ -78,6 +78,44 @@ describe('parseQueryInput', () => {
 
   it('handles empty input', () => {
     expect(parseQueryInput('')).toEqual({ query: '', globFilter: '' });
+  });
+});
+
+describe('parseFileQuery', () => {
+  it('leaves a plain file query alone', () => {
+    expect(parseFileQuery('util.ts')).toEqual({ query: 'util.ts' });
+  });
+
+  it('takes a line from a trailing :N', () => {
+    expect(parseFileQuery('util.ts:42')).toEqual({ query: 'util.ts', line: 42 });
+  });
+
+  it('takes a line and a column from a trailing :N:M', () => {
+    expect(parseFileQuery('util:42:7')).toEqual({ query: 'util', line: 42, column: 7 });
+  });
+
+  it('a bare :N is a line in the current file (empty query)', () => {
+    expect(parseFileQuery(':42')).toEqual({ query: '', line: 42 });
+  });
+
+  it('drops a trailing colon while the line is being typed, so the list does not vanish', () => {
+    expect(parseFileQuery('util.ts:')).toEqual({ query: 'util.ts' });
+    expect(parseFileQuery(':')).toEqual({ query: '' });
+  });
+
+  it('ignores line 0, which does not exist', () => {
+    expect(parseFileQuery('util:0')).toEqual({ query: 'util:0' });
+  });
+
+  it('keeps colons that are not a trailing line number', () => {
+    expect(parseFileQuery('C:\\src\\app.ts')).toEqual({ query: 'C:\\src\\app.ts' });
+    expect(parseFileQuery('a:b')).toEqual({ query: 'a:b' });
+    expect(parseFileQuery('util:4x')).toEqual({ query: 'util:4x' });
+  });
+
+  it('works after globs were taken out by parseQueryInput', () => {
+    const { query } = parseQueryInput('util:42 *.ts');
+    expect(parseFileQuery(query)).toEqual({ query: 'util', line: 42 });
   });
 });
 

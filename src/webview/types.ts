@@ -101,4 +101,9 @@ export interface AppState {
   savedSearches: Array<{ query: string; scope: string }>;
   bookmarksMode: boolean;
   refsSymbol: string;
+  /** Line (and column) typed after a file query in a file list: `util.ts:42:7`; null when none. */
+  fileLine: number | null;
+  fileColumn: number | null;
+  /** The file list a leading `@` switched to Doc from, to go back to when the `@` is deleted. */
+  atReturnScope: string | null;
 }

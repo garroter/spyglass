@@ -319,14 +319,34 @@ describe('SpyglassController — host-specific actions are delegated', () => {
   it('asks the host to open a file at a line', async () => {
     const { send, host } = setup();
     await send({ type: 'open', file: '/proj/a.ts', line: 42 });
-    expect(host.openFile).toHaveBeenCalledWith('/proj/a.ts', 42);
+    expect(host.openFile).toHaveBeenCalledWith('/proj/a.ts', 42, undefined);
     expect(host.openFileInSplit).not.toHaveBeenCalled();
+  });
+
+  it('passes a column on to the host (file:line:column)', async () => {
+    const { send, host } = setup();
+    await send({ type: 'open', file: '/proj/a.ts', line: 42, column: 7 });
+    expect(host.openFile).toHaveBeenCalledWith('/proj/a.ts', 42, 7);
+  });
+
+  it('tells the page which file is active, for a bare :line', async () => {
+    env.folders = [{ uri: { fsPath: '/proj' } }];
+    const { send, controller, posted } = setup();
+    controller.setActiveContext({ dir: '/proj/src', file: '/proj/src/x.ts', line: 0, character: 0 });
+    await send({ type: 'activeFile' });
+    expect(posted.filter(m => m.type === 'activeFile')).toEqual([{ type: 'activeFile', file: '/proj/src/x.ts', relativePath: 'src/x.ts' }]);
+  });
+
+  it('answers a bare :line with no file when none is active', async () => {
+    const { send, posted } = setup();
+    await send({ type: 'activeFile' });
+    expect(posted.filter(m => m.type === 'activeFile')).toEqual([{ type: 'activeFile', file: '' }]);
   });
 
   it('asks the host to open a file in a split', async () => {
     const { send, host } = setup();
     await send({ type: 'openInSplit', file: '/proj/a.ts', line: 7 });
-    expect(host.openFileInSplit).toHaveBeenCalledWith('/proj/a.ts', 7);
+    expect(host.openFileInSplit).toHaveBeenCalledWith('/proj/a.ts', 7, undefined);
     expect(host.openFile).not.toHaveBeenCalled();
   });
 

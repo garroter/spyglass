@@ -3,7 +3,7 @@ import * as path from 'path';
 import { isRipgrepAvailable } from './ripgrep';
 import { getUiStrings } from './i18n';
 import { planFileOpen } from './viewColumns';
-import { ActiveContext, SpyglassController, SpyglassHost } from './SpyglassController';
+import { ActiveContext, SpyglassController, SpyglassHost, revealPosition } from './SpyglassController';
 import { Scope } from './types';
 
 interface PanelInit {
@@ -114,7 +114,7 @@ export class FinderPanel implements SpyglassHost {
     this.dispose();
   }
 
-  public async openFile(filePath: string, line: number): Promise<void> {
+  public async openFile(filePath: string, line: number, column?: number): Promise<void> {
     try {
       const uri = vscode.Uri.file(filePath);
       const doc = await vscode.workspace.openTextDocument(uri);
@@ -122,22 +122,18 @@ export class FinderPanel implements SpyglassHost {
         ? await this._showDocumentAwayFromPanel(doc)
         : await vscode.window.showTextDocument(doc);
       if (!this._persistent) { this.dispose(); }
-      const pos = new vscode.Position(Math.max(0, line - 1), 0);
-      editor.selection = new vscode.Selection(pos, pos);
-      editor.revealRange(new vscode.Range(pos, pos), vscode.TextEditorRevealType.InCenter);
+      revealPosition(editor, line, column);
     } catch {
       vscode.window.showErrorMessage(`Finder: Could not open file ${filePath}`);
     }
   }
 
-  public async openFileInSplit(filePath: string, line: number): Promise<void> {
+  public async openFileInSplit(filePath: string, line: number, column?: number): Promise<void> {
     try {
       const uri = vscode.Uri.file(filePath);
       const doc = await vscode.workspace.openTextDocument(uri);
       const editor = await vscode.window.showTextDocument(doc, { viewColumn: vscode.ViewColumn.Beside });
-      const pos = new vscode.Position(Math.max(0, line - 1), 0);
-      editor.selection = new vscode.Selection(pos, pos);
-      editor.revealRange(new vscode.Range(pos, pos), vscode.TextEditorRevealType.InCenter);
+      revealPosition(editor, line, column);
       if (!this._persistent) { this.dispose(); }
     } catch {
       vscode.window.showErrorMessage(`Finder: Could not open file ${filePath}`);
