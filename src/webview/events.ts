@@ -1,5 +1,5 @@
 import { state, saveButtonPrefs } from './state';
-import { getHighlighter, shikiLines, reinitHighlighter } from './shiki';
+import { highlightLines, reinitHighlighter } from './shiki';
 import {
   queryEl, regexBtn, caseBtn, wordBtn, groupBtn, replaceBtn, previewBtn,
   replaceRow, replaceAllBtn, tabs, previewHdr,
@@ -33,6 +33,9 @@ function matchKey(e: KeyboardEvent, binding: string): boolean {
 
 const KB = (window as any).__spyglass.KB;
 const SCOPES = ['project', 'openFiles', 'files', 'recent', 'here', 'symbols', 'git', 'doc', 'refs'];
+
+// Bumped for every previewContent message, so only the newest preview is rendered.
+let previewSeq = 0;
 
 /** Scopes whose list is worth showing as soon as they are entered, before anything is typed. */
 export function scopeLoadsWithoutQuery(scope: string): boolean {
@@ -545,8 +548,10 @@ export function initMessages(): void {
       case 'previewContent': {
         const { content, currentLine, relativePath, ext, changedLines } = data;
         const query = (isFileScope() || isSymbolScope()) ? '' : state.query;
-        getHighlighter().then(hl => {
-          const lines = shikiLines(hl, content, ext);
+        // Highlighting can wait for a grammar to load; by then a newer preview may have arrived.
+        const seq = ++previewSeq;
+        highlightLines(content, ext).then(lines => {
+          if (seq !== previewSeq) { return; }
           (window as any).__renderPreview(lines, currentLine, relativePath, ext, changedLines, query, state.useRegex);
         });
         break;

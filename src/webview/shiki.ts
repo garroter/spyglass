@@ -5,36 +5,55 @@ let _promise: Promise<HighlighterCore> | null = null;
 let _themeName = 'spyglass-theme';
 let _hasVscodeTheme = false;
 
-const LANGS = [
-  import('shiki/langs/typescript'),
-  import('shiki/langs/javascript'),
-  import('shiki/langs/tsx'),
-  import('shiki/langs/jsx'),
-  import('shiki/langs/python'),
-  import('shiki/langs/rust'),
-  import('shiki/langs/go'),
-  import('shiki/langs/java'),
-  import('shiki/langs/c'),
-  import('shiki/langs/cpp'),
-  import('shiki/langs/css'),
-  import('shiki/langs/scss'),
-  import('shiki/langs/html'),
-  import('shiki/langs/json'),
-  import('shiki/langs/yaml'),
-  import('shiki/langs/toml'),
-  import('shiki/langs/markdown'),
-  import('shiki/langs/bash'),
-  import('shiki/langs/fish'),
-  import('shiki/langs/sql'),
-  import('shiki/langs/php'),
-  import('shiki/langs/ruby'),
-  import('shiki/langs/swift'),
-  import('shiki/langs/kotlin'),
-  import('shiki/langs/lua'),
-  import('shiki/langs/vue'),
-  import('shiki/langs/svelte'),
-  import('shiki/langs/dockerfile'),
-];
+// Grammars by Shiki language name. Each import() is a separate file in media/chunks/, loaded the
+// first time the preview shows a file in that language, so opening Spyglass parses none of them.
+const LANGS: Record<string, () => Promise<unknown>> = {
+  typescript: () => import('shiki/langs/typescript'),
+  javascript: () => import('shiki/langs/javascript'),
+  tsx: () => import('shiki/langs/tsx'),
+  jsx: () => import('shiki/langs/jsx'),
+  python: () => import('shiki/langs/python'),
+  rust: () => import('shiki/langs/rust'),
+  go: () => import('shiki/langs/go'),
+  java: () => import('shiki/langs/java'),
+  c: () => import('shiki/langs/c'),
+  cpp: () => import('shiki/langs/cpp'),
+  css: () => import('shiki/langs/css'),
+  scss: () => import('shiki/langs/scss'),
+  html: () => import('shiki/langs/html'),
+  json: () => import('shiki/langs/json'),
+  yaml: () => import('shiki/langs/yaml'),
+  toml: () => import('shiki/langs/toml'),
+  markdown: () => import('shiki/langs/markdown'),
+  bash: () => import('shiki/langs/bash'),
+  fish: () => import('shiki/langs/fish'),
+  sql: () => import('shiki/langs/sql'),
+  php: () => import('shiki/langs/php'),
+  ruby: () => import('shiki/langs/ruby'),
+  swift: () => import('shiki/langs/swift'),
+  kotlin: () => import('shiki/langs/kotlin'),
+  lua: () => import('shiki/langs/lua'),
+  vue: () => import('shiki/langs/vue'),
+  svelte: () => import('shiki/langs/svelte'),
+  dockerfile: () => import('shiki/langs/dockerfile'),
+};
+
+// Languages loaded (or loading) into each highlighter; a new one is made when the theme changes.
+const _loading = new WeakMap<HighlighterCore, Map<string, Promise<boolean>>>();
+
+/** Loads the grammar for `lang` into `hl` once; resolves to whether it is available. */
+function ensureLanguage(hl: HighlighterCore, lang: string): Promise<boolean> {
+  let perHl = _loading.get(hl);
+  if (!perHl) { perHl = new Map(); _loading.set(hl, perHl); }
+  let p = perHl.get(lang);
+  if (!p) {
+    p = LANGS[lang]()
+      .then(mod => hl.loadLanguage(mod as Parameters<HighlighterCore['loadLanguage']>[0]))
+      .then(() => true, () => false);
+    perHl.set(lang, p);
+  }
+  return p;
+}
 
 export function initHighlighter(vscodeTheme: object | null): void {
   _hasVscodeTheme = !!vscodeTheme;
@@ -46,7 +65,7 @@ export function initHighlighter(vscodeTheme: object | null): void {
       import('shiki/themes/github-dark'),
       import('shiki/themes/github-light'),
     ],
-    langs: LANGS,
+    langs: [],
     engine: createJavaScriptRegexEngine(),
   }).then(async (hl) => {
     if (vscodeTheme) {
@@ -112,9 +131,16 @@ const EXT: Record<string, string> = {
   dockerfile: 'dockerfile',
 };
 
-export function shikiLines(hl: HighlighterCore, content: string, ext: string): string[] {
+/** The preview lines of `content`, highlighted when its extension has a grammar (loaded on demand). */
+export async function highlightLines(content: string, ext: string): Promise<string[]> {
   const lang = EXT[ext.toLowerCase()];
   if (!lang) { return escapeLines(content); }
+  const hl = await getHighlighter();
+  if (!(await ensureLanguage(hl, lang))) { return escapeLines(content); }
+  return shikiLines(hl, lang, content);
+}
+
+function shikiLines(hl: HighlighterCore, lang: string, content: string): string[] {
   const theme = resolveThemeName();
   try {
     const html = hl.codeToHtml(content, { lang, theme });

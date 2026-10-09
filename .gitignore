@@ -8,3 +8,4 @@ test-results/
 playwright-report/
 # generated from src/webview/ by esbuild (npm run bundle-webview; also run by npm install)
 media/webview.js
+media/chunks/

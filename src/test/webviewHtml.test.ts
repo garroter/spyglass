@@ -72,7 +72,7 @@ describe('renderWebviewHtml — CSP and assets', () => {
   it('links the stylesheet and script it was given', () => {
     const html = render();
     expect(html).toContain('<link rel="stylesheet" href="vscode-webview://test/media/webview.css">');
-    expect(html).toContain('<script src="vscode-webview://test/media/webview.js"></script>');
+    expect(html).toContain('<script type="module" src="vscode-webview://test/media/webview.js"></script>');
   });
 });
 

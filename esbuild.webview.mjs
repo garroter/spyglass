@@ -1,4 +1,5 @@
 import * as esbuild from 'esbuild';
+import * as fs from 'fs';
 import * as path from 'path';
 import { fileURLToPath } from 'url';
 
@@ -18,11 +19,18 @@ const shikiLangsPlugin = {
   },
 };
 
+// Each Shiki grammar is a dynamic import(), so with splitting it becomes its own file in
+// media/chunks/ that the webview loads only when the preview needs that language. Chunk names
+// carry a content hash, so stale ones from earlier builds are removed first.
+fs.rmSync('media/chunks', { recursive: true, force: true });
+
 const ctx = await esbuild.context({
-  entryPoints: ['src/webview/main.ts'],
+  entryPoints: { webview: 'src/webview/main.ts' },
   bundle: true,
-  outfile: 'media/webview.js',
-  format: 'iife',
+  outdir: 'media',
+  chunkNames: 'chunks/[name]-[hash]',
+  splitting: true,
+  format: 'esm',
   platform: 'browser',
   target: ['chrome108'],
   sourcemap: false,

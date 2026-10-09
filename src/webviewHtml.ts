@@ -154,7 +154,7 @@ export function renderWebviewHtml(params: WebviewHtmlParams): string {
 </div>
 
 <script nonce="${nonce}">window.__spyglass = ${serializeConfig(config)};</script>
-<script src="${jsUri}"></script>
+<script type="module" src="${jsUri}"></script>
 </body>
 </html>`;
 }
