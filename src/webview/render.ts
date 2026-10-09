@@ -526,6 +526,7 @@ export function openResult(index: number): void {
 }
 
 export function openResultInSplit(index: number): void {
+  if (isCommandScope()) { return; } // commands are not files: nothing to open beside, select, copy or pin
   if (isFileScope()) {
     const r = state.fileResults[index];
     if (r) { vscode.postMessage({ type: 'openInSplit', file: r.file, ...fileTarget() }); }
@@ -539,12 +540,14 @@ export function openResultInSplit(index: number): void {
 }
 
 export function toggleSelectResult(i: number): void {
+  if (isCommandScope()) { return; } // commands are not files: nothing to open beside, select, copy or pin
   if (state.multiSelected.has(i)) { state.multiSelected.delete(i); }
   else { state.multiSelected.add(i); }
   render();
 }
 
 export function selectAll(): void {
+  if (isCommandScope()) { return; } // commands are not files: nothing to open beside, select, copy or pin
   const rd = recentDefault();
   const len = rd ? rd.length
             : isFileScope() ? state.fileResults.length
@@ -556,6 +559,7 @@ export function selectAll(): void {
 }
 
 export function openAllSelected(): void {
+  if (isCommandScope()) { return; } // commands are not files: nothing to open beside, select, copy or pin
   if (state.multiSelected.size === 0) { openResult(state.selected); return; }
   if (isFileScope()) {
     for (const i of state.multiSelected) {
@@ -576,6 +580,7 @@ export function openAllSelected(): void {
 }
 
 export function copyCurrentPath(): void {
+  if (isCommandScope()) { return; } // commands are not files: nothing to open beside, select, copy or pin
   if (state.multiSelected.size > 0) {
     const paths: string[] = [];
     if (isFileScope()) {
@@ -620,6 +625,7 @@ export function copyCurrentPath(): void {
 }
 
 export function currentFile(): { file: string; rel: string } | null {
+  if (isCommandScope()) { return null; }
   if (isFileScope()) {
     const r = state.fileResults[state.selected];
     return r ? { file: r.file, rel: r.relativePath } : null;
@@ -657,6 +663,7 @@ export function showToast(msg: string): void {
 }
 
 export function togglePin(): void {
+  if (isCommandScope()) { return; } // commands are not files: nothing to open beside, select, copy or pin
   const cur = currentFile();
   if (!cur) { return; }
   const basename = cur.rel.split('/').pop() ?? cur.rel;

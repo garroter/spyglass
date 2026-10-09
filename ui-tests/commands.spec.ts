@@ -190,3 +190,25 @@ test('after > in Files the preview pane describes the command, not a file previe
   await expect(page.locator('#preview-content')).toContainText('editor.action.formatDocument');
   await expect(page.locator('#preview-content .pline')).toHaveCount(0);
 });
+
+test('file actions do nothing in Commands, even with results left from an earlier search', async ({ openSpyglass }) => {
+  const s = await openSpyglass({ initialScope: 'project', beforeOpen: withCommands });
+  await s.page.locator('#query').fill('needle');
+  await expect(s.page.locator('.result')).toHaveCount(7);
+  await s.page.locator('.tab[data-scope="files"]').click();
+  await s.page.locator('#query').fill('>');
+  await expect.poll(() => labels(s.page)).toHaveLength(4);
+  const q = s.page.locator('#query');
+
+  await q.press('Control+Enter');  // open in split
+  await q.press('Alt+y');          // copy path
+  await q.press('Control+Space');  // multi-select
+  await q.press('Shift+Enter');    // open all selected
+  await s.page.locator('.result').first().click({ button: 'right' });
+  await s.page.waitForTimeout(200);
+
+  expect(s.openedInSplit).toEqual([]);
+  expect(s.opened).toEqual([]);
+  expect(mock.clipboard).toBe('');
+  await expect(s.page.locator('#ctx-menu')).not.toHaveClass(/visible/);
+});

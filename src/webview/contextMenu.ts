@@ -1,6 +1,6 @@
 import { state } from './state';
 import { ctxMenu, ctxOpen, ctxOpenSplit, ctxCopyAbs, ctxCopyRel, ctxReveal, ctxPin, wrap } from './dom';
-import { isFileScope, isSymbolScope, visibleSymbols } from './search';
+import { isFileScope, isSymbolScope, isCommandScope, visibleSymbols } from './search';
 import { recentDefault } from './preview';
 import { openResult, openResultInSplit, updateSelection, togglePin, isPinnedFile } from './render';
 
@@ -48,7 +48,7 @@ export function hideCtxMenu(): void {
 export function initContextMenu(): void {
   wrap.addEventListener('contextmenu', (e) => {
     const el = (e.target as Element).closest('.result') as HTMLElement | null;
-    if (!el) { return; }
+    if (!el || isCommandScope()) { return; } // the file menu means nothing for a command
     e.preventDefault();
     const i = parseInt(el.dataset.index!);
     state.selected = i;
