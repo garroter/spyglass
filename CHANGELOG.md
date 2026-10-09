@@ -1,6 +1,6 @@
 # Changelog
 
-## [Unreleased]
+## [0.3.0] - 2026-10-09
 
 ### Added
 - **Multiline search** — a `↵` toggle (secondary toolbar, or `Alt+M`) that lets a regular expression match across lines (`rg --multiline`): `import .*;\nimport`, `(?s)<div>.*?</div>`. The query is always a regex in this mode. A multi-line result is shown as its first line with a `+N` badge and opens at that line. Replace all is disabled while it is on (per-line replacing cannot do multiline safely), and turning it on switches replace mode off. Puts a dot on the collapsed `⋯` button while on; remembered with the other toggles
