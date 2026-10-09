@@ -58,6 +58,7 @@ export interface UiStrings {
   copied: string;
   noFileSelected: string;
   gotoLineNoFile: string;
+  recentFilesLabel: string;
 
   // Errors
   ripgrepNotFound: string;
@@ -137,6 +138,7 @@ const zh: UiStrings = {
   copied: '已复制:',
   noFileSelected: '未选择文件',
   gotoLineNoFile: '请先打开一个文件，才能跳转到行',
+  recentFilesLabel: '最近文件',
 
   ripgrepNotFound: 'Spyglass: 未找到或无法自动安装 ripgrep。请系统级安装或在设置中指定 spyglass.ripgrepPath。',
   openSettings: '打开设置',
@@ -243,6 +245,7 @@ const en: UiStrings = {
   copied: 'Copied:',
   noFileSelected: 'No file selected',
   gotoLineNoFile: 'Open a file to go to a line',
+  recentFilesLabel: 'Recent files',
 
   ripgrepNotFound: 'Spyglass: could not find or auto-install ripgrep. Install it system-wide or set spyglass.ripgrepPath in settings.',
   openSettings: 'Open Settings',

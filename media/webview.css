@@ -68,6 +68,7 @@
 
   /* ── Top bar ─────────────────────────────────────────────── */
   .topbar {
+    position: relative; /* anchors the ⋯ menu */
     display: flex;
     align-items: center;
     gap: 8px;
@@ -78,11 +79,72 @@
 
   .search-icon { color: var(--f-dim); flex-shrink: 0; display: flex; align-items: center; }
 
-  /* ── Secondary buttons (inline, hidden by default, toggled by ⋯) */
-  .secondary-btns {
-    display: none;
+  #query { min-width: 0; }
+  .icon-btn[hidden] { display: none; }
+
+  /* ── ⋯ menu: the options used less often, by name, with their shortcut ── */
+  .more-menu {
+    position: absolute;
+    top: calc(100% - 4px);
+    right: 10px;
+    z-index: 60;
+    min-width: 250px;
+    padding: 4px;
+    background: var(--vscode-editorHoverWidget-background, var(--f-raised));
+    border: 1px solid var(--vscode-editorHoverWidget-border, var(--f-border));
+    border-radius: 6px;
+    box-shadow: 0 4px 16px var(--f-shadow);
+  }
+  .more-menu[hidden] { display: none; }
+  .menu-item {
+    display: flex;
     align-items: center;
-    gap: 2px;
+    gap: 8px;
+    width: 100%;
+    padding: 5px 8px;
+    background: transparent;
+    border: none;
+    border-radius: 4px;
+    color: var(--f-text);
+    font-family: inherit;
+    font-size: 12px;
+    text-align: left;
+    cursor: pointer;
+  }
+  .menu-item[hidden] { display: none; }
+  .menu-item:hover, .menu-item:focus-visible { background: var(--f-hover); outline: none; }
+  .mi-check { width: 12px; flex-shrink: 0; color: var(--f-accent); text-align: center; }
+  .menu-item.active .mi-check::before,
+  .menu-item[aria-checked="true"] .mi-check::before { content: '✓'; }
+  .mi-label { flex: 1; white-space: nowrap; }
+  .mi-key {
+    font-family: inherit;
+    font-size: 11px;
+    color: var(--f-dim);
+    white-space: nowrap;
+  }
+  .menu-sep { height: 1px; margin: 4px 6px; background: var(--f-border-s); }
+  .narrow-only { display: none; }
+
+  /* A narrow sidebar gives the query box the room: the search toggles move into the ⋯ menu
+     (the preview is not shown at this width anyway). */
+  @media (max-width: 419px) {
+    .topbar { gap: 6px; }
+    #regex-btn, #case-btn, #word-btn, #replace-btn, #preview-btn { display: none; }
+    .menu-item.narrow-only:not([hidden]) { display: flex; }
+    .menu-sep.narrow-only { display: block; }
+    .more-menu { right: 6px; left: 6px; min-width: 0; }
+    /* a toggle that moved into the menu still shows that it is on */
+    .topbar:has(#regex-btn.active, #case-btn.active, #word-btn.active, #replace-btn.active) #more-btn::after {
+      content: '';
+      position: absolute;
+      top: 2px;
+      right: 2px;
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--f-accent);
+    }
   }
 
   #query {
@@ -137,9 +199,12 @@
     box-shadow: 0 2px 8px var(--f-shadow);
   }
   .icon-btn[data-tooltip]:hover::after { opacity: 1; }
+  /* The toolbar sits at the right edge, so its tooltips open towards the inside instead of being cut off. */
+  .topbar .icon-btn[data-tooltip]::after { left: auto; right: 0; transform: none; }
 
   /* ── Scope tabs — pill style ─────────────────────────────── */
   .tabs {
+    position: relative; /* offsetParent of the tabs, for scrolling the active one into view */
     display: flex;
     gap: 2px;
     padding: 5px 10px;
@@ -149,6 +214,24 @@
     scrollbar-width: none;
   }
   .tabs::-webkit-scrollbar { display: none; }
+  .tab { white-space: nowrap; }
+
+  /* Tabs that do not fit scroll sideways; a fade with an arrow at the edge says there are more. */
+  .tabs-wrap { position: relative; flex-shrink: 0; }
+  .tabs-wrap::before, .tabs-wrap::after {
+    position: absolute;
+    top: 0;
+    bottom: 1px;
+    width: 28px;
+    display: none;
+    align-items: center;
+    color: var(--f-dim);
+    font-size: 14px;
+    pointer-events: none;
+  }
+  .tabs-wrap::before { content: '‹'; left: 0;  justify-content: flex-start; padding-left: 4px;  background: linear-gradient(to right, var(--f-raised) 45%, transparent); }
+  .tabs-wrap::after  { content: '›'; right: 0; justify-content: flex-end;   padding-right: 4px; background: linear-gradient(to left,  var(--f-raised) 45%, transparent); }
+  .tabs-wrap.more-left::before, .tabs-wrap.more-right::after { display: flex; }
 
   .tab {
     background: transparent;
@@ -825,7 +908,7 @@
   }
   .rp-btn-cancel:hover { color: var(--f-text); border-color: var(--f-text); }
 
-/* Include-ignored and multiline are secondary-toolbar toggles; keep it visible while that toolbar is collapsed */
+/* Include-ignored and multiline live in the ⋯ menu; a dot on ⋯ shows they are on while it is closed */
 #more-btn { position: relative; }
 body.include-ignored #more-btn::after,
 body.multiline #more-btn::after {

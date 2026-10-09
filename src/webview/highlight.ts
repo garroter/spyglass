@@ -55,6 +55,15 @@ export function firstLineMatch(text: string, start: number, end: number): { text
   return { text: line, start: from, end: Math.max(from, Math.min(end, line.length)), extraLines: text.split('\n').length - 1 };
 }
 
+/**
+ * A result row shows its line without the code's indentation, so rows line up. Whitespace that is
+ * part of the match stays, and the match offsets move with the text.
+ */
+export function trimIndent(text: string, start: number, end: number): { text: string; start: number; end: number } {
+  const indent = Math.min(text.length - text.trimStart().length, start);
+  return { text: text.slice(indent), start: start - indent, end: end - indent };
+}
+
 export function highlightPositions(text: string, positions: number[]): string {
   const posSet = new Set(positions);
   let html = '';

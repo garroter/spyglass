@@ -6,11 +6,11 @@ window.onerror = (msg, _src, line, _col, err) => {
 };
 
 import { state } from './state';
-import { queryEl, regexBtn, caseBtn, wordBtn, groupBtn, replaceBtn, previewBtn, resultInfo, tabs, sortBtn, includeBtn, includeRow, ignoredBtn, multilineBtn } from './dom';
-import { isFileScope, isSymbolScope, triggerSearch } from './search';
+import { queryEl, regexBtn, caseBtn, wordBtn, groupBtn, replaceBtn, previewBtn, resultInfo, includeBtn, includeRow, ignoredBtn, multilineBtn } from './dom';
+import { triggerSearch } from './search';
 import { renderPreview, clearPreview } from './preview';
 import { render, updateSelection } from './render';
-import { initEvents, initMessages, updateReplaceRowVisibility, setScope, scopeLoadsWithoutQuery } from './events';
+import { initEvents, initMessages, updateReplaceRowVisibility, setScope, scopeLoadsWithoutQuery, applyScopeChrome, showSort } from './events';
 import { initContextMenu } from './contextMenu';
 import { initHighlighter, setHasVscodeTheme } from './shiki';
 
@@ -50,28 +50,12 @@ if (state.includeMode) {
   includeBtn.classList.add('active');
   includeRow.style.display = '';
 }
-if (state.sortBy !== 'default') {
-  const SORT_LABELS: Record<string, string> = { default: S.sortDefault, filename: S.sortFilename, count: S.sortCount };
-  const SORT_ICONS:  Record<string, string> = { default: '⇅', filename: '↓A', count: '↓#' };
-  sortBtn.textContent = SORT_ICONS[state.sortBy];
-  sortBtn.dataset.tooltip = SORT_LABELS[state.sortBy];
-  sortBtn.classList.add('active');
-}
+showSort();
 
 updateReplaceRowVisibility();
 
 // Apply initial scope
-tabs.forEach(t => t.classList.toggle('active', t.dataset.scope === state.scope));
-if (isFileScope() || isSymbolScope()) {
-  regexBtn.disabled = true;
-  document.getElementById('case-btn')!.setAttribute('disabled', '');
-  document.getElementById('word-btn')!.setAttribute('disabled', '');
-  document.getElementById('replace-btn')!.setAttribute('disabled', '');
-  multilineBtn.disabled = true;
-  queryEl.placeholder = state.scope === 'recent'  ? S.filterRecentFiles
-                      : state.scope === 'symbols' ? S.searchWorkspaceSymbols
-                      : S.searchFilesByName;
-}
+applyScopeChrome();
 
 const { THEME } = (window as any).__spyglass;
 setHasVscodeTheme(!!THEME);

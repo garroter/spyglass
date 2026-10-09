@@ -87,10 +87,11 @@ test('turning multiline off goes back to line-by-line matching', async ({ openSp
   await expect(page.locator('.result')).toHaveCount(0);
 });
 
-test('the toolbar button toggles it and says which key does', async ({ openSpyglass }) => {
+test('the menu item toggles it and says which key does', async ({ openSpyglass }) => {
   const { page } = await openSpyglass();
   await page.locator('#query').fill(SPANNING);
-  await expect(page.locator('#multiline-btn')).toHaveAttribute('data-tooltip', /multiline.*Alt\+M/i);
+  await expect(page.locator('#multiline-btn')).toContainText(/multiline/i);
+  await expect(page.locator('#multiline-btn')).toContainText('Alt+M');
 
   await page.locator('#more-btn').click();
   await page.locator('#multiline-btn').click();
@@ -99,13 +100,13 @@ test('the toolbar button toggles it and says which key does', async ({ openSpygl
   await expect(page.locator('.result')).toHaveCount(1);
 });
 
-test('an active toggle is visible even while the secondary toolbar is collapsed', async ({ openSpyglass }) => {
+test('an active toggle is visible even while the menu is closed', async ({ openSpyglass }) => {
   const { page } = await openSpyglass();
   await expect(page.locator('body')).not.toHaveClass(/multiline/);
 
   await page.locator('#query').press('Alt+m');
 
-  await expect(page.locator('#secondary-toolbar')).toBeHidden();
+  await expect(page.locator('#more-menu')).toBeHidden();
   await expect(page.locator('body')).toHaveClass(/multiline/);
 });
 

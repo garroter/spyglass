@@ -47,20 +47,21 @@ test('Alt+H toggles it from the query box', async ({ openSpyglass }) => {
   await expect(page.locator('.result')).toHaveCount(7);
 });
 
-test('the button says what it does and which key toggles it', async ({ openSpyglass }) => {
+test('the menu item says what it does and which key toggles it', async ({ openSpyglass }) => {
   const { page } = await openSpyglass();
 
-  await expect(page.locator('#ignored-btn')).toHaveAttribute('data-tooltip', /ignored.*Alt\+H/i);
-  await expect(page.locator('#ignored-btn')).toHaveAttribute('aria-label', /ignored/i);
+  await expect(page.locator('#ignored-btn')).toContainText(/ignored/i);
+  await expect(page.locator('#ignored-btn')).toContainText('Alt+H');
+  await expect(page.getByRole('menuitemcheckbox', { name: /ignored/i, includeHidden: true })).toHaveCount(1);
 });
 
-test('an active toggle is visible even while the secondary toolbar is collapsed', async ({ openSpyglass }) => {
+test('an active toggle is visible even while the menu is closed', async ({ openSpyglass }) => {
   const { page } = await openSpyglass();
   await expect(page.locator('body')).not.toHaveClass(/include-ignored/);
 
   await page.locator('#query').press('Alt+h');
 
-  await expect(page.locator('#secondary-toolbar')).toBeHidden();
+  await expect(page.locator('#more-menu')).toBeHidden();
   await expect(page.locator('body')).toHaveClass(/include-ignored/);
 });
 

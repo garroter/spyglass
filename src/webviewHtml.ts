@@ -72,16 +72,23 @@ export function renderWebviewHtml(params: WebviewHtmlParams): string {
   <button type="button" class="icon-btn" id="word-btn" aria-label="${s.wholeWord}" data-tooltip="${s.wholeWord} — Alt+W">\\b</button>
   <button type="button" class="icon-btn" id="replace-btn" aria-label="${s.replaceMode}" data-tooltip="${s.replaceMode} — Alt+R">⇄</button>
   <button type="button" class="icon-btn active" id="preview-btn" aria-label="${s.togglePreview}" data-tooltip="${tipPreview}">⊡</button>
-  <div class="secondary-btns" id="secondary-toolbar" style="display:none">
-    <button type="button" class="icon-btn" id="group-btn" aria-label="${s.groupByFile}" data-tooltip="${s.groupByFile} — Alt+L">▤</button>
-    <button type="button" class="icon-btn" id="sort-btn" aria-label="${s.sortDefault}" data-tooltip="${s.sortDefault} — Alt+S">⇅</button>
-    <button type="button" class="icon-btn" id="include-btn" aria-label="${s.includeFilter}" data-tooltip="${s.includeFilter} — Alt+I">⊂</button>
-    <button type="button" class="icon-btn" id="ignored-btn" aria-label="${s.includeIgnored}" data-tooltip="${s.includeIgnored} — Alt+H">◌</button>
-    <button type="button" class="icon-btn" id="multiline-btn" aria-label="${s.multiline}" data-tooltip="${s.multiline} — Alt+M">↵</button>
-    <button type="button" class="icon-btn" id="bookmarks-btn" aria-label="${s.savedSearches}" data-tooltip="${s.savedSearches} — Alt+B">★</button>
-    <button type="button" class="icon-btn" id="help-btn" aria-label="${s.keyboardShortcuts}" data-tooltip="${s.keyboardShortcuts}">?</button>
+  <button type="button" class="icon-btn" id="more-btn" aria-label="${s.moreOptions}" aria-haspopup="menu" aria-expanded="false">⋯</button>
+  <div class="more-menu" id="more-menu" role="menu" hidden>
+    <!-- In a narrow sidebar the search toggles leave the bar and are offered here instead -->
+    <button type="button" class="menu-item narrow-only" role="menuitemcheckbox" aria-checked="false" data-action="regex"><span class="mi-check"></span><span class="mi-label">${s.regex}</span><kbd class="mi-key">${kb.toggleRegex || 'Shift+Alt+R'}</kbd></button>
+    <button type="button" class="menu-item narrow-only" role="menuitemcheckbox" aria-checked="false" data-action="case"><span class="mi-check"></span><span class="mi-label">${s.caseSensitive}</span><kbd class="mi-key">Alt+C</kbd></button>
+    <button type="button" class="menu-item narrow-only" role="menuitemcheckbox" aria-checked="false" data-action="word"><span class="mi-check"></span><span class="mi-label">${s.wholeWord}</span><kbd class="mi-key">Alt+W</kbd></button>
+    <button type="button" class="menu-item narrow-only" role="menuitemcheckbox" aria-checked="false" data-action="replace"><span class="mi-check"></span><span class="mi-label">${s.replaceMode}</span><kbd class="mi-key">Alt+R</kbd></button>
+    <div class="menu-sep narrow-only"></div>
+    <button type="button" class="menu-item" id="group-btn" role="menuitemcheckbox" aria-checked="false"><span class="mi-check"></span><span class="mi-label">${s.groupByFile}</span><kbd class="mi-key">Alt+L</kbd></button>
+    <button type="button" class="menu-item" id="sort-btn" role="menuitem"><span class="mi-check"></span><span class="mi-label">${s.sortDefault}</span><kbd class="mi-key">Alt+S</kbd></button>
+    <button type="button" class="menu-item" id="multiline-btn" role="menuitemcheckbox" aria-checked="false"><span class="mi-check"></span><span class="mi-label">${s.multiline}</span><kbd class="mi-key">Alt+M</kbd></button>
+    <button type="button" class="menu-item" id="ignored-btn" role="menuitemcheckbox" aria-checked="false"><span class="mi-check"></span><span class="mi-label">${s.includeIgnored}</span><kbd class="mi-key">Alt+H</kbd></button>
+    <button type="button" class="menu-item" id="include-btn" role="menuitemcheckbox" aria-checked="false"><span class="mi-check"></span><span class="mi-label">${s.includeFilter}</span><kbd class="mi-key">Alt+I</kbd></button>
+    <div class="menu-sep"></div>
+    <button type="button" class="menu-item" id="bookmarks-btn" role="menuitemcheckbox" aria-checked="false"><span class="mi-check"></span><span class="mi-label">${s.savedSearches}</span><kbd class="mi-key">Alt+B</kbd></button>
+    <button type="button" class="menu-item" id="help-btn" role="menuitem"><span class="mi-check"></span><span class="mi-label">${s.keyboardShortcuts}</span><kbd class="mi-key">?</kbd></button>
   </div>
-  <button type="button" class="icon-btn" id="more-btn" aria-label="${s.moreOptions}" data-tooltip="${s.moreOptions}">⋯</button>
 </div>
 
 <!-- Replace row -->
@@ -98,6 +105,7 @@ export function renderWebviewHtml(params: WebviewHtmlParams): string {
 </div>
 
 <!-- Scope tabs -->
+<div class="tabs-wrap">
 <div class="tabs">
   <button type="button" class="tab" data-scope="project">${s.project}</button>
   <button type="button" class="tab" data-scope="openFiles">${s.openFiles}</button>
@@ -108,6 +116,7 @@ export function renderWebviewHtml(params: WebviewHtmlParams): string {
   <button type="button" class="tab" data-scope="git">${s.git}</button>
   <button type="button" class="tab" data-scope="doc">${s.doc}</button>
   <button type="button" class="tab" data-scope="refs">${s.refs}</button>
+</div>
 </div>
 
 <!-- Main layout -->

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { escHtml, applyQueryHighlight, highlightMatch, highlightPositions, firstLineMatch } from '../webview/highlight';
+import { escHtml, applyQueryHighlight, highlightMatch, highlightPositions, firstLineMatch, trimIndent } from '../webview/highlight';
 
 describe('escHtml', () => {
   it('escapes ampersand', () => {
@@ -175,3 +175,21 @@ describe('firstLineMatch (how a multiline match is shown in one result row)', ()
   });
 });
 
+
+describe('trimIndent (result rows do not repeat the code indentation)', () => {
+  it('drops leading whitespace and moves the match with it', () => {
+    expect(trimIndent('    return needle;', 11, 17)).toEqual({ text: 'return needle;', start: 7, end: 13 });
+  });
+
+  it('drops tabs too', () => {
+    expect(trimIndent('\t\tx = 1', 2, 3)).toEqual({ text: 'x = 1', start: 0, end: 1 });
+  });
+
+  it('leaves a line without indentation alone', () => {
+    expect(trimIndent('needle', 0, 6)).toEqual({ text: 'needle', start: 0, end: 6 });
+  });
+
+  it('keeps whitespace that is part of the match', () => {
+    expect(trimIndent('    x', 2, 5)).toEqual({ text: '  x', start: 0, end: 3 });
+  });
+});

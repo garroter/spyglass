@@ -5,7 +5,19 @@
 ### Added
 - **Go to line & symbol, like Quick Open** — in the Files and Recent lists `util.ts:42` (or `util.ts:42:7`) previews and opens the file at that line (and column), `:42` goes to a line in the file you are editing, and a leading `@` switches to the symbols of that file (Doc), going back when you delete the `@`. `file:line` works in the Git list too. Text searches are unchanged
 
+### Changed
+- **A cleaner, less crowded popup and sidebar**
+  - The `⋯` button opens a **menu** that lists each option by name with its shortcut and a check mark when it is on (group by file, sort, multiline, include ignored files, include filter, saved searches, keyboard shortcuts), instead of a row of symbols (`▤ ⇅ ⊂ ◌ ↵ ★ ?`) whose meaning only a tooltip told. The menu stays open while you switch options and closes on `Escape` or a click outside
+  - **Options that do nothing in a scope are hidden** instead of greyed out: the Files, Recent, Git, Doc, Symbols and Refs lists show just the search box, like Quick Open
+  - **A narrow sidebar gives the search box the room** — below 420 px the regex, case, whole word and replace toggles move into the `⋯` menu (a dot on `⋯` shows when one is on); at 300 px the box went from about 65 px to most of the width
+  - **Tabs that do not fit are shown as such** — they no longer wrap onto two lines (`Open Files`), a `›` / `‹` at the edge says there are more, the tab you switch to is scrolled into view, and the mouse wheel scrolls them
+  - Result rows show the code without its indentation, so they line up
+  - Doc rows show just the line (`:12`) instead of repeating the current file on every row
+  - Toolbar tooltips open towards the inside, so the ones at the right edge are no longer cut off
+  - The status bar says "Recent files" instead of "recent"
+
 ### Fixed
+- When opened straight into the Doc scope (a `Find Symbols in Document` command), the search box said "Search files by name"
 - **Doc / Symbols: Enter opened the wrong symbol after filtering** — with a query (Doc) or a kind chip active, `Enter`, `Ctrl+Enter`, the preview, copying the path and multi-select used the position in the unfiltered list, so they could act on a different symbol than the one highlighted
 
 ## [0.3.1] - 2026-10-09

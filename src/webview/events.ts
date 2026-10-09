@@ -4,7 +4,7 @@ import {
   queryEl, regexBtn, caseBtn, wordBtn, groupBtn, replaceBtn, previewBtn,
   replaceRow, replaceAllBtn, tabs, previewHdr,
   sortBtn, includeBtn, includeRow, includeInput,
-  bookmarksBtn, moreBtn, secondaryToolbar, ignoredBtn, multilineBtn,
+  bookmarksBtn, moreBtn, moreMenu, ignoredBtn, multilineBtn, tabsBar, tabsWrap,
 } from './dom';
 import { isFileScope, isSymbolScope, isDocScope, isGitScope, isTextScope, isRefsScope, parseQueryInput, triggerSearch, filterFilesLocally, visibleSymbols, parseFileQuery, isGotoLine } from './search';
 import { clearPreview, togglePreview, requestPreview } from './preview';
@@ -58,26 +58,7 @@ export function setScope(scope: string, opts: { remember?: boolean } = {}): void
   clearPreview();
   vscode.postMessage(opts.remember === false ? { type: 'scopeChanged', scope, remember: false } : { type: 'scopeChanged', scope });
   if (scope === 'recent') { vscode.postMessage({ type: 'refreshRecent' }); } // files opened since the page was built
-  tabs.forEach(t => t.classList.toggle('active', t.dataset.scope === scope));
-  const isFile = isFileScope();
-  const isSym  = isSymbolScope();
-  const isRefs = isRefsScope();
-  regexBtn.disabled   = isFile || isSym || isRefs;
-  caseBtn.disabled    = isFile || isSym || isRefs;
-  wordBtn.disabled    = isFile || isSym || isRefs;
-  groupBtn.disabled   = isFile || isSym || isRefs;
-  replaceBtn.disabled = isFile || isSym || isRefs || state.multiline;
-  multilineBtn.disabled = isFile || isSym || isRefs;
-  sortBtn.disabled    = isFile || isSym || isRefs;
-  updateReplaceRowVisibility();
-  queryEl.placeholder = scope === 'files'   ? S.searchFilesByName
-                      : scope === 'recent'  ? S.filterRecentFiles
-                      : scope === 'symbols' ? S.searchWorkspaceSymbols
-                      : scope === 'doc'     ? S.filterDocumentSymbols
-                      : scope === 'here'    ? S.searchInCurrentDir
-                      : scope === 'git'     ? S.filterChangedFiles
-                      : scope === 'refs'    ? S.refsToSymbol
-                      : S.searchInProject;
+  applyScopeChrome();
   if (state.query || scopeLoadsWithoutQuery(scope)) {
     triggerSearch(render);
   } else {
@@ -87,6 +68,53 @@ export function setScope(scope: string, opts: { remember?: boolean } = {}): void
     state.searching = false;
     render();
   }
+}
+
+/** Shows the tabs, toolbar buttons and placeholder that belong to the current scope. */
+export function applyScopeChrome(): void {
+  tabs.forEach(t => t.classList.toggle('active', t.dataset.scope === state.scope));
+  revealActiveTab();
+  const isFile = isFileScope();
+  const isSym  = isSymbolScope();
+  const isRefs = isRefsScope();
+  // Text search options do nothing in the file, symbol and reference lists: hide them there
+  // rather than show them greyed out, so those lists look as plain as Quick Open.
+  const textOnly = isFile || isSym || isRefs;
+  for (const btn of [regexBtn, caseBtn, wordBtn, groupBtn, replaceBtn, multilineBtn, sortBtn]) {
+    btn.disabled = textOnly;
+    btn.hidden = textOnly;
+  }
+  replaceBtn.disabled = textOnly || state.multiline;
+  updateReplaceRowVisibility();
+  queryEl.placeholder = state.scope === 'files'   ? S.searchFilesByName
+                      : state.scope === 'recent'  ? S.filterRecentFiles
+                      : state.scope === 'symbols' ? S.searchWorkspaceSymbols
+                      : state.scope === 'doc'     ? S.filterDocumentSymbols
+                      : state.scope === 'here'    ? S.searchInCurrentDir
+                      : state.scope === 'git'     ? S.filterChangedFiles
+                      : state.scope === 'refs'    ? S.refsToSymbol
+                      : S.searchInProject;
+}
+
+/** Marks the edges of the tab bar where tabs are scrolled out of sight. */
+export function updateTabOverflow(): void {
+  const { scrollLeft, scrollWidth, clientWidth } = tabsBar;
+  tabsWrap.classList.toggle('more-left', scrollLeft > 1);
+  tabsWrap.classList.toggle('more-right', scrollLeft + clientWidth < scrollWidth - 1);
+}
+
+/** Scrolls the active tab into view, e.g. after Tab moved to one that was out of sight. */
+function revealActiveTab(): void {
+  const active = tabsBar.querySelector<HTMLElement>('.tab.active');
+  if (!active) { return; }
+  // the fades cover ~28px at each edge, so keep the tab clear of them
+  const pad = 28;
+  if (active.offsetLeft - pad < tabsBar.scrollLeft) {
+    tabsBar.scrollLeft = Math.max(0, active.offsetLeft - pad);
+  } else if (active.offsetLeft + active.offsetWidth + pad > tabsBar.scrollLeft + tabsBar.clientWidth) {
+    tabsBar.scrollLeft = active.offsetLeft + active.offsetWidth + pad - tabsBar.clientWidth;
+  }
+  updateTabOverflow();
 }
 
 /** Applies the text in the query box: updates the parsed query and runs the search. */
@@ -185,14 +213,16 @@ function toggleReplaceMode(): void {
 
 const SORT_CYCLE: Array<'default' | 'filename' | 'count'> = ['default', 'filename', 'count'];
 const SORT_LABELS: Record<string, string> = { default: S.sortDefault, filename: S.sortFilename, count: S.sortCount };
-const SORT_ICONS:  Record<string, string> = { default: '⇅', filename: '↓A', count: '↓#' };
+
+/** Names the current sort order in its menu item, marked when it is not the default. */
+export function showSort(): void {
+  sortBtn.querySelector('.mi-label')!.textContent = SORT_LABELS[state.sortBy];
+  sortBtn.classList.toggle('active', state.sortBy !== 'default');
+}
 
 function toggleSort(): void {
-  const next = SORT_CYCLE[(SORT_CYCLE.indexOf(state.sortBy) + 1) % SORT_CYCLE.length];
-  state.sortBy = next;
-  sortBtn.textContent = SORT_ICONS[next];
-  sortBtn.dataset.tooltip = SORT_LABELS[next];
-  sortBtn.classList.toggle('active', next !== 'default');
+  state.sortBy = SORT_CYCLE[(SORT_CYCLE.indexOf(state.sortBy) + 1) % SORT_CYCLE.length];
+  showSort();
   saveButtonPrefs();
   render();
 }
@@ -280,10 +310,28 @@ export function renderReplacePreview(files: Array<{ relativePath: string; change
   overlay.addEventListener('click', e => e.stopPropagation());
 }
 
-function toggleSecondaryToolbar(): void {
-  const visible = secondaryToolbar.style.display === 'flex';
-  secondaryToolbar.style.display = visible ? 'none' : 'flex';
-  moreBtn.classList.toggle('active', !visible);
+// ── The ⋯ menu ──────────────────────────────────────────────────────────────────────────────
+// Options used less often, each with its name, shortcut and a check mark when on. It stays open
+// while options are switched, and closes on Escape, a click outside or ⋯.
+
+export function setMoreMenu(open: boolean): void {
+  moreMenu.hidden = !open;
+  moreBtn.classList.toggle('active', open);
+  moreBtn.setAttribute('aria-expanded', String(open));
+}
+
+/** Menu items show the on/off state of the button they stand for (the toolbar's own, or their own `active` class). */
+function syncMenuChecks(): void {
+  const twins: Record<string, HTMLElement> = { regex: regexBtn, case: caseBtn, word: wordBtn, replace: replaceBtn };
+  moreMenu.querySelectorAll<HTMLElement>('.menu-item').forEach(item => {
+    const twin = item.dataset.action ? twins[item.dataset.action] : item;
+    // only touch what changed: these elements are observed, so every write would call this again
+    const checked = String(twin.classList.contains('active'));
+    if (item.getAttribute('role') === 'menuitemcheckbox' && item.getAttribute('aria-checked') !== checked) {
+      item.setAttribute('aria-checked', checked);
+    }
+    if (item.dataset.action && item.hidden !== twin.hidden) { item.hidden = twin.hidden; } // e.g. no regex in the file lists
+  });
 }
 
 function toggleBookmarksMode(): void {
@@ -407,6 +455,13 @@ export function initEvents(): void {
   });
 
   tabs.forEach(tab => tab.addEventListener('click', () => setScope(tab.dataset.scope!)));
+  tabsBar.addEventListener('scroll', updateTabOverflow, { passive: true });
+  window.addEventListener('resize', updateTabOverflow);
+  // a mouse wheel scrolls the tab bar sideways (it has no scrollbar)
+  tabsBar.addEventListener('wheel', e => {
+    if (Math.abs(e.deltaY) > Math.abs(e.deltaX)) { tabsBar.scrollLeft += e.deltaY; e.preventDefault(); }
+  }, { passive: false });
+  updateTabOverflow();
 
   regexBtn.addEventListener('click', toggleRegex);
   ignoredBtn.addEventListener('click', toggleIgnored);
@@ -443,6 +498,7 @@ export function initEvents(): void {
   });
 
   document.addEventListener('click', () => {
+    setMoreMenu(false);
     const shortcutsOverlay = document.getElementById('shortcuts-overlay')!;
     const helpBtn = document.getElementById('help-btn')!;
     shortcutsOverlay.classList.remove('visible');
@@ -458,10 +514,11 @@ export function initEvents(): void {
     e.stopPropagation();
     const overlay = document.getElementById('shortcuts-overlay')!;
     const btn = e.currentTarget as HTMLElement;
+    setMoreMenu(false);
     if (!document.body.classList.contains('sidebar-mode')) {
       // Sidebar mode has its own corner-anchored positioning in CSS
       // (body.sidebar-mode .shortcuts-overlay); inline styles would win over it.
-      const rect = btn.getBoundingClientRect();
+      const rect = moreBtn.getBoundingClientRect();
       overlay.style.top = (rect.bottom + 6) + 'px';
       overlay.style.left = 'auto';
       overlay.style.right = Math.max(8, window.innerWidth - rect.right) + 'px';
@@ -471,8 +528,29 @@ export function initEvents(): void {
     btn.classList.toggle('active', overlay.classList.contains('visible'));
   });
 
-  bookmarksBtn.addEventListener('click', () => toggleBookmarksMode());
-  moreBtn.addEventListener('click', (e) => { e.stopPropagation(); toggleSecondaryToolbar(); });
+  bookmarksBtn.addEventListener('click', () => { setMoreMenu(false); toggleBookmarksMode(); });
+  moreBtn.addEventListener('click', (e) => { e.stopPropagation(); setMoreMenu(moreMenu.hidden); });
+  moreMenu.addEventListener('click', e => e.stopPropagation());
+  // the narrow-only items do what the toolbar buttons they replace do
+  // (called directly: a click on the hidden button would bubble to the document and close the menu)
+  const actions: Record<string, () => void> = { regex: toggleRegex, case: toggleCase, word: toggleWord, replace: toggleReplaceMode };
+  moreMenu.querySelectorAll<HTMLElement>('.menu-item[data-action]').forEach(item => {
+    item.addEventListener('click', () => actions[item.dataset.action!]());
+  });
+  // keep the check marks in step with the buttons, however they were switched (click, Alt+key, restore)
+  const checkObserver = new MutationObserver(syncMenuChecks);
+  for (const el of [regexBtn, caseBtn, wordBtn, replaceBtn, ...Array.from(moreMenu.querySelectorAll<HTMLElement>('.menu-item'))]) {
+    checkObserver.observe(el, { attributes: true, attributeFilter: ['class', 'hidden'] });
+  }
+  syncMenuChecks();
+  // Escape closes the menu first, before anything else it would do (close the popup, leave a mode)
+  document.addEventListener('keydown', e => {
+    if (!moreMenu.hidden && matchKey(e, KB.close)) {
+      e.preventDefault();
+      e.stopImmediatePropagation();
+      setMoreMenu(false);
+    }
+  }, true);
 
   document.addEventListener('spyglass:applyBookmark', ((e: CustomEvent) => {
     const idx = e.detail.index as number;

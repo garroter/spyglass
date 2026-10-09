@@ -1,5 +1,5 @@
 import { state } from './state';
-import { escHtml, highlightMatch, highlightPositions, firstLineMatch } from './highlight';
+import { escHtml, highlightMatch, highlightPositions, firstLineMatch, trimIndent } from './highlight';
 import { wrap, stateMsg, resultInfo } from './dom';
 import { isFileScope, isSymbolScope, isDocScope, isGitScope, isRefsScope, triggerSearch, visibleSymbols, isGotoLine } from './search';
 import type { SearchResult } from './types';
@@ -67,7 +67,8 @@ function matchHtml(r: { text: string; matchStart: number; matchEnd: number }): s
   const badge = m.extraLines
     ? '<span class="ml-badge" title="' + m.extraLines + ' more line' + (m.extraLines !== 1 ? 's' : '') + '">+' + m.extraLines + '</span>'
     : '';
-  return badge + highlightMatch(m.text, m.start, m.end);
+  const t = trimIndent(m.text, m.start, m.end);
+  return badge + highlightMatch(t.text, t.start, t.end);
 }
 
 export function updateSelection(): void {
@@ -141,7 +142,7 @@ export function renderTextResults(): void {
       frag.appendChild(div);
     });
     wrap.appendChild(frag);
-    resultInfo.textContent = 'recent';
+    resultInfo.textContent = S.recentFilesLabel;
     scrollToSelected();
     if (state.showPreview && recent[0]) {
       vscode.postMessage({ type: 'preview', file: recent[0].file, line: 1 });
@@ -419,7 +420,8 @@ export function renderSymbolResults(): void {
         '<span class="sym-name">' + escHtml(r.name) + '</span>' +
       '</div>' +
       (r.container ? '<div class="sym-container">' + escHtml(r.container) + '</div>' : '') +
-      '<div class="result-text">' + escHtml(r.relativePath) + ':' + r.line + '</div>';
+      // Doc lists one file, the current one, so only the line is worth showing
+      '<div class="result-text">' + (isDocScope() ? '' : escHtml(r.relativePath)) + ':' + r.line + '</div>';
     div.addEventListener('click', () => openResult(i));
     div.addEventListener('mouseenter', () => { state.selected = i; updateSelection(); requestPreview(); });
     frag.appendChild(div);

@@ -34,10 +34,10 @@
 
 - **A command for every scope** — `Find Files`, `Find in Project`, `Find Symbols in Document` … each opens Spyglass straight in that scope, so you can bind them to `Ctrl+P`, `Ctrl+T`, `Ctrl+Shift+O` → [Commands](#-commands)
 - **Right-click to search** — *Find in Folder* on any folder in the Explorer, *Find in Project* on selected text in an editor
-- **Search ignored & hidden files** — the `◌` toggle (`Alt+H`) also searches files hidden by `.gitignore`, dotfiles such as `.env`, and folders like `node_modules` / `dist` → [Ignored & hidden files](#-ignored--hidden-files)
+- **Search ignored & hidden files** — *Include ignored and hidden files* in the `⋯` menu (`Alt+H`) also searches files hidden by `.gitignore`, dotfiles such as `.env`, and folders like `node_modules` / `dist` → [Ignored & hidden files](#-ignored--hidden-files)
 - **Search limits you can change** — `spyglass.maxResults` now really goes up to 5000, plus new `spyglass.maxMatchesPerFile` and `spyglass.maxFileSize` → [Search limits](#-search-limits)
 - **Smarter Recent** — ranked by how often and how recently you open files, and kept up to date in the sidebar
-- **Multiline search** — `↵` / `Alt+M`: a regex can match across lines
+- **Multiline search** — `⋯` menu or `Alt+M`: a regex can match across lines
 - **Search history that works** — `Ctrl+↑` / `Ctrl+↓` go the right way, include the queries you typed this session, and run the query you recall
 - **`Ctrl+Space` multi-select** now works while you are typing in the search box
 
@@ -86,8 +86,8 @@ VS Code's built-in search (`Ctrl+Shift+F`) is powerful but slow to use — it re
 - **Regex mode** toggle for power users
 - **Case sensitive** and **whole word** toggles
 - **Inline glob filter** — append a glob to any query to narrow results: `myFunc *.ts` or `test !*.test.ts`
-- **Ignored & hidden files toggle** — `◌` / `Alt+H` also searches files hidden by `.gitignore`, dotfiles and the folders in `spyglass.exclude` (never `.git`); see [Ignored & hidden files](#-ignored--hidden-files)
-- **Multiline search** — `↵` / `Alt+M` lets a regular expression match across lines (`foo\nbar`, `(?s)start.*?end`); a result shows its first line with a `+N` badge → [Multiline search](#-multiline-search)
+- **Ignored & hidden files toggle** — in the `⋯` menu, or `Alt+H`, also searches files hidden by `.gitignore`, dotfiles and the folders in `spyglass.exclude` (never `.git`); see [Ignored & hidden files](#-ignored--hidden-files)
+- **Multiline search** — in the `⋯` menu, or `Alt+M`, lets a regular expression match across lines (`foo\nbar`, `(?s)start.*?end`); a result shows its first line with a `+N` badge → [Multiline search](#-multiline-search)
 - **Multi-root workspace** — searches and file listings span all workspace folders simultaneously
 - **Tunable search limits** — raise `spyglass.maxResults`, `spyglass.maxMatchesPerFile` or `spyglass.maxFileSize` when the defaults hide matches you need (see [Search limits](#-search-limits))
 
@@ -122,6 +122,8 @@ The sidebar adapts to its width automatically:
 - **Narrow** (< 420 px) — results only, no preview
 - **Medium** (420–599 px) — preview panel stacked **below** results
 - **Wide** (≥ 600 px) — preview panel **beside** results (classic split)
+
+In a narrow sidebar (< 420 px) the search box gets the room: regex, case, whole word and replace move into the `⋯` menu, with a dot on `⋯` while any of them is on. Tabs that do not fit scroll sideways (mouse wheel or `Tab`), with a `›` / `‹` at the edge.
 
 Both modes share the same features, keyboard shortcuts, and state.
 
@@ -401,7 +403,7 @@ Patterns starting with `*` are treated as include globs, patterns starting with 
 
 ## 🙈 Ignored & hidden files
 
-By default Spyglass searches what ripgrep would: it skips files listed in `.gitignore` / `.ignore`, hidden files (dotfiles such as `.env`, folders such as `.github`) and anything matching `spyglass.exclude` (`node_modules`, `dist`, `out`, `*.lock` …). Turn on **Include ignored and hidden files** — the `◌` button in the secondary toolbar (behind `⋯`) or `Alt+H` — to search those too. When it is on, the `⋯` button shows a dot so you do not forget.
+By default Spyglass searches what ripgrep would: it skips files listed in `.gitignore` / `.ignore`, hidden files (dotfiles such as `.env`, folders such as `.github`) and anything matching `spyglass.exclude` (`node_modules`, `dist`, `out`, `*.lock` …). Turn on **Include ignored and hidden files** — in the `⋯` menu, or `Alt+H` — to search those too. When it is on, the `⋯` button shows a dot so you do not forget.
 
 - It applies to **Project**, **Open Files**, **Dir** and **Files**, and to **Replace all**, so the preview always covers exactly the files the search shows.
 - It lifts `spyglass.exclude` as well, because otherwise `dist/` and `node_modules/` would stay hidden. The **`.git`** folder is always skipped.
@@ -411,7 +413,7 @@ By default Spyglass searches what ripgrep would: it skips files listed in `.giti
 
 ## ↵ Multiline search
 
-Turn on **Multiline search** — the `↵` button in the secondary toolbar (behind `⋯`) or `Alt+M` — to let a pattern match across line breaks. It is always a **regular expression** (you cannot type a line break into a plain string), whatever the regex toggle says. When it is on, the `⋯` button shows a dot.
+Turn on **Multiline search** — in the `⋯` menu, or `Alt+M` — to let a pattern match across line breaks. It is always a **regular expression** (you cannot type a line break into a plain string), whatever the regex toggle says. When it is on, the `⋯` button shows a dot.
 
 | Query | Finds |
 |-------|-------|
