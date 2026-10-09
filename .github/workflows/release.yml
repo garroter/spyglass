@@ -63,6 +63,11 @@ jobs:
           mv dist/spyglass.vsix "dist/spyglass-${version}.vsix"
           prerelease=""
           case "$version" in *-*) prerelease="--prerelease" ;; esac
+          # re-running the job (e.g. after adding a store token) keeps the release that is already there
+          if gh release view "$GITHUB_REF_NAME" > /dev/null 2>&1; then
+            echo "::notice::The GitHub Release $GITHUB_REF_NAME already exists - keeping it"
+            exit 0
+          fi
           gh release create "$GITHUB_REF_NAME" "dist/spyglass-${version}.vsix" \
             --title "Spyglass ${version}" \
             --notes-file release-notes.md \
