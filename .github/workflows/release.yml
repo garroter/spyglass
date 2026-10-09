@@ -1,0 +1,63 @@
+name: Release
+
+# Push a tag such as v0.3.0 (after bumping "version" in package.json and giving CHANGELOG.md a
+# "## [0.3.0]" section). This checks that, runs the CI checks, and publishes a GitHub Release with the
+# .vsix that passed them. Publishing to the Marketplace stays a manual `vsce publish` (it needs a token).
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: The tag matches the version in package.json
+        run: |
+          version="$(node -p "require('./package.json').version")"
+          if [ "v$version" != "$GITHUB_REF_NAME" ]; then
+            echo "::error::Tag $GITHUB_REF_NAME does not match version $version in package.json"
+            exit 1
+          fi
+
+      - name: CHANGELOG.md has notes for this version
+        run: node scripts/changelog.mjs "$GITHUB_REF_NAME" > /dev/null
+
+  checks:
+    needs: verify
+    uses: ./.github/workflows/ci.yml
+
+  release:
+    needs: checks
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: spyglass-vsix
+          path: dist
+
+      - name: Create the GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          node scripts/changelog.mjs "$version" > release-notes.md
+          mv dist/spyglass.vsix "dist/spyglass-${version}.vsix"
+          prerelease=""
+          case "$version" in *-*) prerelease="--prerelease" ;; esac
+          gh release create "$GITHUB_REF_NAME" "dist/spyglass-${version}.vsix" \
+            --title "Spyglass ${version}" \
+            --notes-file release-notes.md \
+            $prerelease

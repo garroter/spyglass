@@ -1,0 +1,5 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Read the docs first
+    url: https://github.com/garroter/spyglass#readme
+    about: Commands, shortcuts, settings and troubleshooting are described in the README.

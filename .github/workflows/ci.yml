@@ -1,0 +1,69 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_call: # the release workflow runs exactly these checks
+
+concurrency:
+  group: ci-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      # The tests find ripgrep in node_modules (downloaded by @vscode/ripgrep's install script) or on PATH;
+      # having it on PATH keeps CI green if that download is ever rate-limited.
+      - name: Install ripgrep
+        run: sudo apt-get update && sudo apt-get install -y ripgrep
+
+      - name: Install dependencies
+        run: npm ci
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Type-check (extension, UI tests and the webview)
+        run: npm run typecheck
+
+      - name: Unit tests
+        run: npm test
+
+      - name: Install Chromium for the UI tests
+        run: npx playwright install --with-deps chromium
+
+      # Rebuilds media/webview.js (generated, not committed), then drives the real webview against the
+      # real search backend.
+      - name: UI tests
+        run: npm run test:ui
+
+      - name: Package the extension
+        run: npx --yes @vscode/vsce@3 package --out spyglass.vsix
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: spyglass-vsix
+          path: spyglass.vsix
+          if-no-files-found: error
+
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: ui-test-results
+          path: test-results/
+          if-no-files-found: ignore

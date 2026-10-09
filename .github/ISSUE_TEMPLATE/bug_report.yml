@@ -1,0 +1,84 @@
+name: Bug report
+description: Something in Spyglass does not work as expected
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time. The more precisely you can describe what happened, the faster it can be fixed.
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: What did you do, what did you expect, and what happened instead?
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Open Spyglass with Ctrl+Alt+F
+        2. Type ...
+        3. Press ...
+    validations:
+      required: true
+  - type: dropdown
+    id: surface
+    attributes:
+      label: Where does it happen?
+      options:
+        - The popup (Ctrl+Alt+F / Shift Shift)
+        - The sidebar
+        - Both
+        - A command or menu entry
+        - Not sure
+    validations:
+      required: true
+  - type: dropdown
+    id: scope
+    attributes:
+      label: Which scope?
+      description: The tab you were in, if it matters.
+      multiple: true
+      options:
+        - Project
+        - Open Files
+        - Files
+        - Recent
+        - Dir
+        - Symbols
+        - Git
+        - Doc
+        - Refs
+        - Replace
+  - type: input
+    id: spyglass-version
+    attributes:
+      label: Spyglass version
+      description: Shown in the Extensions view.
+      placeholder: e.g. 0.3.0
+    validations:
+      required: true
+  - type: input
+    id: vscode-version
+    attributes:
+      label: VS Code version
+      description: Help → About. Say if you use VSCodium, Cursor or another fork.
+      placeholder: e.g. 1.105.0
+    validations:
+      required: true
+  - type: input
+    id: os
+    attributes:
+      label: Operating system
+      placeholder: e.g. Windows 11, macOS 15 (Apple silicon), Ubuntu 24.04
+    validations:
+      required: true
+  - type: textarea
+    id: extra
+    attributes:
+      label: Anything else?
+      description: >-
+        Relevant settings (`spyglass.*`), the size of the project, a screenshot, and any errors from the console
+        (Help → Toggle Developer Tools, or "Developer: Open Webview Developer Tools" for the Spyglass UI).
