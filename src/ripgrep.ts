@@ -96,6 +96,32 @@ interface RgMatch {
   };
 }
 
+/**
+ * Turns the `data` of an `rg --json` match message into a result. ripgrep reports match offsets in
+ * UTF-8 bytes, which are converted to character offsets here so that highlighting is right for text
+ * with accents, CJK or emoji. A multiline match keeps all its lines and gets a `lineCount`.
+ */
+export function toSearchResult(data: RgMatch['data'], cwd: string): SearchResult | undefined {
+  const { path: filePath, lines, line_number, submatches } = data;
+  if (submatches.length === 0) { return undefined; }
+
+  const raw = Buffer.from(lines.text, 'utf8');
+  const toChars = (byteOffset: number) => raw.subarray(0, byteOffset).toString('utf8').length;
+  const text = lines.text.trimEnd();
+  const lineCount = text.split('\n').length;
+
+  const absPath = path.isAbsolute(filePath.text) ? filePath.text : path.join(cwd, filePath.text);
+  return {
+    file: absPath,
+    relativePath: path.relative(cwd, absPath).replace(/\\/g, '/'),
+    line: line_number,
+    text,
+    matchStart: Math.min(toChars(submatches[0].start), text.length),
+    matchEnd: Math.min(toChars(submatches[0].end), text.length),
+    ...(lineCount > 1 ? { lineCount } : {}),
+  };
+}
+
 export interface CancellableSearch {
   promise: Promise<SearchResult[]>;
   cancel: () => void;
@@ -117,6 +143,19 @@ export interface SearchOptions extends Partial<SearchLimits> {
   wholeWord?: boolean;
   globFilter?: string;
   exclude?: string[];
+  /** Also search hidden files, files hidden by .gitignore-style rules and the spyglass.exclude folders. */
+  includeIgnored?: boolean;
+  /** Let a pattern match across line breaks (rg --multiline). The query is then always a regular expression. */
+  multiline?: boolean;
+}
+
+// Never useful to search, and enormous, so it stays excluded even when everything else is included.
+const ALWAYS_EXCLUDED = ['.git'];
+
+/** Exclude globs (`--glob !x`) for a search or file listing. */
+function excludeGlobs(exclude: string[] | undefined, includeIgnored: boolean | undefined): string[] {
+  const excludes = includeIgnored ? ALWAYS_EXCLUDED : (exclude ?? DEFAULT_EXCLUDES);
+  return excludes.flatMap(e => ['--glob', e.startsWith('!') ? e : `!${e}`]);
 }
 
 const DEFAULT_LIMITS: SearchLimits = { maxResults: 200, maxMatchesPerFile: 10, maxFileSize: '1M' };
@@ -152,13 +191,11 @@ export function buildRgArgs(
   opts?: SearchOptions,
   files?: string[],
 ): string[] {
-  const excludes = opts?.exclude ?? DEFAULT_EXCLUDES;
   const maxMatchesPerFile = opts?.maxMatchesPerFile ?? DEFAULT_LIMITS.maxMatchesPerFile;
   const maxFileSize = opts?.maxFileSize ?? DEFAULT_LIMITS.maxFileSize;
   const args: string[] = ['--json', '--max-count', String(maxMatchesPerFile), '--max-filesize', maxFileSize];
-  for (const e of excludes) {
-    args.push('--glob', e.startsWith('!') ? e : `!${e}`);
-  }
+  args.push(...excludeGlobs(opts?.exclude, opts?.includeIgnored));
+  if (opts?.includeIgnored) { args.push('--hidden', '--no-ignore'); }
   if (opts?.caseSensitive) {
     args.push('--case-sensitive');
   } else {
@@ -170,7 +207,9 @@ export function buildRgArgs(
       args.push('--glob', g);
     }
   }
-  if (!useRegex) { args.push('--fixed-strings'); }
+  if (opts?.multiline) { args.push('--multiline'); }
+  // a literal string cannot contain a line break, so multiline mode always means "regular expression"
+  if (!useRegex && !opts?.multiline) { args.push('--fixed-strings'); }
   args.push('--', query);
   if (files?.length) { args.push(...files); } else { args.push('.'); }
   return args;
@@ -206,20 +245,8 @@ export function searchWithRipgrep(
         try {
           const msg = JSON.parse(line) as RgMatch;
           if (msg.type === 'match') {
-            const { path: filePath, lines: lineData, line_number, submatches } = msg.data;
-            if (submatches.length > 0) {
-              const absPath = path.isAbsolute(filePath.text)
-                ? filePath.text
-                : path.join(cwd, filePath.text);
-              results.push({
-                file: absPath,
-                relativePath: path.relative(cwd, absPath).replace(/\\/g, '/'),
-                line: line_number,
-                text: lineData.text.trimEnd(),
-                matchStart: submatches[0].start,
-                matchEnd: submatches[0].end,
-              });
-            }
+            const result = toSearchResult(msg.data, cwd);
+            if (result) { results.push(result); }
           }
         } catch {
           // ignore JSON parse errors
@@ -253,13 +280,16 @@ export function searchWithRipgrep(
   return { promise, cancel };
 }
 
-export function listFilesWithRipgrep(cwd: string, exclude?: string[]): Promise<string[]> {
+/** Arguments for listing files: the configured excludes, or (includeIgnored) everything but .git. */
+export function buildFilesArgs(exclude?: string[], includeIgnored?: boolean): string[] {
+  const args = ['--files', ...excludeGlobs(exclude, includeIgnored)];
+  if (includeIgnored) { args.push('--hidden', '--no-ignore'); }
+  return args;
+}
+
+export function listFilesWithRipgrep(cwd: string, exclude?: string[], includeIgnored?: boolean): Promise<string[]> {
   return new Promise((resolve) => {
-    const excludes = exclude ?? DEFAULT_EXCLUDES;
-    const args = ['--files'];
-    for (const e of excludes) {
-      args.push('--glob', e.startsWith('!') ? e : `!${e}`);
-    }
+    const args = buildFilesArgs(exclude, includeIgnored);
 
     const rg = spawn(resolveRgPath(), args, { cwd });
     const files: string[] = [];

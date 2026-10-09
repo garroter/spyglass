@@ -2,14 +2,12 @@ import * as vscode from 'vscode';
 import { FinderPanel } from './FinderPanel';
 import { SpyglassSidebarProvider } from './SpyglassSidebarProvider';
 import { ensureRipgrepPath } from './ripgrep';
-
-const MAX_RECENT = 100;
-const RECENT_KEY = 'spyglass.recentFiles';
+import { SCOPE_COMMANDS, scopeFromCommandArg, directoryFromCommandArg } from './scopeCommands';
+import { announceIfUpdated, showWhatsNew } from './whatsNew';
+import { recordRecentFile } from './recentFiles';
 
 function pushRecent(context: vscode.ExtensionContext, fsPath: string): void {
-  const list = context.workspaceState.get<string[]>(RECENT_KEY, []);
-  const updated = [fsPath, ...list.filter(p => p !== fsPath)].slice(0, MAX_RECENT);
-  context.workspaceState.update(RECENT_KEY, updated);
+  void recordRecentFile(context.workspaceState, fsPath);
 }
 
 export function activate(context: vscode.ExtensionContext): void {
@@ -31,10 +29,31 @@ export function activate(context: vscode.ExtensionContext): void {
     })
   );
 
-  const cmd = vscode.commands.registerCommand('spyglass.open', () => {
-    FinderPanel.createOrShow(context);
+  // In a keybinding, `"args": { "scope": "files" }` opens Spyglass in that scope.
+  const cmd = vscode.commands.registerCommand('spyglass.open', (arg?: unknown) => {
+    FinderPanel.createOrShow(context, scopeFromCommandArg(arg));
   });
   context.subscriptions.push(cmd);
+
+  for (const { command, scope } of SCOPE_COMMANDS) {
+    context.subscriptions.push(
+      vscode.commands.registerCommand(command, () => FinderPanel.createOrShow(context, scope))
+    );
+  }
+
+  // From the Explorer's folder menu: the "Dir" scope, on that folder.
+  context.subscriptions.push(
+    vscode.commands.registerCommand('spyglass.findInFolder', (folder?: unknown) => {
+      const directory = directoryFromCommandArg(folder);
+      return FinderPanel.createOrShow(context, 'here', directory ? { directory } : undefined);
+    })
+  );
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand('spyglass.showWhatsNew', () => showWhatsNew(context))
+  );
+  // Once after an update to a new minor/major version, not on a fresh install.
+  void announceIfUpdated(context);
 
   const sidebarCmd = vscode.commands.registerCommand('spyglass.focusSidebar', () => {
     vscode.commands.executeCommand('workbench.view.extension.spyglass-sidebar');

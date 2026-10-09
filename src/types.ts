@@ -15,6 +15,8 @@ export interface ButtonPrefs {
   showPreview: boolean;
   sortBy: 'default' | 'filename' | 'count';
   includeMode: boolean;
+  includeIgnored: boolean;
+  multiline: boolean;
 }
 
 export interface SearchResult {
@@ -24,6 +26,8 @@ export interface SearchResult {
   text: string;
   matchStart: number;
   matchEnd: number;
+  /** Number of lines the match spans; only set when it spans more than one (multiline search). */
+  lineCount?: number;
 }
 
 export type Scope = 'project' | 'openFiles' | 'files' | 'recent' | 'here' | 'symbols' | 'git' | 'doc' | 'refs';
@@ -54,12 +58,14 @@ export type MessageToWebview =
   | { type: 'themeChanged'; theme: object | null }
   | { type: 'fileResults'; results: FileResult[]; query: string }
   | { type: 'symbolResults'; results: SymbolResult[]; query: string }
-  | { type: 'fileList'; files: { file: string; rel: string }[] }
+  | { type: 'fileList'; files: { file: string; rel: string }[]; includeIgnored?: boolean }
   | { type: 'savedSearches'; searches: { query: string; scope: string }[] }
+  | { type: 'searchHistory'; history: string[] }
+  | { type: 'recentFiles'; files: { file: string; rel: string }[] }
   | { type: 'replacePreview'; files: { relativePath: string; changesCount: number; lines: { line: number; before: string; after: string }[] }[] };
 
 export type MessageFromWebview =
-  | { type: 'search'; query: string; useRegex: boolean; scope: Scope; caseSensitive: boolean; wholeWord: boolean; globFilter: string }
+  | { type: 'search'; query: string; useRegex: boolean; scope: Scope; caseSensitive: boolean; wholeWord: boolean; globFilter: string; includeIgnored?: boolean; multiline?: boolean; fromHistory?: boolean }
   | { type: 'open'; file: string; line: number }
   | { type: 'openInSplit'; file: string; line: number }
   | { type: 'preview'; file: string; line: number }
@@ -78,6 +84,7 @@ export type MessageFromWebview =
   | { type: 'removeSavedSearch'; index: number }
   | { type: 'replacePreview'; query: string; replacement: string; useRegex: boolean; caseSensitive: boolean; wholeWord: boolean; globFilter: string; scope: string }
   | { type: 'gitSearch' }
+  | { type: 'refreshRecent' }
   | { type: 'docSearch' }
   | { type: 'refsSearch' };
 

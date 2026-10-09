@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { escHtml, applyQueryHighlight, highlightMatch, highlightPositions } from '../webview/highlight';
+import { escHtml, applyQueryHighlight, highlightMatch, highlightPositions, firstLineMatch } from '../webview/highlight';
 
 describe('escHtml', () => {
   it('escapes ampersand', () => {
@@ -147,3 +147,31 @@ describe('applyQueryHighlight', () => {
     expect(result).toBe('<mark class="qm">test</mark> this');
   });
 });
+
+describe('firstLineMatch (how a multiline match is shown in one result row)', () => {
+  it('leaves a single-line match alone', () => {
+    expect(firstLineMatch('foo needle bar', 4, 10)).toEqual({ text: 'foo needle bar', start: 4, end: 10, extraLines: 0 });
+  });
+
+  it('shows only the first line of a multiline match, counting the rest', () => {
+    expect(firstLineMatch('const a = 1;\nconst b = 2;\nconst c = 3;', 6, 30)).toEqual({
+      text: 'const a = 1;', start: 6, end: 12, extraLines: 2,
+    });
+  });
+
+  it('cuts the highlight at the end of the first line', () => {
+    const r = firstLineMatch('ab\ncd', 1, 5);
+    expect(r).toEqual({ text: 'ab', start: 1, end: 2, extraLines: 1 });
+  });
+
+  it('drops the carriage return of a CRLF line', () => {
+    expect(firstLineMatch('foo\r\nbar', 0, 8)).toEqual({ text: 'foo', start: 0, end: 3, extraLines: 1 });
+  });
+
+  it('never returns a highlight outside the line', () => {
+    const r = firstLineMatch('ab\ncd', 9, 12);
+    expect(r.start).toBeLessThanOrEqual(r.text.length);
+    expect(r.end).toBeLessThanOrEqual(r.text.length);
+  });
+});
+

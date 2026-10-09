@@ -4,7 +4,7 @@ import {
   queryEl, regexBtn, caseBtn, wordBtn, groupBtn, replaceBtn, previewBtn,
   replaceRow, replaceAllBtn, tabs, previewHdr,
   sortBtn, includeBtn, includeRow, includeInput,
-  bookmarksBtn, moreBtn, secondaryToolbar,
+  bookmarksBtn, moreBtn, secondaryToolbar, ignoredBtn, multilineBtn,
 } from './dom';
 import { isFileScope, isSymbolScope, isDocScope, isGitScope, isTextScope, isRefsScope, parseQueryInput, triggerSearch, filterFilesLocally } from './search';
 import { clearPreview, togglePreview, requestPreview } from './preview';
@@ -34,11 +34,16 @@ function matchKey(e: KeyboardEvent, binding: string): boolean {
 const KB = (window as any).__spyglass.KB;
 const SCOPES = ['project', 'openFiles', 'files', 'recent', 'here', 'symbols', 'git', 'doc', 'refs'];
 
+/** Scopes whose list is worth showing as soon as they are entered, before anything is typed. */
+export function scopeLoadsWithoutQuery(scope: string): boolean {
+  return scope === 'recent' || scope === 'git' || scope === 'refs' || scope === 'doc';
+}
+
 export function updateReplaceRowVisibility(): void {
   replaceRow.style.display = (isTextScope() && state.replaceMode) ? '' : 'none';
 }
 
-export function setScope(scope: string): void {
+export function setScope(scope: string, opts: { remember?: boolean } = {}): void {
   if (scope === 'git') { state.gitFiles = null; }
   if (scope === 'doc') { state.symbolResults = []; }
   state.scope = scope;
@@ -47,7 +52,8 @@ export function setScope(scope: string): void {
   state.historyIndex = -1;
   state.symbolKindFilter = '';
   clearPreview();
-  vscode.postMessage({ type: 'scopeChanged', scope });
+  vscode.postMessage(opts.remember === false ? { type: 'scopeChanged', scope, remember: false } : { type: 'scopeChanged', scope });
+  if (scope === 'recent') { vscode.postMessage({ type: 'refreshRecent' }); } // files opened since the page was built
   tabs.forEach(t => t.classList.toggle('active', t.dataset.scope === scope));
   const isFile = isFileScope();
   const isSym  = isSymbolScope();
@@ -56,7 +62,8 @@ export function setScope(scope: string): void {
   caseBtn.disabled    = isFile || isSym || isRefs;
   wordBtn.disabled    = isFile || isSym || isRefs;
   groupBtn.disabled   = isFile || isSym || isRefs;
-  replaceBtn.disabled = isFile || isSym || isRefs;
+  replaceBtn.disabled = isFile || isSym || isRefs || state.multiline;
+  multilineBtn.disabled = isFile || isSym || isRefs;
   sortBtn.disabled    = isFile || isSym || isRefs;
   updateReplaceRowVisibility();
   queryEl.placeholder = scope === 'files'   ? S.searchFilesByName
@@ -67,7 +74,7 @@ export function setScope(scope: string): void {
                       : scope === 'git'     ? S.filterChangedFiles
                       : scope === 'refs'    ? S.refsToSymbol
                       : S.searchInProject;
-  if (state.query || scope === 'recent' || scope === 'git' || scope === 'refs') {
+  if (state.query || scopeLoadsWithoutQuery(scope)) {
     triggerSearch(render);
   } else {
     state.results = [];
@@ -78,14 +85,38 @@ export function setScope(scope: string): void {
   }
 }
 
+/** Applies the text in the query box: updates the parsed query and runs the search. */
+function applyQueryInput(): void {
+  if (state.bookmarksMode) {
+    state.bookmarksMode = false;
+    bookmarksBtn.classList.remove('active');
+  }
+  const { query, globFilter } = parseQueryInput(queryEl.value);
+  state.query = query;
+  if (globFilter !== state.globFilter) { state.globFilter = globFilter; }
+  state.selected = 0;
+  triggerSearch(render);
+}
+
+// dir -1 (Ctrl+Up) goes to an older query, +1 (Ctrl+Down) back towards the newest and finally to
+// what was typed before browsing started (the "draft", historyIndex -1). searchHistory[0] is the
+// newest entry. Entries identical to the draft are skipped: typing a query records it, so without
+// this the first Ctrl+Up would just show the text that is already there.
 function navigateHistory(dir: number): void {
-  if (state.searchHistory.length === 0) { return; }
-  if (state.historyIndex === -1 && dir < 0) {
+  const history = state.searchHistory;
+  if (history.length === 0) { return; }
+  if (state.historyIndex === -1) {
+    if (dir > 0) { return; } // already on the typed text: nothing newer to go to
     state.historyPreQuery = queryEl.value;
   }
-  state.historyIndex = Math.max(-1, Math.min(state.searchHistory.length - 1, state.historyIndex + dir));
-  queryEl.value = state.historyIndex >= 0 ? state.searchHistory[state.historyIndex] : state.historyPreQuery;
-  state.query = queryEl.value;
+  const draft = state.historyPreQuery;
+  const step = -dir;
+  let next = state.historyIndex + step;
+  while (next >= 0 && next < history.length && history[next] === draft) { next += step; }
+  if (next >= history.length) { return; } // already at the oldest entry
+  state.historyIndex = Math.max(-1, next);
+  queryEl.value = state.historyIndex >= 0 ? history[state.historyIndex] : draft;
+  applyQueryInput();
 }
 
 function toggleRegex(): void {
@@ -118,6 +149,7 @@ function toggleGroup(): void {
 }
 
 function toggleReplaceMode(): void {
+  if (state.multiline && !state.replaceMode) { showToast(S.replaceNotInMultiline); return; }
   state.replaceMode = !state.replaceMode;
   replaceBtn.classList.toggle('active', state.replaceMode);
   saveButtonPrefs();
@@ -153,6 +185,27 @@ function toggleIncludeMode(): void {
   }
 }
 
+/** Search hidden files, ignored files and the spyglass.exclude folders too (never .git). */
+function toggleIgnored(): void {
+  state.includeIgnored = !state.includeIgnored;
+  ignoredBtn.classList.toggle('active', state.includeIgnored);
+  document.body.classList.toggle('include-ignored', state.includeIgnored); // marks the collapsed toolbar's ⋯ button
+  saveButtonPrefs();
+  state.fileList = null; // the listed files depend on it
+  if (state.query || state.scope === 'files') { triggerSearch(render); }
+}
+
+/** Let a pattern match across lines (always as a regular expression). Replace is unavailable while it is on. */
+function toggleMultiline(): void {
+  if (!state.multiline && state.replaceMode) { toggleReplaceMode(); }
+  state.multiline = !state.multiline;
+  multilineBtn.classList.toggle('active', state.multiline);
+  document.body.classList.toggle('multiline', state.multiline); // marks the collapsed toolbar's ⋯ button
+  replaceBtn.disabled = isFileScope() || isSymbolScope() || isRefsScope() || state.multiline;
+  saveButtonPrefs();
+  if (state.query) { triggerSearch(render); }
+}
+
 function applyReplaceAll(): void {
   vscode.postMessage({
     type: 'replacePreview',
@@ -163,6 +216,8 @@ function applyReplaceAll(): void {
     wholeWord: state.wholeWord,
     globFilter: state.globFilter,
     scope: state.scope,
+    includeIgnored: state.includeIgnored,
+    multiline: state.multiline,
   });
 }
 
@@ -224,16 +279,8 @@ function saveCurrentSearch(): void {
 
 export function initEvents(): void {
   queryEl.addEventListener('input', () => {
-    if (state.bookmarksMode) {
-      state.bookmarksMode = false;
-      bookmarksBtn.classList.remove('active');
-    }
-    const { query, globFilter } = parseQueryInput(queryEl.value);
-    state.query = query;
-    if (globFilter !== state.globFilter) { state.globFilter = globFilter; }
-    state.selected = 0;
-    state.historyIndex = -1;
-    triggerSearch(render);
+    state.historyIndex = -1; // typing ends history browsing
+    applyQueryInput();
   });
 
   queryEl.addEventListener('keydown', (e) => {
@@ -257,6 +304,8 @@ export function initEvents(): void {
       e.preventDefault(); openAllSelected();
     } else if (e.ctrlKey && e.key === 'Enter') {
       e.preventDefault(); openResultInSplit(state.selected);
+    } else if (e.ctrlKey && e.key === ' ') {
+      e.preventDefault(); toggleSelectResult(state.selected);
     } else if (matchKey(e, KB.open)) {
       e.preventDefault(); openResult(state.selected);
     } else if (e.key === 'Tab') {
@@ -276,6 +325,10 @@ export function initEvents(): void {
       e.preventDefault(); toggleWord();
     } else if (e.altKey && e.key === 'r') {
       e.preventDefault(); toggleReplaceMode();
+    } else if (e.altKey && e.key === 'm') {
+      e.preventDefault(); toggleMultiline();
+    } else if (e.altKey && e.key === 'h') {
+      e.preventDefault(); toggleIgnored();
     } else if (e.altKey && e.key === 'i') {
       e.preventDefault(); toggleIncludeMode();
     } else if (e.altKey && e.key === 's') {
@@ -308,6 +361,8 @@ export function initEvents(): void {
     else if (e.key === 'F5' && isGitScope())   { e.preventDefault(); refreshGitScope(render); }
     else if (e.altKey && e.key === 'p')        { e.preventDefault(); togglePin(); }
     else if (e.altKey && e.key === 'l')        { e.preventDefault(); toggleGroup(); }
+    else if (e.altKey && e.key === 'm')        { e.preventDefault(); toggleMultiline(); }
+    else if (e.altKey && e.key === 'h')        { e.preventDefault(); toggleIgnored(); }
     else if (e.altKey && e.key === 'i')        { e.preventDefault(); toggleIncludeMode(); }
     else if (e.altKey && e.key === 's')        { e.preventDefault(); toggleSort(); }
     else if (e.altKey && e.key === 'b')        { e.preventDefault(); saveCurrentSearch(); }
@@ -328,6 +383,8 @@ export function initEvents(): void {
   tabs.forEach(tab => tab.addEventListener('click', () => setScope(tab.dataset.scope!)));
 
   regexBtn.addEventListener('click', toggleRegex);
+  ignoredBtn.addEventListener('click', toggleIgnored);
+  multilineBtn.addEventListener('click', toggleMultiline);
   caseBtn.addEventListener('click', toggleCase);
   wordBtn.addEventListener('click', toggleWord);
   groupBtn.addEventListener('click', toggleGroup);
@@ -434,7 +491,24 @@ export function initMessages(): void {
         state.gitStatus = data.status;
         render();
         break;
+      case 'searchHistory':
+        state.searchHistory = data.history as string[];
+        break;
+      case 'recentFiles':
+        state.recentFiles = data.files;
+        if (state.scope === 'recent') {
+          filterFilesLocally(state.recentFiles, state.query);
+          render();
+        }
+        break;
+      case 'setScope':
+        if (SCOPES.includes(data.scope)) {
+          setScope(data.scope, { remember: false });
+          queryEl.focus();
+        }
+        break;
       case 'fileList':
+        if (data.includeIgnored !== undefined && data.includeIgnored !== state.includeIgnored) { break; }
         state.fileList = data.files;
         if (state.scope === 'files') {
           filterFilesLocally(state.fileList!, state.query);

@@ -43,6 +43,18 @@ export function highlightMatch(text: string, start: number, end: number): string
     + escHtml(text.slice(end));
 }
 
+/**
+ * A result row is one line high, so a multiline match is shown as its first line: the highlight is
+ * cut at the end of that line and `extraLines` says how many more lines the match covers.
+ */
+export function firstLineMatch(text: string, start: number, end: number): { text: string; start: number; end: number; extraLines: number } {
+  const newline = text.indexOf('\n');
+  if (newline === -1) { return { text, start, end, extraLines: 0 }; }
+  const line = text.slice(0, newline).replace(/\r$/, '');
+  const from = Math.min(start, line.length);
+  return { text: line, start: from, end: Math.max(from, Math.min(end, line.length)), extraLines: text.split('\n').length - 1 };
+}
+
 export function highlightPositions(text: string, positions: number[]): string {
   const posSet = new Set(positions);
   let html = '';

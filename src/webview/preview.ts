@@ -80,12 +80,11 @@ export function requestPreview(): void {
 
 function requestTextPreview(): void {
   if (!state.showPreview) { return; }
-  const rd = recentDefault();
-  const r = rd ? rd[state.selected] : state.results[state.selected];
-  if (!r) { return; }
+  const target = textResultTarget(state.selected);
+  if (!target) { return; }
   clearTimeout(previewTimer!);
   previewTimer = setTimeout(() => {
-    vscode.postMessage({ type: 'preview', file: r.file, line: rd ? 1 : r.line });
+    vscode.postMessage({ type: 'preview', file: target.file, line: target.line });
   }, 80);
 }
 
@@ -119,6 +118,21 @@ export function togglePreview(): void {
 }
 
 // Circular-dep helper — re-exported from actions
+/**
+ * The file and line to open for entry `index` of the text-search list. Until something is typed that
+ * list shows the recent files (which have no line, so they open at line 1); afterwards it shows
+ * search results, which open at their own line.
+ */
+export function textResultTarget(index: number): { file: string; line: number } | undefined {
+  const recent = recentDefault();
+  if (recent) {
+    const file = recent[index];
+    return file ? { file: file.file, line: 1 } : undefined;
+  }
+  const result = state.results[index];
+  return result ? { file: result.file, line: result.line } : undefined;
+}
+
 export function recentDefault() {
   return (!state.query && !state.searching && state.results.length === 0 && !isFileScope() && !isSymbolScope())
     ? state.recentFiles.slice(0, 12) : null;

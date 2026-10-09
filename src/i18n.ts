@@ -23,6 +23,9 @@ export interface UiStrings {
   sortFilename: string;
   sortCount: string;
   includeFilter: string;
+  includeIgnored: string;
+  multiline: string;
+  replaceNotInMultiline: string;
   savedSearches: string;
   keyboardShortcuts: string;
   moreOptions: string;
@@ -58,6 +61,9 @@ export interface UiStrings {
   // Errors
   ripgrepNotFound: string;
   openSettings: string;
+  whatsNewMessage: string; // contains {version}
+  whatsNewAction: string;
+  dontShowAgain: string;
   noWorkspace: string;
   searchFailed: string;
   symbolSearchFailed: string;
@@ -99,6 +105,9 @@ const zh: UiStrings = {
   sortFilename: '排序: 按文件名',
   sortCount: '排序: 按匹配数',
   includeFilter: '包含过滤',
+  includeIgnored: '包含被忽略和隐藏的文件',
+  multiline: '多行搜索（正则）',
+  replaceNotInMultiline: '多行模式下无法使用替换。',
   savedSearches: '已保存搜索',
   keyboardShortcuts: '键盘快捷键',
   moreOptions: '更多选项',
@@ -129,6 +138,9 @@ const zh: UiStrings = {
 
   ripgrepNotFound: 'Spyglass: 未找到或无法自动安装 ripgrep。请系统级安装或在设置中指定 spyglass.ripgrepPath。',
   openSettings: '打开设置',
+  whatsNewMessage: 'Spyglass 已更新至 {version}。',
+  whatsNewAction: '查看新功能',
+  dontShowAgain: '不再显示',
   noWorkspace: '未打开工作区文件夹。',
   searchFailed: '搜索失败。',
   symbolSearchFailed: '符号搜索失败。',
@@ -157,6 +169,8 @@ const zh: UiStrings = {
 <div class="shortcut-row"><span>按文件分组</span><div class="shortcut-keys"><kbd>Alt</kbd><kbd>L</kbd></div></div>
 <div class="shortcut-row"><span>排序切换</span><div class="shortcut-keys"><kbd>Alt</kbd><kbd>S</kbd></div></div>
 <div class="shortcut-row"><span>包含过滤</span><div class="shortcut-keys"><kbd>Alt</kbd><kbd>I</kbd></div></div>
+<div class="shortcut-row"><span>被忽略和隐藏的文件</span><div class="shortcut-keys"><kbd>Alt</kbd><kbd>H</kbd></div></div>
+<div class="shortcut-row"><span>多行搜索</span><div class="shortcut-keys"><kbd>Alt</kbd><kbd>M</kbd></div></div>
 <div class="shortcut-row"><span>替换模式</span><div class="shortcut-keys"><kbd>Alt</kbd><kbd>R</kbd></div></div>
 <div class="shortcut-row"><span>替换输入</span><div class="shortcut-keys"><kbd>Tab</kbd><span style="font-size:9px;color:var(--f-dim)"> （替换模式下）</span></div></div>
 <div class="shortcut-row"><span>历史记录</span><div class="shortcut-keys"><kbd>Ctrl</kbd><kbd>↑</kbd><kbd>↓</kbd></div></div>
@@ -196,6 +210,9 @@ const en: UiStrings = {
   sortFilename: 'Sort: by filename',
   sortCount: 'Sort: by match count',
   includeFilter: 'Include filter',
+  includeIgnored: 'Include ignored and hidden files',
+  multiline: 'Multiline search (regex)',
+  replaceNotInMultiline: 'Replace is not available in multiline mode.',
   savedSearches: 'Saved searches',
   keyboardShortcuts: 'Keyboard shortcuts',
   moreOptions: 'More options',
@@ -226,6 +243,9 @@ const en: UiStrings = {
 
   ripgrepNotFound: 'Spyglass: could not find or auto-install ripgrep. Install it system-wide or set spyglass.ripgrepPath in settings.',
   openSettings: 'Open Settings',
+  whatsNewMessage: 'Spyglass was updated to {version}.',
+  whatsNewAction: "What's New",
+  dontShowAgain: "Don't Show Again",
   noWorkspace: 'No workspace folder open.',
   searchFailed: 'Search failed.',
   symbolSearchFailed: 'Symbol search failed.',
@@ -254,6 +274,8 @@ const en: UiStrings = {
 <div class="shortcut-row"><span>Group by file</span><div class="shortcut-keys"><kbd>Alt</kbd><kbd>L</kbd></div></div>
 <div class="shortcut-row"><span>Sort (cycle)</span><div class="shortcut-keys"><kbd>Alt</kbd><kbd>S</kbd></div></div>
 <div class="shortcut-row"><span>Include filter</span><div class="shortcut-keys"><kbd>Alt</kbd><kbd>I</kbd></div></div>
+<div class="shortcut-row"><span>Ignored and hidden files</span><div class="shortcut-keys"><kbd>Alt</kbd><kbd>H</kbd></div></div>
+<div class="shortcut-row"><span>Multiline search</span><div class="shortcut-keys"><kbd>Alt</kbd><kbd>M</kbd></div></div>
 <div class="shortcut-row"><span>Replace mode</span><div class="shortcut-keys"><kbd>Alt</kbd><kbd>R</kbd></div></div>
 <div class="shortcut-row"><span>Focus replace input</span><div class="shortcut-keys"><kbd>Tab</kbd><span style="font-size:9px;color:var(--f-dim)"> (in replace mode)</span></div></div>
 <div class="shortcut-row"><span>History prev / next</span><div class="shortcut-keys"><kbd>Ctrl</kbd><kbd>↑</kbd><kbd>↓</kbd></div></div>

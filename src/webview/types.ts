@@ -63,6 +63,8 @@ export interface ButtonPrefs {
   showPreview: boolean;
   sortBy: 'default' | 'filename' | 'count';
   includeMode: boolean;
+  includeIgnored: boolean;
+  multiline: boolean;
 }
 
 export interface AppState {
@@ -93,6 +95,8 @@ export interface AppState {
   sortBy: 'default' | 'filename' | 'count';
   includeFilter: string;
   includeMode: boolean;
+  includeIgnored: boolean;
+  multiline: boolean;
   symbolKindFilter: string;
   savedSearches: Array<{ query: string; scope: string }>;
   bookmarksMode: boolean;

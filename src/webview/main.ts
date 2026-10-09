@@ -6,11 +6,11 @@ window.onerror = (msg, _src, line, _col, err) => {
 };
 
 import { state } from './state';
-import { queryEl, regexBtn, caseBtn, wordBtn, groupBtn, replaceBtn, previewBtn, resultInfo, tabs, sortBtn, includeBtn, includeRow } from './dom';
+import { queryEl, regexBtn, caseBtn, wordBtn, groupBtn, replaceBtn, previewBtn, resultInfo, tabs, sortBtn, includeBtn, includeRow, ignoredBtn, multilineBtn } from './dom';
 import { isFileScope, isSymbolScope, triggerSearch } from './search';
 import { renderPreview, clearPreview } from './preview';
 import { render, updateSelection } from './render';
-import { initEvents, initMessages, updateReplaceRowVisibility, setScope } from './events';
+import { initEvents, initMessages, updateReplaceRowVisibility, setScope, scopeLoadsWithoutQuery } from './events';
 import { initContextMenu } from './contextMenu';
 import { initHighlighter, setHasVscodeTheme } from './shiki';
 
@@ -37,6 +37,15 @@ if (!state.showPreview) {
   document.getElementById('right-panel')!.classList.add('hidden');
   document.getElementById('left-panel')!.classList.add('full');
 }
+if (state.includeIgnored) {
+  ignoredBtn.classList.add('active');
+  document.body.classList.add('include-ignored');
+}
+if (state.multiline) {
+  multilineBtn.classList.add('active');
+  document.body.classList.add('multiline');
+  replaceBtn.disabled = true; // replace is not available in multiline mode
+}
 if (state.includeMode) {
   includeBtn.classList.add('active');
   includeRow.style.display = '';
@@ -58,6 +67,7 @@ if (isFileScope() || isSymbolScope()) {
   document.getElementById('case-btn')!.setAttribute('disabled', '');
   document.getElementById('word-btn')!.setAttribute('disabled', '');
   document.getElementById('replace-btn')!.setAttribute('disabled', '');
+  multilineBtn.disabled = true;
   queryEl.placeholder = state.scope === 'recent'  ? S.filterRecentFiles
                       : state.scope === 'symbols' ? S.searchWorkspaceSymbols
                       : S.searchFilesByName;
@@ -76,7 +86,7 @@ if (INITIAL_QUERY) {
   state.query = INITIAL_QUERY;
   queryEl.select();
   triggerSearch(render);
-} else if (state.scope === 'recent') {
+} else if (scopeLoadsWithoutQuery(state.scope)) {
   triggerSearch(render);
 }
 queryEl.focus();

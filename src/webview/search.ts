@@ -2,6 +2,7 @@ import { state } from './state';
 import type { RecentFile, FileResult } from './types';
 
 import { vscode } from './vscode';
+import { fuzzyRank, fuzzyScore, parseQueryInput } from '../webviewUtils';
 
 export function isFileScope(): boolean   { return state.scope === 'files' || state.scope === 'recent' || state.scope === 'git'; }
 export function isSymbolScope(): boolean { return state.scope === 'symbols' || state.scope === 'doc'; }
@@ -10,52 +11,15 @@ export function isGitScope(): boolean    { return state.scope === 'git'; }
 export function isRefsScope(): boolean   { return state.scope === 'refs'; }
 export function isTextScope(): boolean   { return !isFileScope() && !isSymbolScope(); }
 
-export function parseQueryInput(raw: string): { query: string; globFilter: string } {
-  const words = raw.split(/\s+/);
-  const globs: string[] = [], terms: string[] = [];
-  for (const w of words) {
-    if (w && (w.startsWith('*') || w.startsWith('!'))) { globs.push(w); }
-    else { terms.push(w); }
-  }
-  return { query: terms.join(' ').trim(), globFilter: globs.join(',') };
-}
+// The same functions the unit tests exercise (src/webviewUtils.ts); esbuild bundles them in.
+export { parseQueryInput, fuzzyScore };
 
-export function fuzzyScore(str: string, query: string): { score: number; positions: number[] } | null {
-  const lStr = str.toLowerCase();
-  const lQuery = query.toLowerCase();
-  const positions: number[] = [];
-  let si = 0, qi = 0;
-  while (si < lStr.length && qi < lQuery.length) {
-    if (lStr[si] === lQuery[qi]) { positions.push(si); qi++; }
-    si++;
-  }
-  if (qi < lQuery.length) { return null; }
-  let score = 0, consecutive = 1;
-  for (let i = 1; i < positions.length; i++) {
-    if (positions[i] === positions[i - 1] + 1) { score += consecutive * 10; consecutive++; }
-    else { consecutive = 1; }
-  }
-  const basenameStart = str.lastIndexOf('/') + 1;
-  if (positions[0] >= basenameStart) { score += 50; }
-  if (positions[0] === basenameStart) { score += 30; }
-  score -= positions[positions.length - 1] - positions[0];
-  let slashes = 0;
-  for (let i = 0; i < str.length; i++) { if (str[i] === '/') { slashes++; } }
-  score -= slashes * 2;
-  return { score, positions };
-}
-
-function fuzzyFilter(fileList: RecentFile[], query: string): FileResult[] {
+/** The files to list for `query`, at most `limit`; a blank query lists them in their given order. */
+function fuzzyFilter(fileList: RecentFile[], query: string, limit: number): FileResult[] {
   if (!query.trim()) {
-    return fileList.map(({ file, rel }) => ({ file, relativePath: rel, matchPositions: [] }));
+    return fileList.slice(0, limit).map(({ file, rel }) => ({ file, relativePath: rel, matchPositions: [] }));
   }
-  const scored: (FileResult & { score: number })[] = [];
-  for (const { file, rel } of fileList) {
-    const match = fuzzyScore(rel, query);
-    if (match) { scored.push({ file, relativePath: rel, matchPositions: match.positions, score: match.score }); }
-  }
-  scored.sort((a, b) => b.score - a.score);
-  return scored.map(({ file, relativePath, matchPositions }) => ({ file, relativePath, matchPositions }));
+  return fuzzyRank(fileList, query, limit).map(({ item, positions }) => ({ file: item.file, relativePath: item.rel, matchPositions: positions }));
 }
 
 export function filterFilesLocally(fileList: RecentFile[], query: string): void {
@@ -63,11 +27,12 @@ export function filterFilesLocally(fileList: RecentFile[], query: string): void 
 
   if (state.scope === 'recent' && state.pinnedFiles.length > 0) {
     const pinnedPaths = new Set(state.pinnedFiles.map(f => f.file));
-    const pinned  = fuzzyFilter(state.pinnedFiles, query)
+    const pinned  = fuzzyFilter(state.pinnedFiles, query, maxResults)
       .map(r => ({ ...r, isPinned: true }));
     const nonPinned = fuzzyFilter(
       fileList.filter(f => !pinnedPaths.has(f.file)),
       query,
+      maxResults,
     );
     state.fileResults = [...pinned, ...nonPinned].slice(0, maxResults);
     state.searching = false;
@@ -75,7 +40,7 @@ export function filterFilesLocally(fileList: RecentFile[], query: string): void 
     return;
   }
 
-  state.fileResults = fuzzyFilter(fileList, query).slice(0, maxResults);
+  state.fileResults = fuzzyFilter(fileList, query, maxResults);
   state.searching = false;
   state.selected = 0;
 }
@@ -91,7 +56,7 @@ export function triggerSearch(renderFn: () => void): void {
     } else {
       state.searching = true;
       renderFn();
-      searchTimer = setTimeout(() => vscode.postMessage({ type: 'fileSearch' }), 180);
+      searchTimer = setTimeout(() => vscode.postMessage({ type: 'fileSearch', includeIgnored: state.includeIgnored }), 180);
     }
     return;
   }
@@ -138,6 +103,10 @@ export function triggerSearch(renderFn: () => void): void {
         wholeWord: state.wholeWord,
         globFilter: state.globFilter,
         includeFilter: state.includeFilter,
+        includeIgnored: state.includeIgnored,
+        multiline: state.multiline,
+        // recalled from the history: run it, but do not record it again (that would reorder the list)
+        fromHistory: state.historyIndex >= 0,
       });
     }
   }, 180);

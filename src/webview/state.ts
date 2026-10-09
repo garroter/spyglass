@@ -22,7 +22,8 @@ export const state: AppState = {
   caseSensitive: bp.caseSensitive ?? false,
   wholeWord: bp.wholeWord ?? false,
   globFilter: '',
-  replaceMode: bp.replaceMode ?? false,
+  // replace is not available in multiline mode, so a saved combination of both keeps only multiline
+  replaceMode: (bp.replaceMode ?? false) && !(bp.multiline ?? false),
   groupResults: GROUP_RESULTS,
   query: '',
   searching: false,
@@ -35,6 +36,8 @@ export const state: AppState = {
   sortBy: bp.sortBy ?? 'default' as 'default' | 'filename' | 'count',
   includeFilter: '',
   includeMode: bp.includeMode ?? false,
+  includeIgnored: bp.includeIgnored ?? false,
+  multiline: bp.multiline ?? false,
   symbolKindFilter: '',
   savedSearches: (SAVED_SEARCHES ?? []).slice(),
   bookmarksMode: false,
@@ -52,6 +55,8 @@ export function saveButtonPrefs(): void {
       showPreview: state.showPreview,
       sortBy: state.sortBy,
       includeMode: state.includeMode,
+      includeIgnored: state.includeIgnored,
+      multiline: state.multiline,
     },
   });
 }

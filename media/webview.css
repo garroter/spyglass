@@ -824,3 +824,30 @@
     }
   }
   .rp-btn-cancel:hover { color: var(--f-text); border-color: var(--f-text); }
+
+/* Include-ignored and multiline are secondary-toolbar toggles; keep it visible while that toolbar is collapsed */
+#more-btn { position: relative; }
+body.include-ignored #more-btn::after,
+body.multiline #more-btn::after {
+  content: '';
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--f-accent);
+}
+
+/* "+N": a multiline match shown as its first line covers N more lines */
+.ml-badge {
+  display: inline-block;
+  margin-right: 6px;
+  padding: 0 5px;
+  border-radius: 8px;
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--f-accent);
+  border: 1px solid var(--f-accent);
+  vertical-align: 1px;
+}

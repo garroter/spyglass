@@ -1,9 +1,9 @@
 import { state } from './state';
-import { escHtml, highlightMatch, highlightPositions } from './highlight';
+import { escHtml, highlightMatch, highlightPositions, firstLineMatch } from './highlight';
 import { wrap, stateMsg, resultInfo } from './dom';
 import { isFileScope, isSymbolScope, isDocScope, isGitScope, isRefsScope, triggerSearch } from './search';
 import type { SearchResult } from './types';
-import { requestPreview, recentDefault } from './preview';
+import { requestPreview, recentDefault, textResultTarget } from './preview';
 
 import { vscode } from './vscode';
 
@@ -59,6 +59,15 @@ export function renderBookmarkResults(): void {
   wrap.appendChild(frag);
   resultInfo.textContent = searches.length + ' bookmark' + (searches.length !== 1 ? 's' : '');
   scrollToSelected();
+}
+
+/** The text of a result row with its match highlighted; a multiline match shows its first line and a "+N" badge. */
+function matchHtml(r: { text: string; matchStart: number; matchEnd: number }): string {
+  const m = firstLineMatch(r.text, r.matchStart, r.matchEnd);
+  const badge = m.extraLines
+    ? '<span class="ml-badge" title="' + m.extraLines + ' more line' + (m.extraLines !== 1 ? 's' : '') + '">+' + m.extraLines + '</span>'
+    : '';
+  return badge + highlightMatch(m.text, m.start, m.end);
 }
 
 export function updateSelection(): void {
@@ -204,7 +213,7 @@ export function renderTextResults(): void {
         div.dataset.index = String(i);
         div.innerHTML =
           '<span class="result-line">' + r.line + '</span>' +
-          '<div class="result-text">' + highlightMatch(r.text, r.matchStart, r.matchEnd) + '</div>';
+          '<div class="result-text">' + matchHtml(r) + '</div>';
         div.addEventListener('click', (e) => {
           if (e.ctrlKey) { toggleSelectResult(i); } else { openResult(i); }
         });
@@ -227,7 +236,7 @@ export function renderTextResults(): void {
           gitBadgeHtml(r.relativePath) +
           '<span class="result-line">:' + r.line + '</span>' +
         '</div>' +
-        '<div class="result-text">' + highlightMatch(r.text, r.matchStart, r.matchEnd) + '</div>';
+        '<div class="result-text">' + matchHtml(r) + '</div>';
       div.addEventListener('click', (e) => {
         if (e.ctrlKey) { toggleSelectResult(i); } else { openResult(i); }
       });
@@ -440,9 +449,8 @@ export function openResult(index: number): void {
     const r = state.symbolResults[index];
     if (r) { vscode.postMessage({ type: 'open', file: r.file, line: r.line }); }
   } else {
-    const rd = recentDefault();
-    const r = rd ? rd[index] : state.results[index];
-    if (r) { vscode.postMessage({ type: 'open', file: r.file, line: rd ? 1 : r.line }); }
+    const target = textResultTarget(index);
+    if (target) { vscode.postMessage({ type: 'open', file: target.file, line: target.line }); }
   }
 }
 
@@ -454,9 +462,8 @@ export function openResultInSplit(index: number): void {
     const r = state.symbolResults[index];
     if (r) { vscode.postMessage({ type: 'openInSplit', file: r.file, line: r.line }); }
   } else {
-    const rd = recentDefault();
-    const r = rd ? rd[index] : state.results[index];
-    if (r) { vscode.postMessage({ type: 'openInSplit', file: r.file, line: rd ? 1 : r.line }); }
+    const target = textResultTarget(index);
+    if (target) { vscode.postMessage({ type: 'openInSplit', file: target.file, line: target.line }); }
   }
 }
 
@@ -490,10 +497,9 @@ export function openAllSelected(): void {
       if (r) { vscode.postMessage({ type: 'open', file: r.file, line: r.line }); }
     }
   } else {
-    const rd = recentDefault();
     for (const i of state.multiSelected) {
-      const r = rd ? rd[i] : state.results[i];
-      if (r) { vscode.postMessage({ type: 'open', file: r.file, line: rd ? 1 : r.line }); }
+      const target = textResultTarget(i);
+      if (target) { vscode.postMessage({ type: 'open', file: target.file, line: target.line }); }
     }
   }
 }

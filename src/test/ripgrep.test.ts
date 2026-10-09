@@ -4,7 +4,7 @@ vi.mock('vscode', () => ({
   env: { appRoot: '/mock/vscode' },
 }));
 
-import { buildRgArgs } from '../ripgrep';
+import { buildRgArgs, buildFilesArgs } from '../ripgrep';
 
 // Helpers
 const argPairs = (args: string[], flag: string): string[] => {
@@ -177,3 +177,66 @@ describe('buildRgArgs — argument order', () => {
     expect(args[sep + 2]).toBe('/file.ts');
   });
 });
+
+describe('buildRgArgs — include ignored and hidden files', () => {
+  it('leaves ripgrep ignore rules alone by default', () => {
+    const args = buildRgArgs('q', false);
+    expect(args).not.toContain('--hidden');
+    expect(args).not.toContain('--no-ignore');
+  });
+
+  it('asks ripgrep for hidden and ignored files when includeIgnored is set', () => {
+    const args = buildRgArgs('q', false, { includeIgnored: true });
+    expect(args).toContain('--hidden');
+    expect(args).toContain('--no-ignore');
+  });
+
+  it('lifts the configured excludes, but never searches inside .git', () => {
+    const globs = argPairs(buildRgArgs('q', false, { includeIgnored: true, exclude: ['vendor', 'node_modules', '*.min.js'] }), '--glob');
+    expect(globs).toEqual(['!.git']);
+  });
+
+  it('still applies the glob filter typed in the query', () => {
+    const globs = argPairs(buildRgArgs('q', false, { includeIgnored: true, globFilter: '*.ts' }), '--glob');
+    expect(globs).toEqual(['!.git', '*.ts']);
+  });
+
+  it('treats includeIgnored: false like the default', () => {
+    expect(buildRgArgs('q', false, { includeIgnored: false })).toEqual(buildRgArgs('q', false));
+  });
+});
+
+describe('buildFilesArgs (file listing)', () => {
+  it('lists files with the configured excludes by default', () => {
+    expect(buildFilesArgs(['vendor'])).toEqual(['--files', '--glob', '!vendor']);
+  });
+
+  it('falls back to the default excludes', () => {
+    const globs = argPairs(buildFilesArgs(), '--glob');
+    expect(globs).toEqual(['!.git', '!node_modules', '!out', '!dist', '!*.lock']);
+  });
+
+  it('includes hidden and ignored files, keeping only the .git exclude', () => {
+    const args = buildFilesArgs(['vendor', 'node_modules'], true);
+    expect(args).toEqual(['--files', '--glob', '!.git', '--hidden', '--no-ignore']);
+  });
+});
+
+describe('buildRgArgs — multiline', () => {
+  it('does not enable multiline by default', () => {
+    expect(buildRgArgs('q', true)).not.toContain('--multiline');
+  });
+
+  it('adds --multiline when asked', () => {
+    expect(buildRgArgs('q', true, { multiline: true })).toContain('--multiline');
+  });
+
+  it('treats the query as a regex in multiline mode even when regex mode is off', () => {
+    expect(buildRgArgs('a\\nb', false, { multiline: true })).not.toContain('--fixed-strings');
+  });
+
+  it('still searches for a literal string when neither regex nor multiline is on', () => {
+    expect(buildRgArgs('a.b', false, { multiline: false })).toContain('--fixed-strings');
+  });
+});
+
