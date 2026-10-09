@@ -32,7 +32,7 @@ test('Ctrl+J and Ctrl+N move down, Ctrl+K and Ctrl+P move up, from the query box
 });
 
 test('PageDown and PageUp move a page of results at a time', async ({ openSpyglass }) => {
-  const { page } = await sevenResults(openSpyglass, { width: 1100, height: 260 });
+  const { page } = await sevenResults(openSpyglass, { width: 1100, height: 420 });
   const q = page.locator('#query');
 
   await q.press('PageDown');

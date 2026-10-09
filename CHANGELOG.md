@@ -21,6 +21,7 @@
   - Doc rows show just the line (`:12`) instead of repeating the current file on every row
   - Toolbar tooltips open towards the inside, so the ones at the right edge are no longer cut off
   - The status bar says "Recent files" instead of "recent"
+- **Larger, readable text that follows your VS Code font sizes** — result rows used 11 px (file paths and code), the status bar and badges 9–10 px, whatever your settings said. Labels and lists now follow VS Code's UI font size (one pixel larger than before at the default 13 px), and code — result lines, the preview, the replace preview — follows `editor.fontSize`, so the preview matches your editor and a larger editor font makes Spyglass larger too
 
 ### Fixed
 - When opened straight into the Doc scope (a `Find Symbols in Document` command), the search box said "Search files by name"

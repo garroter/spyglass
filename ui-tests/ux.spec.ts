@@ -187,3 +187,19 @@ test('opened straight into Doc, the search box says what it filters', async ({ o
 
   await expect(page.locator('#query')).toHaveAttribute('placeholder', /document symbols/i);
 });
+
+test('text sizes follow VS Code: the UI size for labels, the editor size for code', async ({ openSpyglass }) => {
+  const { page } = await openSpyglass();
+  await page.evaluate(() => {
+    document.documentElement.style.setProperty('--vscode-font-size', '16px');
+    document.documentElement.style.setProperty('--vscode-editor-font-size', '20px');
+  });
+  await page.locator('#query').fill('needle');
+  await expect(page.locator('.result').first()).toBeVisible();
+
+  const size = (sel: string) => page.locator(sel).first().evaluate(el => getComputedStyle(el).fontSize);
+  expect(await size('.tab')).toBe('15px');
+  expect(await size('.result .result-file')).toBe('15px');
+  expect(await size('.result .result-text')).toBe('19px');
+  await expect.poll(() => size('#preview-content .ptext')).toBe('20px');
+});
