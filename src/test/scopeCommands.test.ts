@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { loadManifest } from './manifest';
 import { SCOPE_COMMANDS, isScope, scopeFromCommandArg, directoryFromCommandArg } from '../scopeCommands';
 
-const ALL_SCOPES = ['project', 'openFiles', 'files', 'recent', 'here', 'symbols', 'git', 'doc', 'refs'];
+const ALL_SCOPES = ['project', 'openFiles', 'files', 'recent', 'here', 'symbols', 'git', 'doc', 'refs', 'commands'];
 
 const manifest = loadManifest(); // package.json with its %keys% resolved, as VS Code shows it
 const contributedCommands: Array<{ command: string; title: string }> = manifest.contributes.commands;
@@ -46,6 +46,10 @@ describe('isScope', () => {
 describe('scopeFromCommandArg (the argument of spyglass.open in a keybinding)', () => {
   it('reads the scope from { scope }', () => {
     expect(scopeFromCommandArg({ scope: 'files' })).toBe('files');
+  });
+
+  it('accepts the Commands scope', () => {
+    expect(scopeFromCommandArg({ scope: 'commands' })).toBe('commands');
   });
 
   it.each([

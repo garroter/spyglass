@@ -9,6 +9,11 @@ const env = vi.hoisted(() => ({
   clipboard: '',
   rgCalls: [] as Array<{ query: string; cwd: string; files?: string[]; opts?: Record<string, unknown> }>,
   listCalls: [] as Array<{ cwd: string; includeIgnored?: boolean }>,
+  /** What happened, in order: ['close'] or ['exec', id, ...args]. */
+  calls: [] as unknown[][],
+  commandIds: [] as string[],
+  failCommand: '',
+  extensions: [] as unknown[],
 }));
 
 vi.mock('vscode', () => ({
@@ -30,7 +35,17 @@ vi.mock('vscode', () => ({
     showErrorMessage: (m: string) => { env.errorMessages.push(m); return Promise.resolve(undefined); },
     showInformationMessage: (m: string) => { env.infoMessages.push(m); return Promise.resolve(undefined); },
   },
-  commands: { executeCommand: vi.fn() },
+  commands: {
+    executeCommand: vi.fn(async (...args: unknown[]) => {
+      env.calls.push(['exec', ...args]);
+      if (args[0] === env.failCommand) { throw new Error('boom'); }
+    }),
+    getCommands: async () => env.commandIds,
+  },
+  extensions: {
+    get all() { return env.extensions; },
+    onDidChange: () => ({ dispose() {} }),
+  },
   Uri: {
     file: (p: string) => ({ fsPath: p }),
     joinPath: (base: { fsPath: string }, ...seg: string[]) => ({ fsPath: [base.fsPath, ...seg].join('/') }),
@@ -59,13 +74,19 @@ import { getUiStrings } from '../i18n';
 
 function makeContext() {
   const store = new Map<string, unknown>();
+  const globalStore = new Map<string, unknown>();
   return {
     store,
+    globalStore,
     extensionUri: { fsPath: '/ext' },
     subscriptions: [] as { dispose(): void }[],
     workspaceState: {
       get: <T>(key: string, fallback?: T): T => (store.has(key) ? store.get(key) as T : fallback as T),
       update: async (key: string, value: unknown) => { store.set(key, value); },
+    },
+    globalState: {
+      get: <T>(key: string, fallback?: T): T => (globalStore.has(key) ? globalStore.get(key) as T : fallback as T),
+      update: async (key: string, value: unknown) => { globalStore.set(key, value); },
     },
   };
 }
@@ -118,6 +139,10 @@ beforeEach(() => {
   env.clipboard = '';
   env.rgCalls = [];
   env.listCalls = [];
+  env.calls = [];
+  env.commandIds = [];
+  env.failCommand = '';
+  env.extensions = [];
 });
 
 // --------------------------------------------------------------------------------------------
@@ -596,5 +621,80 @@ describe('SpyglassController — dispose', () => {
     expect(listenerCount()).toBe(0);
     await send({ type: 'scopeChanged', scope: 'git' });
     expect(context.store.has('spyglass.lastScope')).toBe(false);
+  });
+});
+
+// --------------------------------------------------------------------------------------------
+describe('SpyglassController — the Commands scope', () => {
+  const gitExtension = {
+    id: 'vscode.git',
+    extensionPath: '/nonexistent/git',
+    packageJSON: {
+      name: 'git', displayName: 'Git',
+      contributes: { commands: [{ command: 'git.commit', title: 'Commit', category: 'Git' }, { command: 'git.push', title: 'Push', category: 'Git' }] },
+    },
+  };
+
+  function commandsSetup(sidebarMode = false) {
+    env.extensions = [gitExtension];
+    env.commandIds = ['git.commit', 'git.push', 'workbench.action.toggleSidebarVisibility'];
+    const s = setup({ sidebarMode });
+    s.host.close.mockImplementation(() => { env.calls.push(['close']); });
+    return s;
+  }
+
+  it('answers commandList with the catalog and the recently run ids', async () => {
+    const { send, posted, context } = commandsSetup();
+    context.globalStore.set('spyglass.recentCommands', ['git.push']);
+    await send({ type: 'commandList' });
+    const answer = posted.find(m => m.type === 'commands')!;
+    const ids = (answer.entries as Array<{ id: string }>).map(e => e.id);
+    expect(ids).toContain('git.commit');
+    expect(ids).toContain('workbench.action.toggleSidebarVisibility');
+    expect(ids).not.toContain('workbench.action.reloadWindow'); // not in this VS Code (getCommands)
+    expect(answer.recent).toEqual(['git.push']);
+  });
+
+  it('in the popup, closes it before running the command, so the command acts on the editor', async () => {
+    const { send } = commandsSetup();
+    await send({ type: 'runCommand', id: 'git.commit' });
+    expect(env.calls).toEqual([['close'], ['exec', 'git.commit']]);
+  });
+
+  it('in the sidebar, focuses the editor before running the command and keeps the sidebar', async () => {
+    const { send } = commandsSetup(true);
+    await send({ type: 'runCommand', id: 'git.commit' });
+    expect(env.calls).toEqual([['exec', 'workbench.action.focusActiveEditorGroup'], ['exec', 'git.commit']]);
+  });
+
+  it('remembers the command first among the recent ones, once, at most 20', async () => {
+    const { send, context } = commandsSetup();
+    context.globalStore.set('spyglass.recentCommands', ['a', 'git.commit', ...Array.from({ length: 25 }, (_, i) => `x${i}`)]);
+    await send({ type: 'runCommand', id: 'git.commit' });
+    const recent = context.globalStore.get('spyglass.recentCommands') as string[];
+    expect(recent.slice(0, 2)).toEqual(['git.commit', 'a']);
+    expect(recent.filter(id => id === 'git.commit')).toHaveLength(1);
+    expect(recent).toHaveLength(20);
+  });
+
+  it('says so when a command fails', async () => {
+    const { send } = commandsSetup();
+    env.failCommand = 'git.commit';
+    await send({ type: 'commandList' });
+    await send({ type: 'runCommand', id: 'git.commit' });
+    expect(env.errorMessages).toEqual(['Spyglass: "Git: Commit" failed: boom']);
+  });
+
+  it('opens VS Code\'s own Command Palette with the same text for "Show all commands"', async () => {
+    const { send } = commandsSetup();
+    await send({ type: 'showAllCommands', query: 'git pu' });
+    expect(env.calls).toEqual([['close'], ['exec', 'workbench.action.quickOpen', '>git pu']]);
+  });
+
+  it('never remembers Commands as the last scope', async () => {
+    const { send, context } = commandsSetup();
+    context.store.set('spyglass.lastScope', 'files');
+    await send({ type: 'scopeChanged', scope: 'commands' });
+    expect(context.store.get('spyglass.lastScope')).toBe('files');
   });
 });

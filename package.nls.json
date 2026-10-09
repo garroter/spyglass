@@ -10,6 +10,7 @@
   "command.findGitChanges.title": "Spyglass: Find Git Changes",
   "command.findDocumentSymbols.title": "Spyglass: Find Symbols in Document",
   "command.findReferences.title": "Spyglass: Find References",
+  "command.findCommands.title": "Spyglass: Find Commands",
   "command.showWhatsNew.title": "Spyglass: What's New",
   "command.resume.title": "Spyglass: Resume Last Search",
   "command.keyHandledInWebview.title": "Spyglass: (internal) key handled by the Spyglass page",

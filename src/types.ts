@@ -30,7 +30,7 @@ export interface SearchResult {
   lineCount?: number;
 }
 
-export type Scope = 'project' | 'openFiles' | 'files' | 'recent' | 'here' | 'symbols' | 'git' | 'doc' | 'refs';
+export type Scope = 'project' | 'openFiles' | 'files' | 'recent' | 'here' | 'symbols' | 'git' | 'doc' | 'refs' | 'commands';
 
 export interface FileResult {
   file: string;

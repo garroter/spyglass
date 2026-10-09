@@ -15,6 +15,7 @@ export const SCOPE_COMMANDS: ReadonlyArray<{ command: string; scope: Scope }> = 
   { command: 'spyglass.findGitChanges',      scope: 'git' },
   { command: 'spyglass.findDocumentSymbols', scope: 'doc' },
   { command: 'spyglass.findReferences',      scope: 'refs' },
+  { command: 'spyglass.findCommands',        scope: 'commands' },
 ];
 
 export function isScope(value: unknown): value is Scope {

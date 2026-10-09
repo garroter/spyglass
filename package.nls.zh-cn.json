@@ -10,6 +10,7 @@
   "command.findGitChanges.title": "Spyglass: 查找 Git 更改",
   "command.findDocumentSymbols.title": "Spyglass: 在文档中查找符号",
   "command.findReferences.title": "Spyglass: 查找引用",
+  "command.findCommands.title": "Spyglass: 查找命令",
   "command.showWhatsNew.title": "Spyglass: 新功能",
   "command.resume.title": "Spyglass: 恢复上次搜索",
   "command.keyHandledInWebview.title": "Spyglass: (内部) 由 Spyglass 页面处理的按键",

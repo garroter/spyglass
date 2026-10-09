@@ -104,6 +104,10 @@
         "title": "%command.findReferences.title%"
       },
       {
+        "command": "spyglass.findCommands",
+        "title": "%command.findCommands.title%"
+      },
+      {
         "command": "spyglass.showWhatsNew",
         "title": "%command.showWhatsNew.title%"
       },

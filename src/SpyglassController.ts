@@ -11,6 +11,9 @@ import { loadCurrentTheme } from './themeLoader';
 import { getNonce, renderWebviewHtml, WebviewConfig } from './webviewHtml';
 import { isScope } from './scopeCommands';
 import { getRankedRecentFiles } from './recentFiles';
+import { buildCatalog, CommandEntry, ExtensionInfo, Platform } from './commandCatalog';
+import { CORE_COMMANDS } from './coreCommands';
+import { commandLabel } from './webviewUtils';
 
 /** Scope to start in: the one used last time, else the setting, else Project. Unknown values are ignored. */
 export function resolveInitialScope(lastScope: string | undefined, configured: string | undefined): Scope {
@@ -66,6 +69,49 @@ export interface SearchSession {
 }
 
 const SESSION_KEY = 'spyglass.lastSession';
+const RECENT_COMMANDS_KEY = 'spyglass.recentCommands';
+const MAX_RECENT_COMMANDS = 20;
+
+// ── The command catalog, shared by every page and rebuilt when extensions change ──────────────
+let catalog: { extensions: readonly unknown[]; entries: Promise<CommandEntry[]> } | undefined;
+let catalogWatched = false;
+
+function platform(): Platform {
+  return process.platform === 'darwin' || process.platform === 'win32' ? process.platform : 'linux';
+}
+
+/** The extension's package.nls strings for VS Code's language, read only if its manifest has %placeholders%. */
+function readExtensionNls(ext: vscode.Extension<unknown>): Record<string, string> | undefined {
+  const pkg = ext.packageJSON as { contributes?: unknown; displayName?: unknown } | undefined;
+  const placeholders = JSON.stringify(pkg?.contributes ?? {}).includes('%') || String(pkg?.displayName ?? '').includes('%');
+  if (!placeholders) { return undefined; }
+  for (const file of [`package.nls.${vscode.env.language}.json`, 'package.nls.json']) {
+    try {
+      return JSON.parse(fs.readFileSync(path.join(ext.extensionPath, file), 'utf-8'));
+    } catch { /* next */ }
+  }
+  return undefined;
+}
+
+/** All commands to offer: built on first use, again after extensions are (un)installed. */
+function commandCatalog(): Promise<CommandEntry[]> {
+  if (!catalogWatched) {
+    catalogWatched = true;
+    vscode.extensions.onDidChange(() => { catalog = undefined; });
+  }
+  const extensions = vscode.extensions.all;
+  if (!catalog || catalog.extensions !== extensions) {
+    const byId = new Map(extensions.map(e => [e.id, e]));
+    const entries = Promise.resolve(vscode.commands.getCommands(true))
+      .then(ids => new Set(ids), () => undefined)
+      .then(existing => buildCatalog(
+        extensions as unknown as ExtensionInfo[], existing, platform(), CORE_COMMANDS,
+        id => { const ext = byId.get(id); return ext ? readExtensionNls(ext) : undefined; },
+      ));
+    catalog = { extensions, entries };
+  }
+  return catalog.entries;
+}
 
 // Messages arrive from the webview script and are only shape-checked by the casts below.
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -364,6 +410,19 @@ export class SpyglassController {
       case 'open':
         await this._host.openFile(msg.file as string, msg.line as number, msg.column as number | undefined);
         break;
+      case 'commandList': {
+        const entries = await commandCatalog();
+        this.post({ type: 'commands', entries, recent: this._context.globalState.get<string[]>(RECENT_COMMANDS_KEY, []) });
+        break;
+      }
+      case 'runCommand':
+        await this._runCommand(msg.id as string);
+        break;
+      case 'showAllCommands':
+        // VS Code's own palette, for commands Spyglass does not list
+        if (!this._options.sidebarMode) { this._host.close(); }
+        await vscode.commands.executeCommand('workbench.action.quickOpen', '>' + String(msg.query ?? ''));
+        break;
       case 'session':
         this._context.workspaceState.update(SESSION_KEY, { query: msg.query, scope: msg.scope, selected: msg.selected });
         break;
@@ -376,7 +435,8 @@ export class SpyglassController {
       case 'scopeChanged':
         this._scope = msg.scope as Scope;
         // a switch made by a command rather than by the user is not "the scope you last used"
-        if (msg.remember !== false) { this._context.workspaceState.update('spyglass.lastScope', this._scope); }
+        // nor is Commands, which is entered with `>` and has no tab of its own
+        if (msg.remember !== false && this._scope !== 'commands') { this._context.workspaceState.update('spyglass.lastScope', this._scope); }
         break;
       case 'close':
         this._host.close();
@@ -494,6 +554,27 @@ export class SpyglassController {
     } catch {
       if (seq !== this._searchSeq) { return; }
       this.post({ type: 'error', message: this._strings().symbolSearchFailed });
+    }
+  }
+
+  /**
+   * Runs a command from the Commands list on the editor Spyglass was opened from: the popup closes
+   * first (focus returns to that editor), the sidebar hands focus to the editor group.
+   */
+  private async _runCommand(id: string): Promise<void> {
+    const entry = (await commandCatalog()).find(e => e.id === id);
+    const recent = this._context.globalState.get<string[]>(RECENT_COMMANDS_KEY, []).filter(r => r !== id);
+    await this._context.globalState.update(RECENT_COMMANDS_KEY, [id, ...recent].slice(0, MAX_RECENT_COMMANDS));
+    if (this._options.sidebarMode) {
+      await vscode.commands.executeCommand('workbench.action.focusActiveEditorGroup');
+    } else {
+      this._host.close();
+    }
+    try {
+      await vscode.commands.executeCommand(id);
+    } catch (err) {
+      const name = entry ? commandLabel(entry) : id;
+      vscode.window.showErrorMessage(`Spyglass: "${name}" failed: ${err instanceof Error ? err.message : String(err)}`);
     }
   }
 
