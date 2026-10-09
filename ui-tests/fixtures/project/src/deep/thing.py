@@ -1,0 +1,2 @@
+def needle():
+    return "NEEDLE"

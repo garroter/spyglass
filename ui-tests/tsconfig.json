@@ -1,0 +1,13 @@
+{
+  "compilerOptions": {
+    "module": "commonjs",
+    "moduleResolution": "node",
+    "target": "ES2022",
+    "lib": ["ES2022", "DOM"],
+    "strict": true,
+    "esModuleInterop": true,
+    "noEmit": true,
+    "skipLibCheck": true
+  },
+  "include": ["./**/*.ts", "../playwright.config.ts", "../src/*.ts"]
+}
