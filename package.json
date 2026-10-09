@@ -313,7 +313,8 @@
     "lint": "eslint src --ext ts",
     "typecheck": "tsc -p ./ --noEmit && tsc -p ui-tests --noEmit && tsc -p src/webview --noEmit",
     "test": "vitest run",
-    "test:ui": "npm run bundle-webview && playwright test"
+    "test:ui": "npm run bundle-webview && playwright test",
+    "screenshots": "npm run bundle-webview && playwright test --config playwright.screenshots.config.ts"
   },
   "devDependencies": {
     "@playwright/test": "^1.63.0",

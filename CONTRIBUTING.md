@@ -99,6 +99,10 @@ is often revealing: run **Developer: Open Webview Developer Tools** from the Com
 
 ## Releasing (maintainers)
 
+Before a release that changes the UI, refresh the README screenshots with `npm run screenshots`: it drives the
+real webview against this repository in VS Code's Dark Modern colours and rewrites `images/screenshot-*.png`
+(the scenes are in `scripts/screenshots/readme.shots.ts`). Look at them before committing.
+
 1. Bump `version` in `package.json`, and rename `## [Unreleased]` in `CHANGELOG.md` to `## [x.y.z] - YYYY-MM-DD`.
 2. Commit, then push a tag `vx.y.z`. The release workflow checks that the tag matches `package.json` and that
    the changelog has notes for it, runs the CI checks and publishes a GitHub Release with the `.vsix` that

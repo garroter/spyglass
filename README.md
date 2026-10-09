@@ -57,17 +57,25 @@ VS Code's built-in search (`Ctrl+Shift+F`) is powerful but slow to use — it re
 
 ## 📸 Demo
 
-**Popup — browsing results with live, syntax-highlighted preview** (`Ctrl+Alt+F` / `shift shift`)
+**Search the project as you type, with a live, syntax-highlighted preview** (`Ctrl+Alt+F` / `Shift Shift`)
 
-![Popup with live preview](https://raw.githubusercontent.com/garroter/spyglass/main/images/screenshot-popup-preview.png)
+![Popup: text search with preview](https://raw.githubusercontent.com/garroter/spyglass/main/images/screenshot-popup-search.png)
 
-**Popup — live full-text search with match highlighting**
+**Run any VS Code command — type `>`, recently used first, with its key**
 
-![Popup live search results](https://raw.githubusercontent.com/garroter/spyglass/main/images/screenshot-popup-search.png)
+![Popup: the Commands list](https://raw.githubusercontent.com/garroter/spyglass/main/images/screenshot-popup-commands.png)
 
-**Sidebar panel — persistent search in the Activity Bar** (`Ctrl+Alt+E`)
+**Jump to a file at a line — `esbuild:24`, like Quick Open**
 
-![Sidebar panel](https://raw.githubusercontent.com/garroter/spyglass/main/images/demo-panel.gif)
+![Popup: go to a file at a line](https://raw.githubusercontent.com/garroter/spyglass/main/images/screenshot-popup-goto.png)
+
+**Every option by name in the `⋯` menu — here, results grouped by file**
+
+![Popup: the options menu](https://raw.githubusercontent.com/garroter/spyglass/main/images/screenshot-popup-menu.png)
+
+**Or keep it open in the sidebar** (`Ctrl+Alt+E`)
+
+<img src="https://raw.githubusercontent.com/garroter/spyglass/main/images/screenshot-sidebar.png" width="460" alt="Sidebar: search with the preview below the results">
 
 ---
 

@@ -25,3 +25,4 @@ playwright-report/**
 scripts/**
 CONTRIBUTING.md
 docs/**
+playwright.screenshots.config.ts
