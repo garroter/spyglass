@@ -1,6 +1,6 @@
 # Changelog
 
-## [Unreleased]
+## [0.4.0] - 2026-10-09
 
 ### Added
 - **Run commands from Spyglass** — type `>` in the Files or Recent list (or run the new `Spyglass: Find Commands`) to list VS Code commands, like the Command Palette: "Category: Title" with the default key, the ones you ran recently first, `Enter` to run one on the editor you came from. The preview pane shows the command's id (handy for binding a key), and the last row opens VS Code's own palette with the same text for anything Spyglass does not list. Commands come from your extensions plus about 100 common built-in ones; with the existing `@` and `:line`, one shortcut now reaches files, text, symbols and actions, like JetBrains Search Everywhere

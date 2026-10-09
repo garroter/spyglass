@@ -30,16 +30,14 @@
 
 ---
 
-## ✨ What's new
+## ✨ What's new in 0.4
 
-- **A command for every scope** — `Find Files`, `Find in Project`, `Find Symbols in Document` … each opens Spyglass straight in that scope, so you can bind them to `Ctrl+P`, `Ctrl+T`, `Ctrl+Shift+O` → [Commands](#-commands)
-- **Right-click to search** — *Find in Folder* on any folder in the Explorer, *Find in Project* on selected text in an editor
-- **Search ignored & hidden files** — *Include ignored and hidden files* in the `⋯` menu (`Alt+H`) also searches files hidden by `.gitignore`, dotfiles such as `.env`, and folders like `node_modules` / `dist` → [Ignored & hidden files](#-ignored--hidden-files)
-- **Search limits you can change** — `spyglass.maxResults` now really goes up to 5000, plus new `spyglass.maxMatchesPerFile` and `spyglass.maxFileSize` → [Search limits](#-search-limits)
-- **Smarter Recent** — ranked by how often and how recently you open files, and kept up to date in the sidebar
-- **Multiline search** — `⋯` menu or `Alt+M`: a regex can match across lines
-- **Search history that works** — `Ctrl+↑` / `Ctrl+↓` go the right way, include the queries you typed this session, and run the query you recall
-- **`Ctrl+Space` multi-select** now works while you are typing in the search box
+- **Run commands** — type `>` (or bind `Spyglass: Find Commands`) to run any VS Code command, recently used first, with its key; one shortcut now reaches files, text, symbols and actions → [Run commands](#-run-commands)
+- **Go to line & symbol** — `util.ts:42` opens a file at a line, `:42` jumps to a line in the current file, `@name` lists its symbols, just like Quick Open → [Go to line & symbol](#-go-to-line--symbol)
+- **Resume Last Search** — reopen the popup on the last query, scope and selected result, like `:Telescope resume`
+- **Keyboard all the way** — `Ctrl+J` / `Ctrl+K` and `Ctrl+N` / `Ctrl+P` move through results, `PageUp` / `PageDown`, `Ctrl+Home` / `Ctrl+End`, `Ctrl+D` / `Ctrl+U` scroll the preview, `Shift+Tab` goes back a tab
+- **A cleaner window** — the `⋯` button opens a labelled menu, options that do nothing in a scope are hidden, a narrow sidebar gives the search box the room
+- **Readable text** — results and preview follow your VS Code font sizes (the preview matches your editor)
 
 Everything else is in the [changelog](https://github.com/garroter/spyglass/blob/main/CHANGELOG.md). After an update to a new minor version Spyglass shows one notification linking to it; turn that off with `spyglass.showWhatsNew`, or open it any time with **`Spyglass: What's New`** from the Command Palette.
 
