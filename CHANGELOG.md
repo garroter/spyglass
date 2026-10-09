@@ -3,6 +3,7 @@
 ## [Unreleased]
 
 ### Added
+- **Run commands from Spyglass** — type `>` in the Files or Recent list (or run the new `Spyglass: Find Commands`) to list VS Code commands, like the Command Palette: "Category: Title" with the default key, the ones you ran recently first, `Enter` to run one on the editor you came from. The preview pane shows the command's id (handy for binding a key), and the last row opens VS Code's own palette with the same text for anything Spyglass does not list. Commands come from your extensions plus about 100 common built-in ones; with the existing `@` and `:line`, one shortcut now reaches files, text, symbols and actions, like JetBrains Search Everywhere
 - **Go to line & symbol, like Quick Open** — in the Files and Recent lists `util.ts:42` (or `util.ts:42:7`) previews and opens the file at that line (and column), `:42` goes to a line in the file you are editing, and a leading `@` switches to the symbols of that file (Doc), going back when you delete the `@`. `file:line` works in the Git list too. Text searches are unchanged
 
 - **Resume Last Search** — the new `Spyglass: Resume Last Search` command reopens the popup on the last query (as typed, `file:line` and globs included), in its scope, with the result you had selected, like `:Telescope resume`. Handy for working through a list of results: open one, fix it, resume, open the next. Bind it to a key of your choice

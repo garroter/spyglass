@@ -99,6 +99,7 @@ VS Code's built-in search (`Ctrl+Shift+F`) is powerful but slow to use — it re
 - **Dir scope** — search only within the directory of the active file
 - **One command per scope** — "Find Files", "Find in Project", "Find Symbols in Document" … open Spyglass straight in that scope, so each can have its own shortcut (see [Commands](#-commands))
 - **Go to line & symbol** — `util.ts:42` opens a file at a line, `:42` jumps to a line in the current file, `@name` lists its symbols, just like Quick Open → [Go to line & symbol](#-go-to-line--symbol)
+- **Run commands** — `>` (or `Spyglass: Find Commands`) lists VS Code commands with their keys, the ones you ran recently first, so one shortcut reaches files, text, symbols and actions like JetBrains Search Everywhere → [Run commands](#-run-commands)
 - **Search history** — navigate previous queries with `Ctrl+↑` / `Ctrl+↓`
 - **Resume last search** — `Spyglass: Resume Last Search` reopens the popup where you left it: same query, scope and selected result, for working through a list of results one by one
 - **Saved searches (bookmarks)** — `Alt+B` bookmarks the current query+scope; `★` button opens the bookmarks overlay; persisted across sessions
@@ -221,6 +222,7 @@ Besides the general `Spyglass: Open Search Popup`, every scope has its own comma
 | `Spyglass: Find Git Changes` | Git |
 | `Spyglass: Find Symbols in Document` | Doc |
 | `Spyglass: Find References` | Refs |
+| `Spyglass: Find Commands` | Commands — run a VS Code command (see [Run commands](#-run-commands)) |
 | `Spyglass: Find in Folder` | Dir, on a folder chosen in the Explorer (right-click a folder → *Spyglass: Find in Folder*) |
 | `Spyglass: Resume Last Search` | Reopens the popup on the last query, in its scope, at the result you had selected (like `:Telescope resume`) |
 
@@ -244,6 +246,20 @@ The general command takes the scope as an argument too, which is handy if you pr
 Valid scopes are `project`, `openFiles`, `files`, `recent`, `here`, `symbols`, `git`, `doc` and `refs`; an unknown value is ignored and Spyglass opens as usual.
 
 A scope chosen by a command is **not** remembered: the plain `Ctrl+Alt+F` / `Shift Shift` shortcut still reopens in the scope you last picked yourself with the tabs.
+
+---
+
+## ⚡ Run commands
+
+Type `>` at the start of the query in **Files** or **Recent** — or run **`Spyglass: Find Commands`** — to list VS Code commands, as in the Command Palette:
+
+- Each row reads **Category: Title** with its default keybinding; the commands you ran from Spyglass recently come first.
+- `Enter` runs the selected command on the editor Spyglass was opened from (the popup closes first; the sidebar hands focus to the editor).
+- The preview pane shows the command's **id**, where it comes from and its key — the id is what you need to bind your own key.
+- The last row, **Show all commands for '…'**, opens VS Code's own Command Palette with the same text, for anything Spyglass does not list.
+- Delete the `>` to go back to the file list. A *Commands* tab shows while the list is open.
+
+Commands come from your extensions (their manifests) plus about 100 common commands of VS Code itself. VS Code does not tell extensions about keys you have re-bound, so the keys shown are the defaults. Want Spyglass to be your palette? `{ "key": "ctrl+shift+p", "command": "spyglass.findCommands" }`.
 
 ---
 
