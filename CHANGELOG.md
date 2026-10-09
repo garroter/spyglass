@@ -1,6 +1,6 @@
 # Changelog
 
-## [Unreleased]
+## [0.4.1] - 2026-10-09
 
 ### Fixed
 - **"RECENT" lines piling up in the result list** — the separator between pinned and other files in the Recent list was never removed: every redraw of Recent added another one, and they stayed in every other list (Symbols, Project, …). The same happened to the file group headers (`Alt+L`) when switching lists. Each list now starts clean
