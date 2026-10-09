@@ -1,9 +1,13 @@
 # Changelog
 
-## [Unreleased]
+## [0.3.1] - 2026-10-09
+
+### Changed
+- **The popup opens about 2–4× faster** — every time it opened, the popup loaded and parsed the syntax-highlighting grammars of all 28 supported languages (2.7 MB of script) before showing anything. Grammars are now loaded on demand, only for the languages you actually preview, so the startup script is 0.4 MB. Measured in Chromium: first results after 300 ms instead of 726 ms, and after 558 ms instead of 2.2 s on a CPU slowed down 4×. All languages are still highlighted; the first preview in a new language waits a moment for its grammar
 
 ### Fixed
 - **"What's new" could not open the changelog on Linux** — clicking *Show changes* in the update notification (or running `Spyglass: What's New`) said `CHANGELOG.md cannot be found`, because the packaged extension names the file `changelog.md` and Linux file names are case-sensitive. Both names are now looked up
+- A preview whose grammar is still loading can no longer replace the preview of a file you moved to in the meantime
 
 ## [0.3.0] - 2026-10-09
 
