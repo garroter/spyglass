@@ -1,5 +1,11 @@
 # Changelog
 
+## [Unreleased]
+
+### Fixed
+- **"RECENT" lines piling up in the result list** — the separator between pinned and other files in the Recent list was never removed: every redraw of Recent added another one, and they stayed in every other list (Symbols, Project, …). The same happened to the file group headers (`Alt+L`) when switching lists. Each list now starts clean
+- Opened in the Files list with nothing typed, Spyglass could show the generic "Start typing to search..." instead of "Start typing to search files…" until something else redrew the list
+
 ## [0.4.0] - 2026-10-09
 
 ### Added

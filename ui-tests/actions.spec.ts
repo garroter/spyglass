@@ -112,3 +112,15 @@ test('regex mode interprets the query as a regular expression', async ({ openSpy
 
   await expect(page.locator('.result')).toHaveCount(7);
 });
+
+test('file group headers do not follow you into another list', async ({ openSpyglass }) => {
+  const { page } = await openSpyglass();
+  await page.locator('#query').fill('needle');
+  await expect(page.locator('.result')).toHaveCount(7);
+  await page.locator('#query').press('Alt+l');
+  await expect(page.locator('.file-group-header').first()).toBeVisible();
+
+  await page.locator('.tab[data-scope="files"]').click();
+
+  await expect(page.locator('.file-group-header')).toHaveCount(0);
+});

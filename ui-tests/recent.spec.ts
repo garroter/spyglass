@@ -120,3 +120,23 @@ test('with nothing typed, moving the selection previews that recent file', async
   await expect.poll(() => s.fromPage.filter(m => m.type === 'preview').at(-1)).toEqual({ type: 'preview', file: s.abs('README.md'), line: 1 });
 });
 
+
+test('the "recent" separator under pinned files is drawn once, and goes away with the list', async ({ openSpyglass }) => {
+  const { page } = await openSpyglass({
+    state: project => ({
+      'spyglass.recentFiles': [`${project}/src/util.ts`, `${project}/README.md`, `${project}/src/app.ts`],
+      'spyglass.pinnedFiles': [`${project}/src/app.ts`],
+    }),
+  });
+  await page.locator('.tab[data-scope="recent"]').click();
+  await expect(page.locator('.result')).toHaveCount(3);
+
+  // redraw the list a few times
+  for (const q of ['u', 'ut', 'u', '']) { await page.locator('#query').fill(q); }
+  await expect(page.locator('.pin-section-sep')).toHaveCount(1);
+
+  await page.locator('.tab[data-scope="symbols"]').click();
+  await expect(page.locator('.pin-section-sep')).toHaveCount(0);
+  await page.locator('.tab[data-scope="project"]').click();
+  await expect(page.locator('.pin-section-sep')).toHaveCount(0);
+});

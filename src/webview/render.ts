@@ -21,6 +21,14 @@ function listLength(): number {
     : state.results.length;
 }
 
+/**
+ * Removes everything a list renderer draws - rows and the headers or separators between them - so
+ * nothing from one list (e.g. Recent's "recent" separator) is left behind in the next one.
+ */
+function clearList(): void {
+  wrap.querySelectorAll('.result, .file-group-header, .pin-section-sep, .bookmark-mode-header').forEach(el => el.remove());
+}
+
 export function render(): void {
   // Resume Last Search: select the remembered result once the list has finished loading (results
   // stream in, and the final batch would reset an earlier selection)
@@ -42,7 +50,7 @@ export function render(): void {
 }
 
 export function renderBookmarkResults(): void {
-  wrap.querySelectorAll('.result, .bookmark-mode-header').forEach(el => el.remove());
+  clearList();
   stateMsg.style.display = 'none';
 
   const searches = state.savedSearches;
@@ -111,7 +119,7 @@ function gitBadgeHtml(relativePath: string): string {
 }
 
 export function renderTextResults(): void {
-  wrap.querySelectorAll('.result, .file-group-header').forEach(el => el.remove());
+  clearList();
   const MAX_RESULTS = (window as any).__spyglass.MAX_RESULTS;
 
   if (state.searching && state.results.length === 0) {
@@ -283,7 +291,7 @@ export function renderTextResults(): void {
 
 /** The Commands list: "Category: Title" with its key, recently run ones first, then the hand-over row. */
 export function renderCommandResults(): void {
-  wrap.querySelectorAll('.result').forEach(el => el.remove());
+  clearList();
   if (state.searching || !state.commandEntries) {
     stateMsg.innerHTML = '<span class="spinner"></span>';
     stateMsg.style.display = '';
@@ -321,7 +329,7 @@ export function renderCommandResults(): void {
 }
 
 export function renderFileResults(): void {
-  wrap.querySelectorAll('.result').forEach(el => el.remove());
+  clearList();
   const MAX_RESULTS = (window as any).__spyglass.MAX_RESULTS;
 
   if (state.searching) {
@@ -411,7 +419,8 @@ export function renderFileResults(): void {
 }
 
 export function renderSymbolResults(): void {
-  wrap.querySelectorAll('.result, .sym-kind-chips').forEach(el => el.remove());
+  clearList();
+  wrap.querySelectorAll('.sym-kind-chips').forEach(el => el.remove());
   const MAX_RESULTS = (window as any).__spyglass.MAX_RESULTS;
 
   if (state.searching) {
