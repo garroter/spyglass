@@ -5,6 +5,12 @@
 ### Added
 - **Go to line & symbol, like Quick Open** — in the Files and Recent lists `util.ts:42` (or `util.ts:42:7`) previews and opens the file at that line (and column), `:42` goes to a line in the file you are editing, and a leading `@` switches to the symbols of that file (Doc), going back when you delete the `@`. `file:line` works in the Git list too. Text searches are unchanged
 
+- **Resume Last Search** — the new `Spyglass: Resume Last Search` command reopens the popup on the last query (as typed, `file:line` and globs included), in its scope, with the result you had selected, like `:Telescope resume`. Handy for working through a list of results: open one, fix it, resume, open the next. Bind it to a key of your choice
+- **Move without the arrow keys** — `Ctrl+J` / `Ctrl+K` and `Ctrl+N` / `Ctrl+P` move down and up the results (Telescope / Emacs style), from the query box or the list. Inside Spyglass they no longer reach VS Code, so `Ctrl+P` does not open Quick Open and `Ctrl+J` does not toggle the panel
+- **`PageDown` / `PageUp`** move a page of results, **`Ctrl+Home` / `Ctrl+End`** jump to the first / last one
+- **`Ctrl+D` / `Ctrl+U` scroll the preview** half a page down / up, to read past what is shown without the mouse
+- **`Shift+Tab`** goes to the previous scope (`Tab` only went forward, so going back meant a full round)
+
 ### Changed
 - **A cleaner, less crowded popup and sidebar**
   - The `⋯` button opens a **menu** that lists each option by name with its shortcut and a check mark when it is on (group by file, sort, multiline, include ignored files, include filter, saved searches, keyboard shortcuts), instead of a row of symbols (`▤ ⇅ ⊂ ◌ ↵ ★ ?`) whose meaning only a tooltip told. The menu stays open while you switch options and closes on `Escape` or a click outside

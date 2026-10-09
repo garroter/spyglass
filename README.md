@@ -100,6 +100,7 @@ VS Code's built-in search (`Ctrl+Shift+F`) is powerful but slow to use — it re
 - **One command per scope** — "Find Files", "Find in Project", "Find Symbols in Document" … open Spyglass straight in that scope, so each can have its own shortcut (see [Commands](#-commands))
 - **Go to line & symbol** — `util.ts:42` opens a file at a line, `:42` jumps to a line in the current file, `@name` lists its symbols, just like Quick Open → [Go to line & symbol](#-go-to-line--symbol)
 - **Search history** — navigate previous queries with `Ctrl+↑` / `Ctrl+↓`
+- **Resume last search** — `Spyglass: Resume Last Search` reopens the popup where you left it: same query, scope and selected result, for working through a list of results one by one
 - **Saved searches (bookmarks)** — `Alt+B` bookmarks the current query+scope; `★` button opens the bookmarks overlay; persisted across sessions
 - **Multi-select** — pick multiple results and open them all at once
 
@@ -154,9 +155,14 @@ Both modes share the same features, keyboard shortcuts, and state.
 | Action | Shortcut |
 |--------|----------|
 | Navigate results | `↑` / `↓` |
+| Navigate results (Telescope / Emacs style) | `Ctrl+J` / `Ctrl+K`, `Ctrl+N` / `Ctrl+P` |
+| Page down / up | `PageDown` / `PageUp` |
+| First / last result | `Ctrl+Home` / `Ctrl+End` |
+| Scroll the preview down / up | `Ctrl+D` / `Ctrl+U` |
 | Open selected file | `Enter` |
 | Open in split editor | `Ctrl+Enter` |
 | Switch scope | `Tab` |
+| Previous scope | `Shift+Tab` |
 | Close | `Escape` |
 | Toggle regex | `Shift+Alt+R` |
 | Toggle case sensitive | `Alt+C` |
@@ -216,6 +222,7 @@ Besides the general `Spyglass: Open Search Popup`, every scope has its own comma
 | `Spyglass: Find Symbols in Document` | Doc |
 | `Spyglass: Find References` | Refs |
 | `Spyglass: Find in Folder` | Dir, on a folder chosen in the Explorer (right-click a folder → *Spyglass: Find in Folder*) |
+| `Spyglass: Resume Last Search` | Reopens the popup on the last query, in its scope, at the result you had selected (like `:Telescope resume`) |
 
 Two of them are also in context menus: right-click a **folder** in the Explorer for *Find in Folder*, and right-click **selected text** in an editor for *Find in Project* (the selection becomes the query). `Spyglass: What's New` opens the changelog. None of them has a default shortcut, so nothing you already use is taken over. Bind the ones you want in `keybindings.json` (`Ctrl+Shift+P` → *Open Keyboard Shortcuts (JSON)*), for example to get Quick Open-, Go to Symbol- and Find in Files-style keys:
 

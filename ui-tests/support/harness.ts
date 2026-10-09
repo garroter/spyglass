@@ -26,6 +26,8 @@ export interface OpenOptions {
   initialQuery?: string;
   /** Open straight into this scope (what a scope command does). */
   initialScope?: Scope;
+  /** Reopen the last search (what Spyglass: Resume Last Search does). */
+  resume?: boolean;
   /** The editor the popup was opened from; `file` is relative to the project. */
   active?: { file: string; line?: number; character?: number };
   /** Make the project a git repository with src/util.ts modified and src/new.ts untracked. */
@@ -150,6 +152,7 @@ export const test = base.extend<{ openSpyglass: (options?: OpenOptions) => Promi
         sidebarMode: sidebar,
         initialQuery: options.initialQuery,
         initialScope: options.initialScope,
+        resume: options.resume,
       });
       if (options.active) {
         const file = path.join(project, options.active.file);

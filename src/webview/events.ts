@@ -4,11 +4,11 @@ import {
   queryEl, regexBtn, caseBtn, wordBtn, groupBtn, replaceBtn, previewBtn,
   replaceRow, replaceAllBtn, tabs, previewHdr,
   sortBtn, includeBtn, includeRow, includeInput,
-  bookmarksBtn, moreBtn, moreMenu, ignoredBtn, multilineBtn, tabsBar, tabsWrap,
+  bookmarksBtn, moreBtn, moreMenu, ignoredBtn, multilineBtn, tabsBar, tabsWrap, previewCont,
 } from './dom';
 import { isFileScope, isSymbolScope, isDocScope, isGitScope, isTextScope, isRefsScope, parseQueryInput, triggerSearch, filterFilesLocally, visibleSymbols, parseFileQuery, isGotoLine } from './search';
 import { clearPreview, togglePreview, requestPreview } from './preview';
-import { render, navigate, openResult, openResultInSplit, openAllSelected,
+import { render, navigate, navigateTo, pageSize, rememberSession, openResult, openResultInSplit, openAllSelected,
          toggleSelectResult, selectAll, copyCurrentPath, refreshGitScope,
          togglePin, isPinnedFile, showToast, renderBookmarkResults } from './render';
 import { hideCtxMenu } from './contextMenu';
@@ -118,7 +118,7 @@ function revealActiveTab(): void {
 }
 
 /** Applies the text in the query box: updates the parsed query and runs the search. */
-function applyQueryInput(): void {
+export function applyQueryInput(): void {
   if (state.bookmarksMode) {
     state.bookmarksMode = false;
     bookmarksBtn.classList.remove('active');
@@ -150,6 +150,7 @@ function applyQueryInput(): void {
   if (globFilter !== state.globFilter) { state.globFilter = globFilter; }
   state.selected = 0;
   triggerSearch(render);
+  rememberSession();
 }
 
 // dir -1 (Ctrl+Up) goes to an older query, +1 (Ctrl+Down) back towards the newest and finally to
@@ -351,6 +352,32 @@ function saveCurrentSearch(): void {
   showToast('Bookmarked.');
 }
 
+/**
+ * Keys that move through the results the same way wherever the focus is (query box or list):
+ * Ctrl+J/N and Ctrl+K/P (Telescope, Emacs), PageUp/PageDown, Ctrl+Home/End, Ctrl+D/U to scroll
+ * the preview, and Shift+Tab for the previous scope. Returns whether the key was handled.
+ */
+function handleMoveKeys(e: KeyboardEvent): boolean {
+  const ctrlOnly = e.ctrlKey && !e.altKey && !e.metaKey && !e.shiftKey;
+  const key = e.key.length === 1 ? e.key.toLowerCase() : e.key;
+  let act: (() => void) | undefined;
+  if (ctrlOnly && (key === 'j' || key === 'n'))      { act = () => navigate(1); }
+  else if (ctrlOnly && (key === 'k' || key === 'p')) { act = () => navigate(-1); }
+  else if (e.key === 'PageDown' && !e.ctrlKey)      { act = () => navigate(pageSize()); }
+  else if (e.key === 'PageUp' && !e.ctrlKey)        { act = () => navigate(-pageSize()); }
+  else if (ctrlOnly && e.key === 'End')             { act = () => navigateTo(Infinity); }
+  else if (ctrlOnly && e.key === 'Home')            { act = () => navigateTo(0); }
+  else if (ctrlOnly && key === 'd')                 { act = () => previewCont.scrollBy({ top: previewCont.clientHeight / 2 }); }
+  else if (ctrlOnly && key === 'u')                 { act = () => previewCont.scrollBy({ top: -previewCont.clientHeight / 2 }); }
+  else if (e.shiftKey && e.key === 'Tab' && !e.ctrlKey && !e.altKey) {
+    act = () => setScope(SCOPES[(SCOPES.indexOf(state.scope) - 1 + SCOPES.length) % SCOPES.length]);
+  }
+  if (!act) { return false; }
+  e.preventDefault();
+  act();
+  return true;
+}
+
 export function initEvents(): void {
   queryEl.addEventListener('input', () => {
     state.historyIndex = -1; // typing ends history browsing
@@ -358,6 +385,7 @@ export function initEvents(): void {
   });
 
   queryEl.addEventListener('keydown', (e) => {
+    if (handleMoveKeys(e)) { return; }
     if (e.ctrlKey && e.key === 'ArrowUp') {
       e.preventDefault(); navigateHistory(-1);
     } else if (e.ctrlKey && e.key === 'ArrowDown') {
@@ -422,6 +450,8 @@ export function initEvents(): void {
 
   document.addEventListener('keydown', (e) => {
     if (document.activeElement === queryEl) { return; }
+    if (document.activeElement instanceof HTMLInputElement) { return; } // replace / include boxes
+    if (handleMoveKeys(e)) { return; }
     if (state.bookmarksMode) {
       if (matchKey(e, KB.navigateDown)) { e.preventDefault(); navigate(1); }
       else if (matchKey(e, KB.navigateUp)) { e.preventDefault(); navigate(-1); }

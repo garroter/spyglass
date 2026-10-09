@@ -45,6 +45,7 @@ export const state: AppState = {
   fileLine: null,
   fileColumn: null,
   atReturnScope: null,
+  pendingSelect: null,
 };
 
 export function saveButtonPrefs(): void {

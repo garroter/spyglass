@@ -10,6 +10,8 @@ interface PanelInit {
   initialQuery: string;
   /** Open in this scope instead of the remembered one (a "Find …" command). */
   initialScope?: Scope;
+  /** Reopen the last search (Resume Last Search). */
+  resume?: boolean;
   active: ActiveContext;
   /** Keep the popup open after a result is opened (closeOnSelect off, or openExternalWindow). */
   persistent: boolean;
@@ -38,7 +40,7 @@ export class FinderPanel implements SpyglassHost {
   private readonly _originColumn: vscode.ViewColumn;
 
   /** Opens the popup, or brings the open one forward. `scope` starts it in that scope (or switches to it). */
-  public static async createOrShow(context: vscode.ExtensionContext, scope?: Scope, options?: { directory?: string }): Promise<void> {
+  public static async createOrShow(context: vscode.ExtensionContext, scope?: Scope, options?: { directory?: string; resume?: boolean }): Promise<void> {
     const editor = vscode.window.activeTextEditor;
     const selectedText = editor && !editor.selection.isEmpty
       ? editor.document.getText(editor.selection).trim().split('\n')[0].trim()
@@ -53,7 +55,7 @@ export class FinderPanel implements SpyglassHost {
         if (options?.directory) { open._controller.setActiveDirectory(options.directory); }
         open._controller.showScope(scope);
       }
-      if (selectedText) {
+      if (selectedText && !options?.resume) { // resuming an open popup: it still shows that search
         open._controller.post({ type: 'setQuery', query: selectedText });
       } else {
         open._controller.post({ type: 'focus' });
@@ -88,6 +90,7 @@ export class FinderPanel implements SpyglassHost {
     FinderPanel.currentPanel = new FinderPanel(panel, context, {
       initialQuery: selectedText,
       initialScope: scope,
+      resume: options?.resume,
       active: options?.directory ? { ...activeContextOf(editor), dir: options.directory } : activeContextOf(editor),
       persistent: openExternal || !closeOnSelect,
       originColumn,
@@ -99,7 +102,7 @@ export class FinderPanel implements SpyglassHost {
     this._persistent = init.persistent;
     this._originColumn = init.originColumn;
 
-    this._controller = new SpyglassController(context, this, { sidebarMode: false, initialQuery: init.initialQuery, initialScope: init.initialScope });
+    this._controller = new SpyglassController(context, this, { sidebarMode: false, initialQuery: init.initialQuery, initialScope: init.initialScope, resume: init.resume });
     this._controller.setActiveContext(init.active);
     this._controller.mount();
 

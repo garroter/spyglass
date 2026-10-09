@@ -54,7 +54,18 @@ export interface ControllerOptions {
   initialQuery?: string;
   /** Start in this scope instead of the remembered one (what a "Find …" command asks for). It is not remembered. */
   initialScope?: Scope;
+  /** Reopen the last search: its query, scope and selected result (Resume Last Search). */
+  resume?: boolean;
 }
+
+/** The search last seen in a page, kept for Resume Last Search. `query` is the text as typed. */
+export interface SearchSession {
+  query: string;
+  scope: Scope;
+  selected: number;
+}
+
+const SESSION_KEY = 'spyglass.lastSession';
 
 // Messages arrive from the webview script and are only shape-checked by the casts below.
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -92,6 +103,7 @@ export class SpyglassController {
   private _currentSearches: CancellableSearch[] = [];
   private _gitCache = new Map<string, number[]>();
   private _searchHistory: string[];
+  private readonly _resume: SearchSession | undefined;
   private _activeDir = '';
   private _activeFile = '';
   private _activeCursorFile = '';
@@ -110,7 +122,11 @@ export class SpyglassController {
     this._cwdList = vscode.workspace.workspaceFolders?.map(f => f.uri.fsPath) ?? [];
     this._cwd = this._cwdList[0] ?? '';
     this._searchHistory = state.get<string[]>('spyglass.searchHistory', []);
-    this._scope = isScope(_options.initialScope)
+    const session = _options.resume ? state.get<SearchSession>(SESSION_KEY) : undefined;
+    this._resume = session && isScope(session.scope) ? session : undefined;
+    this._scope = this._resume
+      ? this._resume.scope
+      : isScope(_options.initialScope)
       ? _options.initialScope
       : resolveInitialScope(
         state.get<string>('spyglass.lastScope'),
@@ -230,6 +246,7 @@ export class SpyglassController {
     const pageConfig: WebviewConfig = {
       KB: kb,
       INITIAL_QUERY: this._options.initialQuery ?? '',
+      RESUME: this._resume ? { query: this._resume.query, selected: this._resume.selected } : null,
       INITIAL_HISTORY: this._searchHistory,
       RECENT_FILES: this._rankedRecent().map(toEntry),
       PINNED_FILES: state.get<string[]>('spyglass.pinnedFiles', []).filter(f => fs.existsSync(f)).map(toEntry),
@@ -346,6 +363,9 @@ export class SpyglassController {
         break;
       case 'open':
         await this._host.openFile(msg.file as string, msg.line as number, msg.column as number | undefined);
+        break;
+      case 'session':
+        this._context.workspaceState.update(SESSION_KEY, { query: msg.query, scope: msg.scope, selected: msg.selected });
         break;
       case 'activeFile':
         // a bare `:line` in a file list goes to that line in the current file

@@ -10,14 +10,14 @@ import { queryEl, regexBtn, caseBtn, wordBtn, groupBtn, replaceBtn, previewBtn, 
 import { triggerSearch } from './search';
 import { renderPreview, clearPreview } from './preview';
 import { render, updateSelection } from './render';
-import { initEvents, initMessages, updateReplaceRowVisibility, setScope, scopeLoadsWithoutQuery, applyScopeChrome, showSort } from './events';
+import { initEvents, initMessages, updateReplaceRowVisibility, setScope, scopeLoadsWithoutQuery, applyScopeChrome, showSort, applyQueryInput } from './events';
 import { initContextMenu } from './contextMenu';
 import { initHighlighter, setHasVscodeTheme } from './shiki';
 
 // Expose renderPreview for the message handler (avoids circular import in events.ts)
 (window as any).__renderPreview = renderPreview;
 
-const { KB, INITIAL_QUERY } = (window as any).__spyglass;
+const { KB, INITIAL_QUERY, RESUME } = (window as any).__spyglass;
 const S = (window as any).__spyglass.STRINGS;
 
 // Init UI state
@@ -65,7 +65,13 @@ initContextMenu();
 initEvents();
 initMessages();
 
-if (INITIAL_QUERY) {
+if (RESUME) {
+  // Resume Last Search: the query as it was typed (file:line, @, globs) and the selected result
+  queryEl.value = RESUME.query;
+  state.pendingSelect = RESUME.selected;
+  applyQueryInput();
+  if (!RESUME.query && scopeLoadsWithoutQuery(state.scope)) { triggerSearch(render); }
+} else if (INITIAL_QUERY) {
   queryEl.value = INITIAL_QUERY;
   state.query = INITIAL_QUERY;
   queryEl.select();

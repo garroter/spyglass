@@ -323,6 +323,12 @@ describe('SpyglassController — host-specific actions are delegated', () => {
     expect(host.openFileInSplit).not.toHaveBeenCalled();
   });
 
+  it('remembers the search the page reports, for Resume Last Search', async () => {
+    const { send, context } = setup();
+    await send({ type: 'session', query: 'util:2', scope: 'files', selected: 3 });
+    expect(context.store.get('spyglass.lastSession')).toEqual({ query: 'util:2', scope: 'files', selected: 3 });
+  });
+
   it('passes a column on to the host (file:line:column)', async () => {
     const { send, host } = setup();
     await send({ type: 'open', file: '/proj/a.ts', line: 42, column: 7 });

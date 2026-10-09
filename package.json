@@ -110,12 +110,24 @@
       {
         "command": "spyglass.findInFolder",
         "title": "%command.findInFolder.title%"
+      },
+      {
+        "command": "spyglass.resume",
+        "title": "%command.resume.title%"
+      },
+      {
+        "command": "spyglass.keyHandledInWebview",
+        "title": "%command.keyHandledInWebview.title%"
       }
     ],
     "menus": {
       "commandPalette": [
         {
           "command": "spyglass.findInFolder",
+          "when": "false"
+        },
+        {
+          "command": "spyglass.keyHandledInWebview",
           "when": "false"
         }
       ],
@@ -155,6 +167,26 @@
         "command": "spyglass.focusSidebar",
         "key": "ctrl+alt+e",
         "mac": "cmd+alt+e"
+      },
+      {
+        "command": "spyglass.keyHandledInWebview",
+        "key": "ctrl+j",
+        "when": "activeWebviewPanelId == 'spyglass' || focusedView == 'spyglass.sidebarView'"
+      },
+      {
+        "command": "spyglass.keyHandledInWebview",
+        "key": "ctrl+k",
+        "when": "activeWebviewPanelId == 'spyglass' || focusedView == 'spyglass.sidebarView'"
+      },
+      {
+        "command": "spyglass.keyHandledInWebview",
+        "key": "ctrl+n",
+        "when": "activeWebviewPanelId == 'spyglass' || focusedView == 'spyglass.sidebarView'"
+      },
+      {
+        "command": "spyglass.keyHandledInWebview",
+        "key": "ctrl+p",
+        "when": "activeWebviewPanelId == 'spyglass' || focusedView == 'spyglass.sidebarView'"
       }
     ],
     "configuration": {

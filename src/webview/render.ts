@@ -1,6 +1,6 @@
 import { state } from './state';
 import { escHtml, highlightMatch, highlightPositions, firstLineMatch, trimIndent } from './highlight';
-import { wrap, stateMsg, resultInfo } from './dom';
+import { wrap, stateMsg, resultInfo, queryEl } from './dom';
 import { isFileScope, isSymbolScope, isDocScope, isGitScope, isRefsScope, triggerSearch, visibleSymbols, isGotoLine } from './search';
 import type { SearchResult } from './types';
 import { requestPreview, recentDefault, textResultTarget } from './preview';
@@ -9,7 +9,26 @@ import { vscode } from './vscode';
 
 const S = (window as any).__spyglass.STRINGS;
 
+/** How many results the current list has (what the selection moves through). */
+function listLength(): number {
+  if (state.bookmarksMode) { return state.savedSearches.length; }
+  const rd = recentDefault();
+  return rd ? rd.length
+    : isFileScope() ? state.fileResults.length
+    : isSymbolScope() ? visibleSymbols().length
+    : state.results.length;
+}
+
 export function render(): void {
+  // Resume Last Search: select the remembered result once the list has finished loading (results
+  // stream in, and the final batch would reset an earlier selection)
+  if (state.pendingSelect !== null && !state.searching) {
+    const len = listLength();
+    if (len > 0) {
+      state.selected = Math.min(state.pendingSelect, len - 1);
+      state.pendingSelect = null;
+    }
+  }
   if (!isSymbolScope()) {
     wrap.querySelectorAll('.sym-kind-chips').forEach(el => el.remove());
   }
@@ -611,17 +630,25 @@ export function refreshGitScope(renderFn: () => void): void {
 }
 
 export function navigate(delta: number): void {
-  if (state.bookmarksMode) {
-    state.selected = Math.max(0, Math.min(state.selected + delta, state.savedSearches.length - 1));
-    updateSelection();
-    return;
-  }
-  const rd = recentDefault();
-  const len = rd ? rd.length
-            : isFileScope() ? state.fileResults.length
-            : isSymbolScope() ? visibleSymbols().length
-            : state.results.length;
-  state.selected = Math.max(0, Math.min(state.selected + delta, len - 1));
+  navigateTo(state.selected + delta);
+}
+
+/** Selects result `index`, kept within the list (so -1 / Infinity mean the first / the last). */
+export function navigateTo(index: number): void {
+  state.selected = Math.max(0, Math.min(index, listLength() - 1));
   updateSelection();
-  requestPreview();
+  if (!state.bookmarksMode) { requestPreview(); }
+  rememberSession();
+}
+
+/** How many result rows fit in the list, for PageUp / PageDown. */
+export function pageSize(): number {
+  const row = wrap.querySelector<HTMLElement>('.result');
+  return row && row.offsetHeight > 0 ? Math.max(1, Math.floor(wrap.clientHeight / row.offsetHeight) - 1) : 10;
+}
+
+/** Tells the extension what is searched and selected, for Resume Last Search. */
+export function rememberSession(): void {
+  if (state.bookmarksMode) { return; }
+  vscode.postMessage({ type: 'session', query: queryEl.value, scope: state.scope, selected: state.selected });
 }

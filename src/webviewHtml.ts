@@ -12,6 +12,8 @@ interface FileEntry { file: string; rel: string }
 export interface WebviewConfig {
   KB: KeyBindings;
   INITIAL_QUERY: string;
+  /** The search to reopen (Resume Last Search): the query as typed and the selected result. */
+  RESUME: { query: string; selected: number } | null;
   INITIAL_HISTORY: string[];
   RECENT_FILES: FileEntry[];
   PINNED_FILES: FileEntry[];

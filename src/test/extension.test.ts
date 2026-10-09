@@ -1,4 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { readFileSync } from 'node:fs';
+import * as path from 'node:path';
 
 const registered = vi.hoisted(() => new Map<string, (...args: unknown[]) => unknown>());
 const createOrShow = vi.hoisted(() => vi.fn());
@@ -39,10 +41,21 @@ beforeEach(() => {
 });
 
 describe('activate — commands', () => {
-  it('registers the popup, the sidebar, What\'s New, Find in Folder and one command per scope', () => {
+  it('registers the popup, the sidebar, What\'s New, Find in Folder, Resume and one command per scope', () => {
     expect([...registered.keys()].sort()).toEqual(
-      ['spyglass.open', 'spyglass.focusSidebar', 'spyglass.showWhatsNew', 'spyglass.findInFolder', ...SCOPE_COMMANDS.map(c => c.command)].sort(),
+      ['spyglass.open', 'spyglass.focusSidebar', 'spyglass.showWhatsNew', 'spyglass.findInFolder', 'spyglass.resume',
+        'spyglass.keyHandledInWebview', ...SCOPE_COMMANDS.map(c => c.command)].sort(),
     );
+  });
+
+  it('spyglass.resume reopens the popup on the last search', () => {
+    registered.get('spyglass.resume')!();
+    expect(createOrShow).toHaveBeenCalledWith(context, undefined, { resume: true });
+  });
+
+  it('the key-swallowing command does nothing', () => {
+    expect(registered.get('spyglass.keyHandledInWebview')!()).toBeUndefined();
+    expect(createOrShow).not.toHaveBeenCalled();
   });
 
   it('spyglass.open with no argument opens in the usual scope', () => {
@@ -140,3 +153,25 @@ describe('activate — recent files', () => {
   });
 });
 
+
+describe('manifest — keys Spyglass handles itself', () => {
+  // A webview hands every key press on to VS Code as well, so without these Ctrl+P would also open
+  // Quick Open, Ctrl+J toggle the panel and Ctrl+K start a chord while you move through results.
+  const manifest = JSON.parse(readFileSync(path.join(__dirname, '..', '..', 'package.json'), 'utf-8'));
+  const swallowed = manifest.contributes.keybindings.filter((k: { command: string }) => k.command === 'spyglass.keyHandledInWebview');
+
+  it.each(['ctrl+j', 'ctrl+k', 'ctrl+n', 'ctrl+p'])('keeps %s inside Spyglass', key => {
+    const binding = swallowed.find((k: { key: string }) => k.key === key);
+    expect(binding).toBeDefined();
+    expect(binding.when).toBe("activeWebviewPanelId == 'spyglass' || focusedView == 'spyglass.sidebarView'");
+  });
+
+  it('hides the key-swallowing command from the Command Palette', () => {
+    const entry = manifest.contributes.menus.commandPalette.find((m: { command: string }) => m.command === 'spyglass.keyHandledInWebview');
+    expect(entry?.when).toBe('false');
+  });
+
+  it('contributes Resume Last Search to the Command Palette', () => {
+    expect(manifest.contributes.commands.map((c: { command: string }) => c.command)).toContain('spyglass.resume');
+  });
+});

@@ -52,6 +52,16 @@ export function activate(context: vscode.ExtensionContext): void {
   context.subscriptions.push(
     vscode.commands.registerCommand('spyglass.showWhatsNew', () => showWhatsNew(context))
   );
+
+  // Reopens the popup on the last query, scope and selected result, like :Telescope resume.
+  context.subscriptions.push(
+    vscode.commands.registerCommand('spyglass.resume', () => FinderPanel.createOrShow(context, undefined, { resume: true }))
+  );
+  // Bound (in package.json) to keys the Spyglass page handles itself, such as Ctrl+P / Ctrl+J: a
+  // webview also hands every key press on to VS Code, which would otherwise open Quick Open etc.
+  context.subscriptions.push(
+    vscode.commands.registerCommand('spyglass.keyHandledInWebview', () => undefined)
+  );
   // Once after an update to a new minor/major version, not on a fresh install.
   void announceIfUpdated(context);
 

@@ -11,6 +11,8 @@
   "command.findDocumentSymbols.title": "Spyglass: Find Symbols in Document",
   "command.findReferences.title": "Spyglass: Find References",
   "command.showWhatsNew.title": "Spyglass: What's New",
+  "command.resume.title": "Spyglass: Resume Last Search",
+  "command.keyHandledInWebview.title": "Spyglass: (internal) key handled by the Spyglass page",
   "command.findInFolder.title": "Spyglass: Find in Folder",
   "config.ripgrepPath.description": "Path to ripgrep binary. Leave empty to use bundled version.",
   "config.maxResults.description": "Maximum number of search results to display (1–5000). When the limit is reached the results header shows \"N+\" and a hint to narrow the query.",

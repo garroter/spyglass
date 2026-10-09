@@ -161,9 +161,16 @@ const zh: UiStrings = {
   shortcutsTitle: '键盘快捷键',
   shortcutsContent: `<h4>导航</h4>
 <div class="shortcut-row"><span>浏览结果</span><div class="shortcut-keys"><kbd>↑</kbd><kbd>↓</kbd></div></div>
+<div class="shortcut-row"><span>向下 / 向上 (Telescope)</span><div class="shortcut-keys"><kbd>Ctrl</kbd><kbd>J</kbd><kbd>Ctrl</kbd><kbd>K</kbd></div></div>
+<div class="shortcut-row"><span>向下 / 向上 (Emacs)</span><div class="shortcut-keys"><kbd>Ctrl</kbd><kbd>N</kbd><kbd>Ctrl</kbd><kbd>P</kbd></div></div>
+<div class="shortcut-row"><span>向下 / 向上翻页</span><div class="shortcut-keys"><kbd>PgDn</kbd><kbd>PgUp</kbd></div></div>
+<div class="shortcut-row"><span>第一个 / 最后一个结果</span><div class="shortcut-keys"><kbd>Ctrl</kbd><kbd>Home</kbd><kbd>Ctrl</kbd><kbd>End</kbd></div></div>
+<div class="shortcut-row"><span>向下 / 向上滚动预览</span><div class="shortcut-keys"><kbd>Ctrl</kbd><kbd>D</kbd><kbd>Ctrl</kbd><kbd>U</kbd></div></div>
 <div class="shortcut-row"><span>打开文件</span><div class="shortcut-keys"><kbd>Enter</kbd></div></div>
 <div class="shortcut-row"><span>并排打开</span><div class="shortcut-keys"><kbd>Ctrl</kbd><kbd>Enter</kbd></div></div>
 <div class="shortcut-row"><span>切换页面</span><div class="shortcut-keys"><kbd>Tab</kbd></div></div>
+<div class="shortcut-row"><span>上一个页面</span><div class="shortcut-keys"><kbd>Shift</kbd><kbd>Tab</kbd></div></div>
+<div class="shortcut-row"><span>恢复上次搜索</span><div class="shortcut-keys"><kbd>Spyglass: Resume Last Search</kbd></div></div>
 <div class="shortcut-row"><span>关闭</span><div class="shortcut-keys"><kbd>Esc</kbd></div></div>
 <h4>搜索</h4>
 <div class="shortcut-row"><span>内联过滤</span><div class="shortcut-keys"><kbd>query *.ts</kbd></div></div>
@@ -268,9 +275,16 @@ const en: UiStrings = {
   shortcutsTitle: 'Keyboard Shortcuts',
   shortcutsContent: `<h4>Navigation</h4>
 <div class="shortcut-row"><span>Navigate results</span><div class="shortcut-keys"><kbd>↑</kbd><kbd>↓</kbd></div></div>
+<div class="shortcut-row"><span>Down / up (Telescope)</span><div class="shortcut-keys"><kbd>Ctrl</kbd><kbd>J</kbd><kbd>Ctrl</kbd><kbd>K</kbd></div></div>
+<div class="shortcut-row"><span>Down / up (Emacs)</span><div class="shortcut-keys"><kbd>Ctrl</kbd><kbd>N</kbd><kbd>Ctrl</kbd><kbd>P</kbd></div></div>
+<div class="shortcut-row"><span>Page down / up</span><div class="shortcut-keys"><kbd>PgDn</kbd><kbd>PgUp</kbd></div></div>
+<div class="shortcut-row"><span>First / last result</span><div class="shortcut-keys"><kbd>Ctrl</kbd><kbd>Home</kbd><kbd>Ctrl</kbd><kbd>End</kbd></div></div>
+<div class="shortcut-row"><span>Scroll preview down / up</span><div class="shortcut-keys"><kbd>Ctrl</kbd><kbd>D</kbd><kbd>Ctrl</kbd><kbd>U</kbd></div></div>
 <div class="shortcut-row"><span>Open file</span><div class="shortcut-keys"><kbd>Enter</kbd></div></div>
 <div class="shortcut-row"><span>Open in split</span><div class="shortcut-keys"><kbd>Ctrl</kbd><kbd>Enter</kbd></div></div>
 <div class="shortcut-row"><span>Switch scope</span><div class="shortcut-keys"><kbd>Tab</kbd></div></div>
+<div class="shortcut-row"><span>Previous scope</span><div class="shortcut-keys"><kbd>Shift</kbd><kbd>Tab</kbd></div></div>
+<div class="shortcut-row"><span>Resume last search</span><div class="shortcut-keys"><kbd>Spyglass: Resume Last Search</kbd></div></div>
 <div class="shortcut-row"><span>Close</span><div class="shortcut-keys"><kbd>Esc</kbd></div></div>
 <h4>Search</h4>
 <div class="shortcut-row"><span>Glob filter inline</span><div class="shortcut-keys"><kbd>query *.ts</kbd></div></div>

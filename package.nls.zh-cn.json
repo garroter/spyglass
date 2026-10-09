@@ -11,6 +11,8 @@
   "command.findDocumentSymbols.title": "Spyglass: 在文档中查找符号",
   "command.findReferences.title": "Spyglass: 查找引用",
   "command.showWhatsNew.title": "Spyglass: 新功能",
+  "command.resume.title": "Spyglass: 恢复上次搜索",
+  "command.keyHandledInWebview.title": "Spyglass: (内部) 由 Spyglass 页面处理的按键",
   "command.findInFolder.title": "Spyglass: 在文件夹中查找",
   "config.ripgrepPath.description": "ripgrep 可执行文件的路径。留空则使用内置版本。",
   "config.maxResults.description": "显示的搜索结果最大数量（1–5000）。达到上限时，结果标题会显示“N+”，并提示缩小查询范围。",

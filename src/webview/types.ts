@@ -43,6 +43,7 @@ export interface KeyBindings {
 export interface SpyglassConfig {
   KB: KeyBindings;
   INITIAL_QUERY: string;
+  RESUME: { query: string; selected: number } | null;
   INITIAL_HISTORY: string[];
   RECENT_FILES: RecentFile[];
   PINNED_FILES: RecentFile[];
@@ -106,4 +107,6 @@ export interface AppState {
   fileColumn: number | null;
   /** The file list a leading `@` switched to Doc from, to go back to when the `@` is deleted. */
   atReturnScope: string | null;
+  /** A result to select once the list has loaded (Resume Last Search); null when none. */
+  pendingSelect: number | null;
 }
